@@ -1,0 +1,205 @@
+import { decodeLink } from "@csfloat/cs2-inspect-serializer";
+
+export type DecodedSticker = {
+  slot: number;
+  stickerId: number;
+  name?: string;
+  wear?: number;
+  iconUrl?: string | null;
+};
+
+export type InspectResult = {
+  floatValue: number | null;
+  paintSeed: number | null;
+  paintIndex: number | null;
+  stickers: DecodedSticker[];
+  customName: string | null;
+  source: "local" | "description";
+};
+
+function isMaskedInspectPayload(payload: string): boolean {
+  // Hex protobuf payload (optionally URL-encoded). Classic S/A/D is not masked.
+  const cleaned = payload.replace(/\s/g, "");
+  if (/^[SM]\d+A\d+D\d+$/i.test(cleaned)) return false;
+  if (/%propid:\d+%/i.test(cleaned)) return false;
+  // Hex blob: long hex string, often starts with 00 / AA / etc.
+  const hex = cleaned.replace(/%20/g, "").replace(/^%/, "");
+  return /^[0-9A-Fa-f]{20,}$/.test(hex);
+}
+
+export function extractInspectPayload(inspectLink: string): string | null {
+  const match = inspectLink.match(
+    /csgo_econ_action_preview(?:%20|\+| )([^\s&]+)/i,
+  );
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+export function isUsableInspectLink(inspectLink: string | null): boolean {
+  if (!inspectLink) return false;
+  if (inspectLink.includes("%propid")) return false;
+  const payload = extractInspectPayload(inspectLink);
+  if (!payload) return false;
+  return isMaskedInspectPayload(payload) || /^[SM]\d+A\d+D\d+$/i.test(payload);
+}
+
+/** Decode float / pattern / stickers locally from a masked CS2 inspect link. */
+export function decodeInspectLocally(
+  inspectLink: string,
+): InspectResult | null {
+  if (!isUsableInspectLink(inspectLink)) return null;
+
+  try {
+    const decoded = decodeLink(inspectLink) as {
+      paintwear?: number;
+      floatvalue?: number;
+      paintseed?: number;
+      paintindex?: number;
+      stickers?: Array<{
+        slot?: number;
+        stickerId?: number;
+        stickerid?: number;
+        wear?: number;
+        name?: string;
+      }>;
+      customname?: string | null;
+    };
+
+    const floatValue =
+      typeof decoded.paintwear === "number"
+        ? decoded.paintwear
+        : typeof decoded.floatvalue === "number"
+          ? decoded.floatvalue
+          : null;
+
+    return {
+      floatValue,
+      paintSeed:
+        typeof decoded.paintseed === "number" ? decoded.paintseed : null,
+      paintIndex:
+        typeof decoded.paintindex === "number" ? decoded.paintindex : null,
+      stickers: (decoded.stickers ?? []).map((s, idx) => ({
+        slot: s.slot ?? idx,
+        stickerId: s.stickerId ?? s.stickerid ?? 0,
+        wear: s.wear,
+        name: s.name,
+      })),
+      customName: decoded.customname ?? null,
+      source: "local",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse sticker names from Steam inventory description HTML.
+ * Works even when inspect links are broken (%propid placeholders).
+ */
+export function parseStickersFromDescriptions(
+  descriptions?: Array<{ type?: string; value?: string; name?: string }>,
+): DecodedSticker[] {
+  if (!descriptions?.length) return [];
+
+  const found: DecodedSticker[] = [];
+  const seen = new Set<string>();
+
+  for (const block of descriptions) {
+    const value = block.value ?? "";
+    if (!value) continue;
+
+    // title="Sticker: Name" or title='Sticker: Name'
+    const titleRe = /title\s*=\s*["']Sticker:\s*([^"']+)["']/gi;
+    let m: RegExpExecArray | null;
+    while ((m = titleRe.exec(value)) !== null) {
+      const name = m[1].trim();
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      found.push({ slot: found.length, stickerId: 0, name });
+    }
+
+    // Plain text: "Sticker: Foo, Bar, Baz"
+    const plain = value.match(/Sticker:\s*([^<]+)/i);
+    if (plain?.[1] && !/title\s*=/i.test(value)) {
+      const parts = plain[1]
+        .split(/,\s*/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+      for (const name of parts) {
+        if (seen.has(name)) continue;
+        seen.add(name);
+        found.push({ slot: found.length, stickerId: 0, name });
+      }
+    }
+  }
+
+  return found;
+}
+
+export function isInspectableItem(item: {
+  inspectLink: string | null;
+  type: string | null;
+  marketHashName: string;
+}): boolean {
+  if (!item.inspectLink) return false;
+  const type = (item.type ?? "").toLowerCase();
+  if (
+    type.includes("container") ||
+    type.includes("graffiti") ||
+    type.includes("music kit") ||
+    type.includes("pass") ||
+    type.includes("tool")
+  ) {
+    return false;
+  }
+  if (item.marketHashName.startsWith("Sticker |")) return false;
+  if (item.marketHashName.startsWith("Patch |")) return false;
+  if (item.marketHashName.startsWith("Sealed Graffiti")) return false;
+  return true;
+}
+
+/** Enrich items using local decode + description sticker fallback (no remote float API). */
+export function enrichItemsLocally(
+  items: Array<{
+    assetId: string;
+    inspectLink: string | null;
+    stickersFromDescription?: DecodedSticker[];
+  }>,
+): Map<string, InspectResult> {
+  const results = new Map<string, InspectResult>();
+
+  for (const item of items) {
+    const local = item.inspectLink
+      ? decodeInspectLocally(item.inspectLink)
+      : null;
+
+    if (local) {
+      // Merge description sticker names when decode only has IDs
+      if (
+        (!local.stickers.length || local.stickers.every((s) => !s.name)) &&
+        item.stickersFromDescription?.length
+      ) {
+        local.stickers = item.stickersFromDescription;
+      }
+      results.set(item.assetId, local);
+      continue;
+    }
+
+    if (item.stickersFromDescription?.length) {
+      results.set(item.assetId, {
+        floatValue: null,
+        paintSeed: null,
+        paintIndex: null,
+        stickers: item.stickersFromDescription,
+        customName: null,
+        source: "description",
+      });
+    }
+  }
+
+  return results;
+}
