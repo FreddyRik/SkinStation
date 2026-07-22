@@ -1,39 +1,39 @@
 "use client";
 
 import {
-  CURRENCIES,
-  CURRENCY_LABELS,
-  type Currency,
-  writeStoredCurrency,
-} from "@/lib/currency";
+  SHARE_CARD_THEMES,
+  SHARE_CARD_THEME_LABELS,
+  type ShareCardTheme,
+  writeStoredShareCardTheme,
+} from "@/lib/share-card-theme";
 
-export function CurrencyToggle({
+export function ShareCardThemeToggle({
   value,
   onChange,
   disabled = false,
 }: {
-  value: Currency;
-  onChange: (currency: Currency) => void;
+  value: ShareCardTheme;
+  onChange: (theme: ShareCardTheme) => void;
   disabled?: boolean;
 }) {
   return (
     <div
-      className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg)] p-0.5"
+      className="inline-flex flex-wrap rounded-xl border border-[var(--border)] bg-[var(--bg)] p-0.5"
       role="group"
-      aria-label="Currency"
+      aria-label="Share card theme"
     >
-      {CURRENCIES.map((currency) => {
-        const active = value === currency;
+      {SHARE_CARD_THEMES.map((theme) => {
+        const active = value === theme;
         return (
           <button
-            key={currency}
+            key={theme}
             type="button"
             disabled={disabled}
             aria-pressed={active}
-            title={CURRENCY_LABELS[currency]}
+            title={SHARE_CARD_THEME_LABELS[theme]}
             onClick={() => {
-              writeStoredCurrency(currency);
-              onChange(currency);
+              writeStoredShareCardTheme(theme);
+              onChange(theme);
             }}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wide transition disabled:opacity-50 ${
               active
@@ -41,7 +41,7 @@ export function CurrencyToggle({
                 : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}
           >
-            {currency}
+            {SHARE_CARD_THEME_LABELS[theme]}
           </button>
         );
       })}

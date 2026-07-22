@@ -60,6 +60,7 @@ export type ParsedInventoryItem = {
   inspectLink: string | null;
   stickersFromDescription: ParsedSticker[];
   tradable: boolean;
+  marketable: boolean;
   rarity: string | null;
   type: string | null;
 };
@@ -148,46 +149,48 @@ function extractStickersFromDescriptions(
   desc: SteamDescription,
 ): ParsedSticker[] {
   const found: ParsedSticker[] = [];
-  const seen = new Set<string>();
 
   for (const block of desc.descriptions ?? []) {
     const value = block.value ?? "";
     if (!value) continue;
 
-    // Prefer paired <img src="..." title="Sticker: Name">
+    const before = found.length;
+
+    // Prefer paired <img src="..." title="Sticker: Name"> — allow duplicate names
+    // (same sticker applied more than once uses different slots).
     const imgRe =
       /<img[^>]*?\bsrc=["']([^"']+)["'][^>]*?\btitle=["']Sticker:\s*([^"']+)["'][^>]*>|<img[^>]*?\btitle=["']Sticker:\s*([^"']+)["'][^>]*?\bsrc=["']([^"']+)["'][^>]*>/gi;
     let m: RegExpExecArray | null;
     while ((m = imgRe.exec(value)) !== null) {
       const iconUrl = (m[1] || m[4] || "").trim() || null;
       const name = stripStickerPrefix(m[2] || m[3] || "");
-      if (!name || seen.has(name)) continue;
-      seen.add(name);
+      if (!name) continue;
       found.push({ slot: found.length, stickerId: 0, name, iconUrl });
     }
 
-    // Fallback: title-only
-    const titleRe = /title\s*=\s*["']Sticker:\s*([^"']+)["']/gi;
-    while ((m = titleRe.exec(value)) !== null) {
-      const name = stripStickerPrefix(m[1]);
-      if (!name || seen.has(name)) continue;
-      seen.add(name);
-      found.push({ slot: found.length, stickerId: 0, name, iconUrl: null });
+    // Fallbacks only when this block had no <img> stickers (avoids double-counting titles).
+    if (found.length === before) {
+      const titleRe = /title\s*=\s*["']Sticker:\s*([^"']+)["']/gi;
+      while ((m = titleRe.exec(value)) !== null) {
+        const name = stripStickerPrefix(m[1]);
+        if (!name) continue;
+        found.push({ slot: found.length, stickerId: 0, name, iconUrl: null });
+      }
     }
 
-    // Plain text list (no icons)
-    const plain = value.match(/Sticker:\s*([^<]+)/i);
-    if (plain?.[1] && !/title\s*=/i.test(value) && !/<img/i.test(value)) {
-      for (const part of plain[1].split(/,\s*/)) {
-        const name = stripStickerPrefix(part);
-        if (!name || seen.has(name)) continue;
-        seen.add(name);
-        found.push({
-          slot: found.length,
-          stickerId: 0,
-          name,
-          iconUrl: null,
-        });
+    if (found.length === before) {
+      const plain = value.match(/Sticker:\s*([^<]+)/i);
+      if (plain?.[1] && !/title\s*=/i.test(value) && !/<img/i.test(value)) {
+        for (const part of plain[1].split(/,\s*/)) {
+          const name = stripStickerPrefix(part);
+          if (!name) continue;
+          found.push({
+            slot: found.length,
+            stickerId: 0,
+            name,
+            iconUrl: null,
+          });
+        }
       }
     }
   }
@@ -227,6 +230,7 @@ function parsePage(
       inspectLink: extractInspectLink(desc, asset.assetid, steamId),
       stickersFromDescription: extractStickersFromDescriptions(desc),
       tradable: desc.tradable === 1,
+      marketable: desc.marketable === 1,
       rarity: extractRarity(desc),
       type: extractType(desc),
     });

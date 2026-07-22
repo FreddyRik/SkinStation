@@ -1,7 +1,13 @@
 import { notFound } from "next/navigation";
 import { InventoryDashboard } from "@/components/InventoryDashboard";
+import {
+  buffGoodsIdFor,
+  getBuffGoodsIdMap,
+} from "@/lib/buff/goods-ids";
 import { parseCurrency } from "@/lib/currency";
 import { prisma } from "@/lib/db";
+import { portfolioTotalFromItems } from "@/lib/price-source";
+import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
 import {
   applyReputationToProfile,
@@ -21,7 +27,7 @@ export default async function InventoryPage({ params }: PageProps) {
     where: { id },
     include: {
       items: {
-        orderBy: [{ skinportPrice: "desc" }, { marketHashName: "asc" }],
+        orderBy: [{ buffPrice: "desc" }, { marketHashName: "asc" }],
       },
       snapshots: {
         orderBy: { createdAt: "asc" },
@@ -43,29 +49,40 @@ export default async function InventoryPage({ params }: PageProps) {
 
   const currency = parseCurrency(profile.currency);
 
-  const items = profile.items.map((item) => ({
-    id: item.id,
-    assetId: item.assetId,
-    marketHashName: item.marketHashName,
-    name: item.name,
-    iconUrl: item.iconUrl,
-    exterior: item.exterior,
-    floatValue: item.floatValue,
-    paintSeed: item.paintSeed,
-    paintIndex: item.paintIndex,
-    stickers: parseStickersJson(item.stickers),
-    steamPrice: item.steamPrice,
-    skinportPrice: item.skinportPrice,
-    rarity: item.rarity,
-    type: item.type,
-    tradable: item.tradable,
-  }));
+  let goodsIds = new Map<string, number>();
+  try {
+    goodsIds = await getBuffGoodsIdMap();
+  } catch (err) {
+    console.warn("Buff goods id map unavailable:", err);
+  }
 
-  const totalSteam = items.reduce((sum, i) => sum + (i.steamPrice ?? 0), 0);
-  const totalSkinport = items.reduce(
-    (sum, i) => sum + (i.skinportPrice ?? 0),
-    0,
-  );
+  const items = profile.items.map((item) => {
+    const stickers = itemSupportsStickers(item.type, item.marketHashName)
+      ? parseStickersJson(item.stickers)
+      : [];
+    return {
+      id: item.id,
+      assetId: item.assetId,
+      marketHashName: item.marketHashName,
+      name: item.name,
+      iconUrl: item.iconUrl,
+      exterior: item.exterior,
+      floatValue: item.floatValue,
+      paintSeed: item.paintSeed,
+      paintIndex: item.paintIndex,
+      stickers,
+      steamPrice: item.steamPrice,
+      buffPrice: item.buffPrice,
+      buffGoodsId: buffGoodsIdFor(goodsIds, item.marketHashName),
+      rarity: item.rarity,
+      type: item.type,
+      tradable: item.tradable,
+      marketable: item.marketable,
+    };
+  });
+
+  const totalSteam = portfolioTotalFromItems(items, "steam");
+  const totalBuff = portfolioTotalFromItems(items, "buff");
 
   return (
     <InventoryDashboard
@@ -96,13 +113,13 @@ export default async function InventoryPage({ params }: PageProps) {
         currency: parseCurrency(s.currency, currency),
         itemCount: s.itemCount,
         totalSteam: s.totalSteam,
-        totalSkinport: s.totalSkinport,
+        totalBuff: s.totalBuff,
         createdAt: s.createdAt.toISOString(),
       }))}
       totals={{
         itemCount: items.length,
         totalSteam,
-        totalSkinport,
+        totalBuff,
       }}
       cooldownMs={getSyncCooldownMs()}
     />

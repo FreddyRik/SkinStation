@@ -24,6 +24,9 @@ export async function exportShareCardPng(node: HTMLElement): Promise<string> {
 
   return toPng(node, {
     cacheBust: true,
+    // Image proxy URLs differ only by ?url=… — include query in the cache key
+    // or every skin/sticker/avatar becomes the first image (e.g. gloves).
+    includeQueryParams: true,
     pixelRatio: 2,
     // Omit solid backgroundColor so corners outside border-radius stay transparent.
     style: {

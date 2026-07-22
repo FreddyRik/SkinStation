@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { CurrencyToggle } from "@/components/CurrencyToggle";
 import { ReputationBadges } from "@/components/ReputationBadges";
 import type { Currency } from "@/lib/currency";
 import {
+  CURRENCY_CHANGE_EVENT,
   DEFAULT_CURRENCY,
   readStoredCurrency,
   writeStoredCurrency,
 } from "@/lib/currency";
+import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
+import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 
 type ProfileSummary = {
   id: string;
@@ -34,7 +36,7 @@ type ProfileSummary = {
   latestSnapshot: {
     currency: Currency;
     totalSteam: number;
-    totalSkinport: number;
+    totalBuff: number;
   } | null;
 };
 
@@ -50,12 +52,19 @@ export function ProfileLookup({
   const router = useRouter();
   const [input, setInput] = useState("");
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const usdToEur = useUsdToEurRate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncNote, setSyncNote] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrency(readStoredCurrency());
+    function onCurrency(e: Event) {
+      const next = (e as CustomEvent<Currency>).detail;
+      if (next) setCurrency(next);
+    }
+    window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
+    return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
   }, []);
 
   async function onSubmit(e: FormEvent) {
@@ -77,16 +86,18 @@ export function ProfileLookup({
       }
 
       const profileId = createData.profile.id as string;
+      // Store prices in USD; the UI converts with FX for display currency.
+      const storageCurrency = DEFAULT_CURRENCY;
       setSyncNote(
-        `Syncing inventory from Steam in ${currency}… this can take a minute.`,
+        `Syncing inventory from Steam… this can take a minute.`,
       );
 
       const syncRes = await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId, currency }),
+        body: JSON.stringify({ profileId, currency: storageCurrency }),
       });
-      const syncData = await syncRes.json();
+      await syncRes.json().catch(() => null);
       if (!syncRes.ok) {
         // Open inventory so the user can retry; surface error via profile.lastError.
         router.push(`/inventory/${profileId}`);
@@ -115,39 +126,35 @@ export function ProfileLookup({
             backgroundSize: "28px 28px",
           }}
         />
-        <div className="relative max-w-2xl space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm uppercase tracking-[0.18em] text-[var(--accent-dim)]">
-              Public Steam inventory
-            </p>
-            <CurrencyToggle
-              value={currency}
-              onChange={setCurrency}
-              disabled={loading}
-            />
-          </div>
+        <div className="relative mx-auto max-w-2xl space-y-4 text-center">
+          <p className="text-sm uppercase tracking-[0.18em] text-[var(--accent-dim)]">
+            Public Steam inventory
+          </p>
           <h1 className="text-3xl font-semibold tracking-tight text-[var(--text)] sm:text-4xl">
             Track your CS2 skins and market value
           </h1>
           <p className="text-[var(--text-muted)] leading-relaxed">
             Paste a Steam profile URL or SteamID64. We pull your public CS2
             inventory, enrich floats via CSFloat, and price items on Steam Market
-            and Skinport in USD or EUR.
+            and Buff163 in USD or EUR.
           </p>
 
-          <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <form
+            onSubmit={onSubmit}
+            className="mx-auto mt-6 flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:items-stretch"
+          >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="https://steamcommunity.com/id/yourname or SteamID64"
-              className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-[var(--text)] outline-none ring-[var(--accent)] placeholder:text-[var(--text-muted)] focus:ring-2"
+              className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-left text-[var(--text)] outline-none ring-[var(--accent)] placeholder:text-[var(--text-muted)] focus:ring-2"
               disabled={loading}
               required
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="rounded-xl bg-[var(--accent)] px-5 py-3 font-semibold text-[#042f2e] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl bg-[var(--accent)] px-5 py-3 font-semibold text-[#042f2e] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0"
             >
               {loading ? "Loading…" : "Load inventory"}
             </button>
@@ -167,13 +174,26 @@ export function ProfileLookup({
       </section>
 
       {recentProfiles.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-medium text-[var(--text)]">Recent profiles</h2>
+        <section className="mx-auto max-w-3xl space-y-4">
+          <h2 className="text-center text-lg font-medium text-[var(--text)]">
+            Recent profiles
+          </h2>
           <ul className="grid gap-3 sm:grid-cols-2">
             {recentProfiles.map((p) => {
               const snapshotCurrency =
                 p.latestSnapshot?.currency ?? p.currency;
               const inventoryHref = `/inventory/${p.id}`;
+              const buffDisplay = p.latestSnapshot
+                ? formatMoney(
+                    convertMoney(
+                      p.latestSnapshot.totalBuff,
+                      snapshotCurrency,
+                      currency,
+                      usdToEur,
+                    ),
+                    currency,
+                  )
+                : null;
 
               return (
                 <li key={p.id}>
@@ -244,9 +264,7 @@ export function ProfileLookup({
                           className="block truncate text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
                         >
                           {p.itemCount} items
-                          {p.latestSnapshot
-                            ? ` · Skinport ${formatMoney(p.latestSnapshot.totalSkinport, snapshotCurrency)}`
-                            : ""}
+                          {buffDisplay ? ` · Buff ${buffDisplay}` : ""}
                         </Link>
                       </div>
                     </div>

@@ -25,7 +25,7 @@ console.log(
       sample: items.map((i) => ({
         name: i.marketHashName,
         steam: i.steamPrice,
-        skinport: i.skinportPrice,
+        buff: i.buffPrice,
         float: i.floatValue,
         seed: i.paintSeed,
         stickers: i.stickers?.slice(0, 80) ?? null,

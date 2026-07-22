@@ -10,13 +10,15 @@ import {
   parsePriceSource,
 } from "@/lib/price-source";
 import { buildShareCardStats } from "@/lib/share-card";
+import { parseShareCardTheme } from "@/lib/share-card-theme";
+import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ source?: string }>;
+  searchParams: Promise<{ source?: string; theme?: string }>;
 };
 
 export async function generateMetadata({
@@ -52,8 +54,9 @@ export async function generateMetadata({
 
 export default async function SharePage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { source: sourceParam } = await searchParams;
+  const { source: sourceParam, theme: themeParam } = await searchParams;
   const priceSource = parsePriceSource(sourceParam);
+  const theme = parseShareCardTheme(themeParam);
 
   const profile = await prisma.profile.findUnique({
     where: { id },
@@ -76,9 +79,12 @@ export default async function SharePage({ params, searchParams }: PageProps) {
     rarity: item.rarity,
     type: item.type,
     floatValue: item.floatValue,
-    stickers: parseStickersJson(item.stickers),
+    stickers: itemSupportsStickers(item.type, item.marketHashName)
+      ? parseStickersJson(item.stickers)
+      : [],
     steamPrice: item.steamPrice,
-    skinportPrice: item.skinportPrice,
+    buffPrice: item.buffPrice,
+    marketable: item.marketable,
   }));
   const stats = buildShareCardStats(items, currency, priceSource);
 
@@ -100,8 +106,8 @@ export default async function SharePage({ params, searchParams }: PageProps) {
           <span
             style={{
               color:
-                priceSource === "skinport"
-                  ? "var(--skinport)"
+                priceSource === "buff"
+                  ? "var(--buff)"
                   : "var(--steam)",
             }}
           >
@@ -120,6 +126,7 @@ export default async function SharePage({ params, searchParams }: PageProps) {
         items={items}
         currency={currency}
         priceSource={priceSource}
+        theme={theme}
       />
 
       <div className="flex flex-wrap items-center justify-center gap-3 text-sm">

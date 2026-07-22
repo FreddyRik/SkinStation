@@ -8,7 +8,7 @@ Local-first Counter-Strike 2 inventory tracker. Paste a public Steam profile, sy
 - SQLite via Prisma
 - Steam Community inventory
 - Local CS2 inspect decode (`@csfloat/cs2-inspect-serializer`) for masked inspect links
-- Skinport catalog prices + Steam Market priceoverview
+- Buff163 prices via CSGOTrader + Steam Market priceoverview
 
 ## Setup
 
@@ -30,7 +30,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Known limitations
 
 ### Steam Market prices
-Steam rate-limits `priceoverview`. The sync now fetches **all unique** item names in your inventory (prioritized by Skinport value), with retries and backoff. If Steam throttles mid-sync, the next Refresh continues filling gaps from cache.
+Steam rate-limits `priceoverview`. The sync now fetches **all unique** item names in your inventory (prioritized by Buff163 value), with retries and backoff. If Steam throttles mid-sync, the next Refresh continues filling gaps from cache.
 
 ### Floats & stickers
 Float/pattern come from **masked** CS2 inspect links decoded locally (no remote float API). Steam often returns broken `%propid:N%` placeholders on public inventory JSON, so floats may be missing for many weapons. Stickers are still parsed from Steam description HTML when present.

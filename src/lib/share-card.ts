@@ -1,15 +1,21 @@
 import type { Currency } from "@/lib/currency";
 import { formatFloat, formatMoney } from "@/lib/format";
+import { itemSupportsFloat, itemSupportsStickers } from "@/lib/item-flags";
 import {
   DEFAULT_PRICE_SOURCE,
   PRICE_SOURCE_LABELS,
+  itemPrice,
   itemPriceOrZero,
   parsePriceSource,
   type PriceSource,
 } from "@/lib/price-source";
 import {
+  DEFAULT_SHARE_CARD_THEME,
+  parseShareCardTheme,
+  type ShareCardTheme,
+} from "@/lib/share-card-theme";
+import {
   getStickerIconCatalog,
-  itemSupportsStickers,
   resolveStickerIconUrl,
 } from "@/lib/stickers/catalog";
 import {
@@ -22,6 +28,8 @@ export type ShareStickerInput = {
   name?: string;
   wear?: number;
   iconUrl?: string | null;
+  steamPrice?: number | null;
+  buffPrice?: number | null;
 };
 
 export type ShareItemInput = {
@@ -36,7 +44,8 @@ export type ShareItemInput = {
   /** Parsed sticker array, or raw JSON string from Prisma. */
   stickers?: ShareStickerInput[] | string | null;
   steamPrice: number | null;
-  skinportPrice: number | null;
+  buffPrice: number | null;
+  marketable?: boolean | null;
 };
 
 export type ShareTopSticker = {
@@ -44,6 +53,8 @@ export type ShareTopSticker = {
   name: string;
   iconUrl: string | null;
   wearLabel: string | null;
+  value: number | null;
+  valueLabel: string;
 };
 
 export type ShareTopItem = {
@@ -55,10 +66,13 @@ export type ShareTopItem = {
   exterior: string | null;
   rarity: string | null;
   type: string | null;
+  supportsFloat: boolean;
   supportsStickers: boolean;
   floatValue: number | null;
-  floatLabel: string;
+  floatLabel: string | null;
   stickers: ShareTopSticker[];
+  stickerTotal: number;
+  stickerTotalLabel: string;
   value: number;
   valueLabel: string;
 };
@@ -66,9 +80,9 @@ export type ShareTopItem = {
 export type ShareCardStats = {
   itemCount: number;
   totalSteam: number;
-  totalSkinport: number;
+  totalBuff: number;
   totalSteamLabel: string;
-  totalSkinportLabel: string;
+  totalBuffLabel: string;
   priceSource: PriceSource;
   headlineTotal: number;
   headlineLabel: string;
@@ -97,16 +111,27 @@ function parseItemStickers(raw: unknown): ShareStickerInput[] {
 function mapStickers(
   stickers: ShareStickerInput[] | undefined,
   iconCatalog: Map<string, string>,
+  currency: Currency,
+  priceSource: PriceSource,
 ): ShareTopSticker[] {
   if (!Array.isArray(stickers) || stickers.length === 0) return [];
   return stickers.map((s, idx) => {
     const slot = s.slot ?? idx;
     const rawName = s.name?.trim() || `Sticker ${slot + 1}`;
+    const value = itemPrice(
+      {
+        steamPrice: s.steamPrice ?? null,
+        buffPrice: s.buffPrice ?? null,
+      },
+      priceSource,
+    );
     return {
       slot,
       name: stickerDisplayName(rawName),
       iconUrl: resolveStickerIconUrl(iconCatalog, rawName, s.iconUrl),
       wearLabel: formatStickerWear(s.wear),
+      value,
+      valueLabel: formatMoney(value, currency),
     };
   });
 }
@@ -117,30 +142,49 @@ function buildStatsFromCatalog(
   iconCatalog: Map<string, string>,
   priceSource: PriceSource,
 ): ShareCardStats {
-  const totalSteam = items.reduce((sum, i) => sum + (i.steamPrice ?? 0), 0);
-  const totalSkinport = items.reduce(
-    (sum, i) => sum + (i.skinportPrice ?? 0),
+  const totalSteam = items.reduce(
+    (sum, i) => sum + (itemPrice(i, "steam") ?? 0),
+    0,
+  );
+  const totalBuff = items.reduce(
+    (sum, i) => sum + (itemPrice(i, "buff") ?? 0),
     0,
   );
   const pricedCount = items.filter(
-    (i) => i.skinportPrice != null || i.steamPrice != null,
+    (i) => itemPrice(i, priceSource) != null,
   ).length;
 
   const headlineTotal =
-    priceSource === "skinport" ? totalSkinport : totalSteam;
+    priceSource === "buff" ? totalBuff : totalSteam;
 
   const topItems = [...items]
     .sort(
       (a, b) =>
         itemPriceOrZero(b, priceSource) - itemPriceOrZero(a, priceSource),
     )
+    .filter((item) => itemPriceOrZero(item, priceSource) > 0)
     .slice(0, 3)
     .map((item, index) => {
       const value = itemPriceOrZero(item, priceSource);
       const floatValue = item.floatValue ?? null;
+      const supportsFloat =
+        floatValue != null ||
+        itemSupportsFloat(item.type, item.marketHashName);
       const supportsStickers = itemSupportsStickers(
         item.type,
         item.marketHashName,
+      );
+      const stickers = supportsStickers
+        ? mapStickers(
+            parseItemStickers(item.stickers),
+            iconCatalog,
+            currency,
+            priceSource,
+          )
+        : [];
+      const stickerTotal = stickers.reduce(
+        (sum, s) => sum + (s.value ?? 0),
+        0,
       );
       return {
         rank: index + 1,
@@ -151,12 +195,20 @@ function buildStatsFromCatalog(
         exterior: item.exterior,
         rarity: item.rarity,
         type: item.type ?? null,
+        supportsFloat,
         supportsStickers,
         floatValue,
-        floatLabel: formatFloat(floatValue),
-        stickers: supportsStickers
-          ? mapStickers(parseItemStickers(item.stickers), iconCatalog)
-          : [],
+        floatLabel: supportsFloat
+          ? floatValue != null
+            ? formatFloat(floatValue)
+            : "-"
+          : null,
+        stickers,
+        stickerTotal,
+        stickerTotalLabel: formatMoney(
+          stickerTotal > 0 ? stickerTotal : null,
+          currency,
+        ),
         value,
         valueLabel: formatMoney(value || null, currency),
       };
@@ -165,9 +217,9 @@ function buildStatsFromCatalog(
   return {
     itemCount: items.length,
     totalSteam,
-    totalSkinport,
+    totalBuff,
     totalSteamLabel: formatMoney(totalSteam, currency),
-    totalSkinportLabel: formatMoney(totalSkinport, currency),
+    totalBuffLabel: formatMoney(totalBuff, currency),
     priceSource,
     headlineTotal,
     headlineLabel: formatMoney(headlineTotal, currency),
@@ -236,7 +288,9 @@ export function proxiedImageUrl(src: string | null | undefined): string | null {
 export function sharePagePath(
   profileId: string,
   priceSource: PriceSource = DEFAULT_PRICE_SOURCE,
+  theme: ShareCardTheme = DEFAULT_SHARE_CARD_THEME,
 ): string {
   const source = parsePriceSource(priceSource);
-  return `/share/${profileId}?source=${source}`;
+  const shareTheme = parseShareCardTheme(theme);
+  return `/share/${profileId}?source=${source}&theme=${shareTheme}`;
 }

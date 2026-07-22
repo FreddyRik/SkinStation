@@ -5,6 +5,9 @@ export type Currency = (typeof CURRENCIES)[number];
 export const DEFAULT_CURRENCY: Currency = "USD";
 
 export const CURRENCY_STORAGE_KEY = "inventory-tracker-currency";
+export const CURRENCY_CHANGE_EVENT = "inventory-tracker:currency";
+/** Broadcast while an inventory page is syncing (disables header CurrencyToggle). */
+export const INVENTORY_SYNCING_EVENT = "inventory-tracker:syncing";
 
 /** Steam Market priceoverview currency codes */
 export const STEAM_CURRENCY_CODES: Record<Currency, string> = {
@@ -41,6 +44,9 @@ export function writeStoredCurrency(currency: Currency): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(CURRENCY_STORAGE_KEY, currency);
+    window.dispatchEvent(
+      new CustomEvent<Currency>(CURRENCY_CHANGE_EVENT, { detail: currency }),
+    );
   } catch {
     // ignore quota / private mode
   }

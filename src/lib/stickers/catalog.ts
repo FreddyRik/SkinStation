@@ -1,9 +1,11 @@
-import { isKnifeOrGlove } from "@/lib/item-flags";
 import { stickerMarketHashName } from "@/lib/steam-market/csgotrader";
 import {
   stripStickerPrefix,
   toStickerMarketHashName,
 } from "@/lib/stickers/normalize";
+
+// Re-export for callers that historically imported sticker eligibility from here.
+export { itemSupportsStickers } from "@/lib/item-flags";
 
 type ByMykelSticker = {
   name?: string;
@@ -99,21 +101,4 @@ export function resolveStickerIconUrl(
     catalog.get(`sticker: ${cleaned}`.toLowerCase()) ??
     null
   );
-}
-
-/** Knives, gloves, and agents cannot have stickers applied. */
-export function itemSupportsStickers(
-  type: string | null | undefined,
-  marketHashName?: string | null,
-): boolean {
-  if (isKnifeOrGlove(type, marketHashName)) {
-    return false;
-  }
-
-  const t = (type ?? "").toLowerCase();
-  if (t.includes("agent") || t.includes("equipment")) {
-    return false;
-  }
-
-  return true;
 }

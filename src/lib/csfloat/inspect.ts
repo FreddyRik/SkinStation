@@ -106,33 +106,33 @@ export function parseStickersFromDescriptions(
   if (!descriptions?.length) return [];
 
   const found: DecodedSticker[] = [];
-  const seen = new Set<string>();
 
   for (const block of descriptions) {
     const value = block.value ?? "";
     if (!value) continue;
 
-    // title="Sticker: Name" or title='Sticker: Name'
+    const before = found.length;
+
+    // title="Sticker: Name" — allow the same sticker name on multiple slots
     const titleRe = /title\s*=\s*["']Sticker:\s*([^"']+)["']/gi;
     let m: RegExpExecArray | null;
     while ((m = titleRe.exec(value)) !== null) {
       const name = m[1].trim();
-      if (!name || seen.has(name)) continue;
-      seen.add(name);
+      if (!name) continue;
       found.push({ slot: found.length, stickerId: 0, name });
     }
 
-    // Plain text: "Sticker: Foo, Bar, Baz"
-    const plain = value.match(/Sticker:\s*([^<]+)/i);
-    if (plain?.[1] && !/title\s*=/i.test(value)) {
-      const parts = plain[1]
-        .split(/,\s*/)
-        .map((p) => p.trim())
-        .filter(Boolean);
-      for (const name of parts) {
-        if (seen.has(name)) continue;
-        seen.add(name);
-        found.push({ slot: found.length, stickerId: 0, name });
+    // Plain text only when this block had no title stickers
+    if (found.length === before) {
+      const plain = value.match(/Sticker:\s*([^<]+)/i);
+      if (plain?.[1] && !/title\s*=/i.test(value)) {
+        const parts = plain[1]
+          .split(/,\s*/)
+          .map((p) => p.trim())
+          .filter(Boolean);
+        for (const name of parts) {
+          found.push({ slot: found.length, stickerId: 0, name });
+        }
       }
     }
   }

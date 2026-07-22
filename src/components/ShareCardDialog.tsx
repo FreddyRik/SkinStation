@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { PriceSourceToggle } from "@/components/PriceSourceToggle";
+import { ShareCardThemeToggle } from "@/components/ShareCardThemeToggle";
 import { ShareWrappedCard } from "@/components/ShareWrappedCard";
 import type { Currency } from "@/lib/currency";
 import {
@@ -19,6 +21,12 @@ import {
   type ShareItemInput,
 } from "@/lib/share-card";
 import { exportShareCardPng } from "@/lib/share-card-export";
+import {
+  DEFAULT_SHARE_CARD_THEME,
+  readStoredShareCardTheme,
+  type ShareCardTheme,
+  writeStoredShareCardTheme,
+} from "@/lib/share-card-theme";
 
 type ShareCardDialogProps = {
   open: boolean;
@@ -43,19 +51,28 @@ export function ShareCardDialog({
   priceSource: initialPriceSource,
 }: ShareCardDialogProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [priceSource, setPriceSource] = useState<PriceSource>(
     () => initialPriceSource ?? DEFAULT_PRICE_SOURCE,
   );
+  const [theme, setTheme] = useState<ShareCardTheme>(
+    () => DEFAULT_SHARE_CARD_THEME,
+  );
   const [stats, setStats] = useState<ShareCardStats>(() =>
     buildShareCardStats(items, currency, priceSource),
   );
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     setPriceSource(initialPriceSource ?? readStoredPriceSource());
+    setTheme(readStoredShareCardTheme());
   }, [open, initialPriceSource]);
 
   useEffect(() => {
@@ -69,7 +86,7 @@ export function ShareCardDialog({
     };
   }, [items, currency, priceSource]);
 
-  const sharePath = sharePagePath(profile.id, priceSource);
+  const sharePath = sharePagePath(profile.id, priceSource, theme);
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}${sharePath}`
@@ -80,14 +97,20 @@ export function ShareCardDialog({
     setStatus(null);
     setError(null);
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   async function downloadPng() {
     const node = cardRef.current?.querySelector(
@@ -136,14 +159,19 @@ export function ShareCardDialog({
     setPriceSource(next);
   }
 
-  const otherLabel =
-    priceSource === "skinport"
-      ? PRICE_SOURCE_LABELS.steam
-      : PRICE_SOURCE_LABELS.skinport;
+  function onThemeChange(next: ShareCardTheme) {
+    writeStoredShareCardTheme(next);
+    setTheme(next);
+  }
 
-  return (
+  const otherLabel =
+    priceSource === "buff"
+      ? PRICE_SOURCE_LABELS.steam
+      : PRICE_SOURCE_LABELS.buff;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex h-dvh min-h-dvh items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-card-title"
@@ -151,7 +179,7 @@ export function ShareCardDialog({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl">
+      <div className="max-h-[min(92vh,92dvh)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl">
         <div className="flex flex-col gap-4 border-b border-[var(--border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2
@@ -183,6 +211,7 @@ export function ShareCardDialog({
               stats={stats}
               currency={currency}
               priceSource={priceSource}
+              theme={theme}
             />
           </div>
 
@@ -228,6 +257,13 @@ export function ShareCardDialog({
               </div>
             </div>
 
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
+                Theme
+              </p>
+              <ShareCardThemeToggle value={theme} onChange={onThemeChange} />
+            </div>
+
             <label className="block space-y-1.5">
               <span className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
                 Share URL
@@ -257,6 +293,7 @@ export function ShareCardDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

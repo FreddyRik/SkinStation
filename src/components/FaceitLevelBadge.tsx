@@ -11,10 +11,13 @@ export function FaceitLevelBadge({
 }: {
   level: number | null | undefined;
   href?: string | null;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
   showLabel?: boolean;
 }) {
-  if (level == null || level < 1 || level > 10) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const validLevel = level != null && level >= 1 && level <= 10;
+
+  if (!validLevel) {
     if (!href) return null;
     return (
       <a
@@ -29,8 +32,9 @@ export function FaceitLevelBadge({
     );
   }
 
-  const [imgFailed, setImgFailed] = useState(false);
-  const dim = size === "sm" ? "h-5 w-5" : "h-7 w-7";
+  const dim =
+    size === "xs" ? "h-3.5 w-3.5" : size === "sm" ? "h-5 w-5" : "h-7 w-7";
+  const px = size === "xs" ? 14 : size === "sm" ? 20 : 28;
   const src = !imgFailed ? faceitLevelImageSrc(level) : null;
   const badge = src ? (
     // eslint-disable-next-line @next/next/no-img-element
@@ -38,15 +42,15 @@ export function FaceitLevelBadge({
       src={src}
       alt={`FACEIT level ${level}`}
       title={`FACEIT level ${level}`}
-      width={size === "sm" ? 20 : 28}
-      height={size === "sm" ? 20 : 28}
+      width={px}
+      height={px}
       className={`${dim} shrink-0 object-contain`}
       draggable={false}
       onError={() => setImgFailed(true)}
     />
   ) : (
     <span
-      className={`inline-flex ${dim} items-center justify-center rounded-md bg-[#ff6300] text-[10px] font-bold text-[#0c0c0c]`}
+      className={`inline-flex ${dim} items-center justify-center rounded-md bg-[#ff6300] text-[10px] font-bold leading-none text-[#0c0c0c]`}
       title={`FACEIT level ${level}`}
       aria-label={`FACEIT level ${level}`}
     >

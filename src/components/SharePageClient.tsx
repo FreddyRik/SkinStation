@@ -15,12 +15,17 @@ import {
   type ShareItemInput,
 } from "@/lib/share-card";
 import { exportShareCardPng } from "@/lib/share-card-export";
+import {
+  DEFAULT_SHARE_CARD_THEME,
+  type ShareCardTheme,
+} from "@/lib/share-card-theme";
 
 export function SharePageClient({
   profile,
   items,
   currency,
   priceSource = DEFAULT_PRICE_SOURCE,
+  theme = DEFAULT_SHARE_CARD_THEME,
 }: {
   profile: {
     id: string;
@@ -31,6 +36,7 @@ export function SharePageClient({
   items: ShareItemInput[];
   currency: Currency;
   priceSource?: PriceSource;
+  theme?: ShareCardTheme;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
@@ -38,7 +44,7 @@ export function SharePageClient({
   const [stats, setStats] = useState<ShareCardStats>(() =>
     buildShareCardStats(items, currency, priceSource),
   );
-  const sharePath = sharePagePath(profile.id, priceSource);
+  const sharePath = sharePagePath(profile.id, priceSource, theme);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +103,7 @@ export function SharePageClient({
           stats={stats}
           currency={currency}
           priceSource={priceSource}
+          theme={theme}
         />
       </div>
 

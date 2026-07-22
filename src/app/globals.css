@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* Default = classic (matches share-card classic). Overridden by page theme JS. */
 :root {
   --bg: #0c1210;
   --bg-elevated: #121a17;
@@ -9,10 +10,15 @@
   --text-muted: #8fa399;
   --accent: #5eead4;
   --accent-dim: #2dd4bf;
+  --accent-fg: #042f2e;
+  --page-bg:
+    radial-gradient(ellipse 90% 60% at 10% -10%, rgba(94, 234, 212, 0.12), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 90% 0%, rgba(255, 107, 53, 0.08), transparent 50%),
+    linear-gradient(180deg, #0e1613 0%, #0c1210 40%, #0a0f0d 100%);
   --warn: #fbbf24;
   --danger: #f87171;
   --steam: #66c0f4;
-  --skinport: #ff6b35;
+  --buff: #ff6b35;
 }
 
 * {
@@ -28,10 +34,7 @@ body {
 
 body {
   color: var(--text);
-  background:
-    radial-gradient(ellipse 90% 60% at 10% -10%, rgba(94, 234, 212, 0.12), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 90% 0%, rgba(255, 107, 53, 0.08), transparent 50%),
-    linear-gradient(180deg, #0e1613 0%, var(--bg) 40%, #0a0f0d 100%);
+  background: var(--page-bg);
   font-family: "Segoe UI", "IBM Plex Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }

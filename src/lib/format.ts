@@ -1,5 +1,6 @@
 import type { Currency } from "@/lib/currency";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import { convertMoney } from "@/lib/fx";
 
 const LOCALE_FOR_CURRENCY: Record<Currency, string> = {
   USD: "en-US",
@@ -16,6 +17,16 @@ export function formatMoney(
     currency,
     maximumFractionDigits: value >= 100 ? 0 : 2,
   }).format(value);
+}
+
+/** Format a value stored in `from` currency as `to` currency using FX. */
+export function formatMoneyConverted(
+  value: number | null | undefined,
+  from: Currency,
+  to: Currency,
+  usdToEur: number,
+): string {
+  return formatMoney(convertMoney(value, from, to, usdToEur), to);
 }
 
 /** @deprecated Prefer formatMoney with an explicit currency */

@@ -37,11 +37,11 @@ export function PriceSourceToggle({
             }}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wide transition disabled:opacity-50 ${
               active
-                ? "bg-[var(--accent)] text-[#042f2e]"
+                ? "bg-[var(--accent)] text-[var(--accent-fg)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}
           >
-            {source === "skinport" ? "Skinport" : "Steam"}
+            {source === "buff" ? "Buff" : "Steam"}
           </button>
         );
       })}

@@ -22,13 +22,13 @@ alwaysApply: true
 ## 3. Inventory & Pricing Logic
 
 - Decode inspect links locally with `@csfloat/cs2-inspect-serializer` when possible (float, paint seed, stickers).
-- Price cascade: Skinport / CSGOTrader first → Steam Market `priceoverview` gap-fill. Never throw on missing prices; UI uses graceful empties (`—` / unpriced).
+- Price cascade: Buff163 via CSGOTrader first → Steam Market `priceoverview` gap-fill. Never throw on missing prices; UI uses graceful empties (`—` / unpriced).
 - Per-item display and portfolio totals must use the **same** price-source fallback rules (`itemPrice` / `portfolioTotalFromItems`).
 - Steamwebapi / FACEIT / Leetify are optional enrichers — degrade gracefully on missing keys, 429s, or quota limits; surface soft warnings, don’t block core sync.
 
 ## 4. External APIs
 
-- Wrap Steam, Skinport, Steamwebapi, FACEIT, and Leetify calls in `try/catch`; handle `429` and timeouts.
+- Wrap Steam, CSGOTrader, Steamwebapi, FACEIT, and Leetify calls in `try/catch`; handle `429` and timeouts.
 - API routes return structured JSON errors: `{ error: string }` with appropriate status.
 - Check `process.env.STEAMWEBAPI_KEY` / `FACEIT_API_KEY` before authenticated calls.
 

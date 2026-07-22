@@ -5,14 +5,14 @@ import {
   decodeInspectLocally,
   enrichItemsLocally,
 } from "@/lib/csfloat/inspect";
+import { itemCanListOnMarket, itemSupportsStickers } from "@/lib/item-flags";
 import { lookupPlayerReputation } from "@/lib/reputation/lookup";
+import { portfolioTotalFromItems } from "@/lib/price-source";
 import {
-  cacheSkinportPricesForNames,
-  getSkinportCatalog,
-  skinportPriceFor,
-} from "@/lib/skinport/catalog";
-import {
+  buffPriceFor,
+  cacheBuffPricesForNames,
   cacheTraderSteamPricesForNames,
+  getCsgoTraderBuffCatalog,
   getCsgoTraderSteamCatalog,
   stickerMarketHashName,
   traderSteamPriceFor,
@@ -91,7 +91,7 @@ export type SyncResult = {
   currency: Currency;
   itemCount: number;
   totalSteam: number;
-  totalSkinport: number;
+  totalBuff: number;
   inspected: number;
   steamPricesResolved: number;
   skippedCooldown?: boolean;
@@ -158,20 +158,19 @@ export async function syncInventory(
     const items = await prisma.inventoryItem.findMany({
       where: { profileId },
     });
-    const totalSteam = items.reduce((sum, i) => sum + (i.steamPrice ?? 0), 0);
-    const totalSkinport = items.reduce(
-      (sum, i) => sum + (i.skinportPrice ?? 0),
-      0,
-    );
+    const totalSteam = portfolioTotalFromItems(items, "steam");
+    const totalBuff = portfolioTotalFromItems(items, "buff");
     return {
       profileId,
       steamId: profile.steamId,
       currency,
       itemCount: items.length,
       totalSteam,
-      totalSkinport,
+      totalBuff,
       inspected: items.filter((i) => i.floatValue != null).length,
-      steamPricesResolved: items.filter((i) => i.steamPrice != null).length,
+      steamPricesResolved: items.filter(
+        (i) => itemCanListOnMarket(i) && i.steamPrice != null,
+      ).length,
       skippedCooldown: true,
     };
   }
@@ -206,6 +205,28 @@ export async function syncInventory(
     const inventory = await fetchSteamInventory(profile.steamId, {
       force: Boolean(options?.force),
     });
+
+    // Keep floats/patterns across rebuilds when re-enrichment fails (e.g. API quota
+    // burned by syncing another profile). Match by Steam assetId.
+    const previousFloatRows = await prisma.inventoryItem.findMany({
+      where: { profileId },
+      select: {
+        assetId: true,
+        floatValue: true,
+        paintSeed: true,
+        paintIndex: true,
+      },
+    });
+    const previousFloats = new Map(
+      previousFloatRows.map((row) => [
+        row.assetId,
+        {
+          floatValue: row.floatValue,
+          paintSeed: row.paintSeed,
+          paintIndex: row.paintIndex,
+        },
+      ]),
+    );
 
     const inspectResults = enrichItemsLocally(
       inventory.map((i) => ({
@@ -285,7 +306,12 @@ export async function syncInventory(
     const missingFloatAssets = inventory.filter((i) => {
       const w = webapiInventory.get(i.assetId);
       const local = inspectResults.get(i.assetId);
-      return w?.floatValue == null && local?.floatValue == null;
+      const prev = previousFloats.get(i.assetId);
+      return (
+        w?.floatValue == null &&
+        local?.floatValue == null &&
+        prev?.floatValue == null
+      );
     });
     let remoteFloats = new Map<
       string,
@@ -307,11 +333,11 @@ export async function syncInventory(
       }
     }
 
-    let skinportCatalog;
+    let buffCatalog;
     try {
-      skinportCatalog = await getSkinportCatalog(currency);
+      buffCatalog = await getCsgoTraderBuffCatalog(currency);
     } catch {
-      skinportCatalog = new Map();
+      buffCatalog = new Map();
     }
 
     let traderSteam = new Map<string, number>();
@@ -340,8 +366,8 @@ export async function syncInventory(
     const itemNames = inventory.map((i) => i.marketHashName);
     const allNames = [...new Set([...itemNames, ...stickerNames])];
 
-    if (skinportCatalog.size > 0) {
-      await cacheSkinportPricesForNames(skinportCatalog, allNames, currency);
+    if (buffCatalog.size > 0) {
+      await cacheBuffPricesForNames(buffCatalog, allNames, currency);
     }
     if (traderSteam.size > 0) {
       await cacheTraderSteamPricesForNames(traderSteam, allNames, currency);
@@ -371,28 +397,42 @@ export async function syncInventory(
 
     const now = new Date();
     let totalSteam = 0;
-    let totalSkinport = 0;
+    let totalBuff = 0;
 
     const rows = inventory.map((item) => {
       const inspect = inspectResults.get(item.assetId);
       const webapi = webapiInventory.get(item.assetId);
       const remote = remoteFloats.get(item.assetId);
-      const steamPrice = steamPrices.get(item.marketHashName) ?? null;
-      const skinportPrice = skinportPriceFor(
-        skinportCatalog,
-        item.marketHashName,
-      );
+      const previous = previousFloats.get(item.assetId);
+      const listable = itemCanListOnMarket({
+        marketable: item.marketable,
+        type: item.type,
+        marketHashName: item.marketHashName,
+        name: item.name,
+      });
+      const steamPrice = listable
+        ? (steamPrices.get(item.marketHashName) ?? null)
+        : null;
+      const buffPrice = listable
+        ? buffPriceFor(buffCatalog, item.marketHashName)
+        : null;
 
       if (steamPrice != null) totalSteam += steamPrice;
-      if (skinportPrice != null) totalSkinport += skinportPrice;
+      if (buffPrice != null) totalBuff += buffPrice;
 
       const cert = certificateStickers.get(item.assetId);
-      const merged = mergeStickersBySlot(
-        webapi?.stickers,
-        item.stickersFromDescription,
-        cert,
-        inspect?.stickers,
+      const canHaveStickers = itemSupportsStickers(
+        item.type,
+        item.marketHashName,
       );
+      const merged = canHaveStickers
+        ? mergeStickersBySlot(
+            webapi?.stickers,
+            item.stickersFromDescription,
+            cert,
+            inspect?.stickers,
+          )
+        : [];
 
       const stickers = merged.map((s) => {
         const name = s.name ? stripStickerPrefix(s.name) : undefined;
@@ -412,9 +452,7 @@ export async function syncInventory(
             s.iconUrl || iconFromInventory || null,
           ),
           steamPrice: hash ? (steamPrices.get(hash) ?? null) : null,
-          skinportPrice: hash
-            ? skinportPriceFor(skinportCatalog, hash)
-            : null,
+          buffPrice: hash ? buffPriceFor(buffCatalog, hash) : null,
         };
       });
 
@@ -428,19 +466,29 @@ export async function syncInventory(
         iconUrl: item.iconUrl,
         exterior: item.exterior,
         floatValue:
-          webapi?.floatValue ?? inspect?.floatValue ?? remote?.floatValue ?? null,
+          webapi?.floatValue ??
+          inspect?.floatValue ??
+          remote?.floatValue ??
+          previous?.floatValue ??
+          null,
         paintSeed:
-          webapi?.paintSeed ?? inspect?.paintSeed ?? remote?.paintSeed ?? null,
+          webapi?.paintSeed ??
+          inspect?.paintSeed ??
+          remote?.paintSeed ??
+          previous?.paintSeed ??
+          null,
         paintIndex:
           webapi?.paintIndex ??
           inspect?.paintIndex ??
           remote?.paintIndex ??
+          previous?.paintIndex ??
           null,
         stickers: stickers.length ? JSON.stringify(stickers) : null,
         inspectLink: webapi?.inspectLink ?? item.inspectLink,
         steamPrice,
-        skinportPrice,
+        buffPrice,
         tradable: item.tradable,
+        marketable: item.marketable,
         rarity: item.rarity,
         type: item.type,
         updatedAt: now,
@@ -459,7 +507,7 @@ export async function syncInventory(
           currency,
           itemCount: inventory.length,
           totalSteam,
-          totalSkinport,
+          totalBuff,
         },
       });
 
@@ -480,7 +528,7 @@ export async function syncInventory(
       currency,
       itemCount: inventory.length,
       totalSteam,
-      totalSkinport,
+      totalBuff,
       inspected: rows.filter((r) => r.floatValue != null).length,
       steamPricesResolved: [...steamPrices.values()].filter((v) => v != null)
         .length,

@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
+import {
+  buffGoodsIdFor,
+  getBuffGoodsIdMap,
+} from "@/lib/buff/goods-ids";
 import { prisma } from "@/lib/db";
+import { portfolioTotalFromItems } from "@/lib/price-source";
+import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
 
 type Params = { params: Promise<{ id: string }> };
@@ -11,7 +17,7 @@ export async function GET(_req: Request, { params }: Params) {
     where: { id },
     include: {
       items: {
-        orderBy: [{ skinportPrice: "desc" }, { marketHashName: "asc" }],
+        orderBy: [{ buffPrice: "desc" }, { marketHashName: "asc" }],
       },
       snapshots: {
         orderBy: { createdAt: "asc" },
@@ -24,16 +30,23 @@ export async function GET(_req: Request, { params }: Params) {
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
 
+  let goodsIds = new Map<string, number>();
+  try {
+    goodsIds = await getBuffGoodsIdMap();
+  } catch (err) {
+    console.warn("Buff goods id map unavailable:", err);
+  }
+
   const items = profile.items.map((item) => ({
     ...item,
-    stickers: parseStickersJson(item.stickers),
+    stickers: itemSupportsStickers(item.type, item.marketHashName)
+      ? parseStickersJson(item.stickers)
+      : [],
+    buffGoodsId: buffGoodsIdFor(goodsIds, item.marketHashName),
   }));
 
-  const totalSteam = items.reduce((sum, i) => sum + (i.steamPrice ?? 0), 0);
-  const totalSkinport = items.reduce(
-    (sum, i) => sum + (i.skinportPrice ?? 0),
-    0,
-  );
+  const totalSteam = portfolioTotalFromItems(items, "steam");
+  const totalBuff = portfolioTotalFromItems(items, "buff");
 
   return NextResponse.json({
     profile: {
@@ -62,7 +75,7 @@ export async function GET(_req: Request, { params }: Params) {
     totals: {
       itemCount: items.length,
       totalSteam,
-      totalSkinport,
+      totalBuff,
     },
   });
 }

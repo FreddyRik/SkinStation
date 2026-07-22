@@ -1,39 +1,39 @@
 "use client";
 
 import {
-  CURRENCIES,
-  CURRENCY_LABELS,
-  type Currency,
-  writeStoredCurrency,
-} from "@/lib/currency";
+  INVENTORY_VIEWS,
+  INVENTORY_VIEW_LABELS,
+  type InventoryView,
+  writeStoredInventoryView,
+} from "@/lib/inventory-view";
 
-export function CurrencyToggle({
+export function InventoryViewToggle({
   value,
   onChange,
   disabled = false,
 }: {
-  value: Currency;
-  onChange: (currency: Currency) => void;
+  value: InventoryView;
+  onChange: (view: InventoryView) => void;
   disabled?: boolean;
 }) {
   return (
     <div
       className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg)] p-0.5"
       role="group"
-      aria-label="Currency"
+      aria-label="Inventory layout"
     >
-      {CURRENCIES.map((currency) => {
-        const active = value === currency;
+      {INVENTORY_VIEWS.map((view) => {
+        const active = value === view;
         return (
           <button
-            key={currency}
+            key={view}
             type="button"
             disabled={disabled}
             aria-pressed={active}
-            title={CURRENCY_LABELS[currency]}
+            title={INVENTORY_VIEW_LABELS[view]}
             onClick={() => {
-              writeStoredCurrency(currency);
-              onChange(currency);
+              writeStoredInventoryView(view);
+              onChange(view);
             }}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wide transition disabled:opacity-50 ${
               active
@@ -41,7 +41,7 @@ export function CurrencyToggle({
                 : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}
           >
-            {currency}
+            {INVENTORY_VIEW_LABELS[view]}
           </button>
         );
       })}

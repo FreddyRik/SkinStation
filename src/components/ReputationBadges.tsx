@@ -33,12 +33,13 @@ export function ReputationBadges({
   const noFaceit = checked && !reputation.faceitFound;
   const chip =
     size === "sm"
-      ? "rounded-md px-1.5 py-0.5 text-[10px]"
-      : "rounded-lg px-2 py-1 text-xs";
-  const icon = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5";
-  const steamHref =
-    reputation.steamUrl?.trim() ||
-    null;
+      ? "box-border h-6 rounded-md px-1.5 text-[10px] leading-none"
+      : "box-border h-7 rounded-lg px-2 text-xs leading-none";
+  const icon = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
+  const faceitBadgeSize = size === "sm" ? "xs" : "sm";
+  const steamHref = reputation.steamUrl?.trim() || null;
+
+  const chipBase = `inline-flex shrink-0 items-center gap-1.5 border font-semibold ${chip}`;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -47,13 +48,15 @@ export function ReputationBadges({
           href={steamHref}
           target="_blank"
           rel="noreferrer"
-          className={`inline-flex items-center gap-1.5 border border-[var(--steam)]/35 bg-[var(--steam)]/10 font-semibold text-[var(--steam)] hover:bg-[var(--steam)]/20 ${chip}`}
+          className={`${chipBase} border-[var(--steam)]/35 bg-[var(--steam)]/10 text-[var(--steam)] hover:bg-[var(--steam)]/20`}
           title="Open Steam profile"
           onClick={(e) => e.stopPropagation()}
         >
-          <SteamBrandIcon className={icon} />
-          Steam
-          {reputation.steamLabel ? ` · ${reputation.steamLabel}` : ""}
+          <SteamBrandIcon className={`shrink-0 ${icon}`} />
+          <span className="truncate">
+            Steam
+            {reputation.steamLabel ? ` · ${reputation.steamLabel}` : ""}
+          </span>
         </a>
       ) : null}
 
@@ -63,7 +66,7 @@ export function ReputationBadges({
             href={reputation.faceitUrl}
             target="_blank"
             rel="noreferrer"
-            className={`inline-flex items-center gap-1.5 border border-[#ff5500]/35 bg-[#ff5500]/10 font-semibold text-[#ff5500] hover:bg-[#ff5500]/20 ${chip}`}
+            className={`${chipBase} border-[#ff5500]/35 bg-[#ff5500]/10 text-[#ff5500] hover:bg-[#ff5500]/20`}
             title={
               reputation.faceitElo != null
                 ? `FACEIT ELO ${reputation.faceitElo}`
@@ -72,16 +75,23 @@ export function ReputationBadges({
             onClick={(e) => e.stopPropagation()}
           >
             {reputation.faceitLevel != null ? (
-              <FaceitLevelBadge level={reputation.faceitLevel} size="sm" />
+              <FaceitLevelBadge
+                level={reputation.faceitLevel}
+                size={faceitBadgeSize}
+              />
             ) : (
-              <FaceitBrandIcon className={icon} />
+              <FaceitBrandIcon className={`shrink-0 ${icon}`} />
             )}
-            FACEIT
-            {reputation.faceitNickname ? ` · ${reputation.faceitNickname}` : ""}
+            <span className="truncate">
+              FACEIT
+              {reputation.faceitNickname
+                ? ` · ${reputation.faceitNickname}`
+                : ""}
+            </span>
           </a>
         ) : (
           <span
-            className={`inline-flex items-center gap-1.5 border border-[#ff5500]/35 bg-[#ff5500]/10 font-semibold text-[#ff5500] ${chip}`}
+            className={`${chipBase} border-[#ff5500]/35 bg-[#ff5500]/10 text-[#ff5500]`}
             title={
               reputation.faceitElo != null
                 ? `FACEIT ELO ${reputation.faceitElo}`
@@ -89,21 +99,28 @@ export function ReputationBadges({
             }
           >
             {reputation.faceitLevel != null ? (
-              <FaceitLevelBadge level={reputation.faceitLevel} size="sm" />
+              <FaceitLevelBadge
+                level={reputation.faceitLevel}
+                size={faceitBadgeSize}
+              />
             ) : (
-              <FaceitBrandIcon className={icon} />
+              <FaceitBrandIcon className={`shrink-0 ${icon}`} />
             )}
-            FACEIT
-            {reputation.faceitNickname ? ` · ${reputation.faceitNickname}` : ""}
+            <span className="truncate">
+              FACEIT
+              {reputation.faceitNickname
+                ? ` · ${reputation.faceitNickname}`
+                : ""}
+            </span>
           </span>
         )
       ) : noFaceit ? (
         <span
-          className={`inline-flex items-center gap-1 border border-[var(--warn)]/40 bg-[var(--warn)]/10 font-semibold text-[var(--warn)] ${chip}`}
+          className={`${chipBase} gap-1 border-[var(--warn)]/40 bg-[var(--warn)]/10 text-[var(--warn)]`}
           title="No FACEIT profile found for this Steam account"
         >
-          <FaceitBrandIcon className={icon} />
-          No FACEIT
+          <FaceitBrandIcon className={`shrink-0 ${icon}`} />
+          <span className="truncate">No FACEIT</span>
         </span>
       ) : null}
 
@@ -112,7 +129,7 @@ export function ReputationBadges({
           href={reputation.leetifyUrl}
           target="_blank"
           rel="noreferrer"
-          className={`inline-flex items-center gap-1.5 border border-[#7c6af7]/40 bg-[#7c6af7]/15 font-semibold text-[#b7a9ff] hover:bg-[#7c6af7]/25 ${chip}`}
+          className={`${chipBase} border-[#7c6af7]/40 bg-[#7c6af7]/15 text-[#b7a9ff] hover:bg-[#7c6af7]/25`}
           title={
             reputation.leetifyName
               ? `Leetify · ${reputation.leetifyName}`
@@ -120,11 +137,13 @@ export function ReputationBadges({
           }
           onClick={(e) => e.stopPropagation()}
         >
-          <LeetifyBrandIcon className={icon} />
-          Leetify
-          {reputation.leetifyRating != null
-            ? ` · ${reputation.leetifyRating.toFixed(2)}`
-            : ""}
+          <LeetifyBrandIcon className={`shrink-0 ${icon}`} />
+          <span className="truncate">
+            Leetify
+            {reputation.leetifyRating != null
+              ? ` · ${reputation.leetifyRating.toFixed(2)}`
+              : ""}
+          </span>
         </a>
       ) : null}
     </div>

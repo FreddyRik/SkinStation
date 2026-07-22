@@ -1,24 +1,28 @@
-export const PRICE_SOURCES = ["skinport", "steam"] as const;
+import { itemCanListOnMarket } from "@/lib/item-flags";
+
+export const PRICE_SOURCES = ["buff", "steam"] as const;
 
 export type PriceSource = (typeof PRICE_SOURCES)[number];
 
-export const DEFAULT_PRICE_SOURCE: PriceSource = "skinport";
+export const DEFAULT_PRICE_SOURCE: PriceSource = "buff";
 
 export const PRICE_SOURCE_STORAGE_KEY = "inventory-tracker-price-source";
 
 export const PRICE_SOURCE_LABELS: Record<PriceSource, string> = {
-  skinport: "Skinport",
+  buff: "Buff163",
   steam: "Steam Market",
 };
 
 export function isPriceSource(value: unknown): value is PriceSource {
-  return value === "skinport" || value === "steam";
+  return value === "buff" || value === "steam";
 }
 
 export function parsePriceSource(
   value: unknown,
   fallback: PriceSource = DEFAULT_PRICE_SOURCE,
 ): PriceSource {
+  // Legacy Skinport preference → Buff
+  if (value === "skinport") return "buff";
   return isPriceSource(value) ? value : fallback;
 }
 
@@ -44,7 +48,12 @@ export function writeStoredPriceSource(source: PriceSource): void {
 
 export type PricedItem = {
   steamPrice: number | null;
-  skinportPrice: number | null;
+  buffPrice: number | null;
+  /** Steam Community Market listable flag when known. */
+  marketable?: boolean | null;
+  type?: string | null;
+  marketHashName?: string | null;
+  name?: string | null;
 };
 
 /** Selected market price, falling back to the other when missing. */
@@ -52,10 +61,11 @@ export function itemPrice(
   item: PricedItem,
   source: PriceSource,
 ): number | null {
-  if (source === "skinport") {
-    return item.skinportPrice ?? item.steamPrice ?? null;
+  if (!itemCanListOnMarket(item)) return null;
+  if (source === "buff") {
+    return item.buffPrice ?? item.steamPrice ?? null;
   }
-  return item.steamPrice ?? item.skinportPrice ?? null;
+  return item.steamPrice ?? item.buffPrice ?? null;
 }
 
 export function itemPriceOrZero(item: PricedItem, source: PriceSource): number {
@@ -63,10 +73,10 @@ export function itemPriceOrZero(item: PricedItem, source: PriceSource): number {
 }
 
 export function primaryTotal(
-  totals: { totalSteam: number; totalSkinport: number },
+  totals: { totalSteam: number; totalBuff: number },
   source: PriceSource,
 ): number {
-  return source === "skinport" ? totals.totalSkinport : totals.totalSteam;
+  return source === "buff" ? totals.totalBuff : totals.totalSteam;
 }
 
 /** Portfolio total using the same per-item fallback rules as the grid. */
@@ -78,5 +88,5 @@ export function portfolioTotalFromItems(
 }
 
 export function priceSourceAccent(source: PriceSource): string {
-  return source === "skinport" ? "var(--skinport)" : "var(--steam)";
+  return source === "buff" ? "var(--buff)" : "var(--steam)";
 }

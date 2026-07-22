@@ -40,7 +40,7 @@ export default async function HomePage() {
             ? {
                 currency: parseCurrency(p.snapshots[0].currency, currency),
                 totalSteam: p.snapshots[0].totalSteam,
-                totalSkinport: p.snapshots[0].totalSkinport,
+                totalBuff: p.snapshots[0].totalBuff,
               }
             : null,
         };
