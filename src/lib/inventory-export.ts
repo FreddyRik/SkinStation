@@ -1,7 +1,10 @@
 import type { Currency } from "@/lib/currency";
 import type { InventoryItemView } from "@/components/InventoryDashboard";
 import { itemSupportsStickers } from "@/lib/item-flags";
-import type { PriceSource } from "@/lib/price-source";
+import {
+  portfolioTotalFromItems,
+  type PriceSource,
+} from "@/lib/price-source";
 
 export type InventoryExportMeta = {
   steamId: string;
@@ -105,15 +108,6 @@ function toExportItem(item: InventoryItemView): ExportItem {
   };
 }
 
-function sumPrices(
-  items: ExportItem[],
-  key: "steamPrice" | "buffPrice",
-): number {
-  return Math.round(
-    items.reduce((sum, item) => sum + (item[key] ?? 0), 0) * 100,
-  ) / 100;
-}
-
 export function buildInventoryExportDocument(
   items: InventoryItemView[],
   meta: InventoryExportMeta,
@@ -132,8 +126,9 @@ export function buildInventoryExportDocument(
     filtered: meta.filtered,
     itemCount: exported.length,
     totals: {
-      steam: sumPrices(exported, "steamPrice"),
-      buff: sumPrices(exported, "buffPrice"),
+      // Match on-screen portfolio totals (selected source with cross-fallback).
+      steam: roundMoney(portfolioTotalFromItems(items, "steam")) ?? 0,
+      buff: roundMoney(portfolioTotalFromItems(items, "buff")) ?? 0,
     },
     items: exported,
   };

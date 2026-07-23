@@ -45,5 +45,6 @@ export function formatDate(value: string | Date | null | undefined): string {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "UTC",
   }).format(d);
 }

@@ -291,6 +291,7 @@ export function InventoryDashboard({
       time: new Intl.DateTimeFormat("en-US", {
         dateStyle: "medium",
         timeStyle: "short",
+        timeZone: "UTC",
       }).format(new Date(s.createdAt)),
       Steam: convertMoneyOrZero(s.totalSteam, from, currency, usdToEur),
       Buff: convertMoneyOrZero(s.totalBuff, from, currency, usdToEur),
@@ -631,6 +632,7 @@ export function InventoryDashboard({
                   <ItemHoverCard
                     item={item}
                     currency={currency}
+                    priceSource={priceSource}
                     floatProviderWarning={floatProviderWarning}
                   >
                     {inventoryView === "list" ? (

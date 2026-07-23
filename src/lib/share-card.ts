@@ -22,6 +22,7 @@ import {
   formatStickerWear,
   stripStickerPrefix,
 } from "@/lib/stickers/normalize";
+import { parseStickersJson } from "@/lib/stickers/parse";
 
 export type ShareStickerInput = {
   slot?: number;
@@ -96,14 +97,12 @@ function stickerDisplayName(name: string): string {
 }
 
 function parseItemStickers(raw: unknown): ShareStickerInput[] {
-  if (Array.isArray(raw)) return raw as ShareStickerInput[];
-  if (typeof raw === "string" && raw.trim()) {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? (parsed as ShareStickerInput[]) : [];
-    } catch {
-      return [];
-    }
+  if (Array.isArray(raw)) {
+    // Reuse the same defensive parser used for Prisma JSON strings.
+    return parseStickersJson(JSON.stringify(raw));
+  }
+  if (typeof raw === "string") {
+    return parseStickersJson(raw);
   }
   return [];
 }

@@ -29,6 +29,8 @@ model Profile {
   lastSyncedAt    DateTime?
   lastError       String?
   syncing         Boolean   @default(false)
+  /** Ownership token for the active sync; release only when this still matches. */
+  syncLockToken   String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

@@ -9,6 +9,38 @@ import { prisma } from "@/lib/db";
 
 export const maxDuration = 300;
 
+function syncErrorStatus(message: string): number {
+  const lower = message.toLowerCase();
+  if (lower.includes("already in progress")) return 409;
+  if (
+    lower.includes("private") ||
+    lower.includes("hidden") ||
+    lower.includes("ensure the profile and cs2 inventory are public")
+  ) {
+    return 403;
+  }
+  if (lower.includes("rate-limited") || lower.includes("rate limited")) {
+    return 429;
+  }
+  if (
+    lower.includes("could not resolve") ||
+    lower.includes("invalid steam") ||
+    lower.includes("profile not found") ||
+    lower.includes("vanity") ||
+    lower.includes("required")
+  ) {
+    return 400;
+  }
+  if (
+    lower.includes("steam inventory") ||
+    lower.includes("steam returned") ||
+    lower.includes("could not load inventory")
+  ) {
+    return 502;
+  }
+  return 500;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
@@ -49,7 +81,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sync failed";
-    const status = message.includes("already in progress") ? 409 : 500;
+    const status = syncErrorStatus(message);
     return NextResponse.json({ error: message }, { status });
   }
 }

@@ -335,12 +335,14 @@ async function fetchSteamInventoryFromSteam(
     all.push(...parsePage(data, steamId));
 
     if (!data.more_items || !data.last_assetid) {
-      break;
+      return all;
     }
 
     startAssetId = data.last_assetid;
     await sleep(1500);
   }
 
-  return all;
+  throw new Error(
+    "Inventory is too large to sync in one pass (over ~40,000 items). Try again later or contact support.",
+  );
 }

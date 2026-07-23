@@ -58,35 +58,49 @@ async function fetchSteamPriceOnce(
     market_hash_name: marketHashName,
   });
 
-  const res = await fetch(
-    `https://steamcommunity.com/market/priceoverview/?${params}`,
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        Accept: "application/json, text/javascript, */*; q=0.01",
-        "Accept-Language": "en-US,en;q=0.9",
-        Referer: "https://steamcommunity.com/market/",
+  try {
+    const res = await fetch(
+      `https://steamcommunity.com/market/priceoverview/?${params}`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          Accept: "application/json, text/javascript, */*; q=0.01",
+          "Accept-Language": "en-US,en;q=0.9",
+          Referer: "https://steamcommunity.com/market/",
+        },
+        next: { revalidate: 0 },
       },
-      next: { revalidate: 0 },
-    },
-  );
+    );
 
-  if (res.status === 429) {
-    if (attempt >= 4) return null;
-    await sleep(4000 * (attempt + 1));
-    return fetchSteamPriceOnce(marketHashName, currency, attempt + 1);
-  }
+    if (res.status === 429) {
+      if (attempt >= 4) return null;
+      await sleep(4000 * (attempt + 1));
+      return fetchSteamPriceOnce(marketHashName, currency, attempt + 1);
+    }
 
-  if (!res.ok) {
+    if (!res.ok) {
+      return null;
+    }
+
+    const text = await res.text();
+    if (!text || text === "null") return null;
+
+    let data: PriceOverviewResponse;
+    try {
+      data = JSON.parse(text) as PriceOverviewResponse;
+    } catch {
+      return null;
+    }
+
+    if (!data.success) return null;
+    return (
+      parseSteamPrice(data.lowest_price) ?? parseSteamPrice(data.median_price)
+    );
+  } catch (err) {
+    console.warn("Steam priceoverview failed:", marketHashName, err);
     return null;
   }
-
-  const data = (await res.json()) as PriceOverviewResponse;
-  if (!data.success) return null;
-  return (
-    parseSteamPrice(data.lowest_price) ?? parseSteamPrice(data.median_price)
-  );
 }
 
 /** Fetch Steam market prices for names missing from cache or expired. */

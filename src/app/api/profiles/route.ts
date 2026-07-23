@@ -55,6 +55,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ profile });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create profile";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const lower = message.toLowerCase();
+    let status = 500;
+    if (
+      lower.includes("could not resolve") ||
+      lower.includes("invalid steam") ||
+      lower.includes("vanity") ||
+      lower.includes("required")
+    ) {
+      status = 400;
+    } else if (
+      lower.includes("rate-limited") ||
+      lower.includes("rate limited")
+    ) {
+      status = 429;
+    } else if (
+      lower.includes("steam") ||
+      lower.includes("fetch") ||
+      lower.includes("network")
+    ) {
+      status = 502;
+    }
+    return NextResponse.json({ error: message }, { status });
   }
 }

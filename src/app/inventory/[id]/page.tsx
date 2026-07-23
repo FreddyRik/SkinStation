@@ -30,7 +30,7 @@ export default async function InventoryPage({ params }: PageProps) {
         orderBy: [{ buffPrice: "desc" }, { marketHashName: "asc" }],
       },
       snapshots: {
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
         take: 100,
       },
     },
@@ -108,7 +108,7 @@ export default async function InventoryPage({ params }: PageProps) {
         syncing: profile.syncing,
       }}
       items={items}
-      snapshots={profile.snapshots.map((s) => ({
+      snapshots={[...profile.snapshots].reverse().map((s) => ({
         id: s.id,
         currency: parseCurrency(s.currency, currency),
         itemCount: s.itemCount,

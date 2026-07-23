@@ -20,6 +20,11 @@ import {
 } from "@/lib/item-flags";
 import { canLinkBuffMarket, canLinkSteamMarket } from "@/lib/steam-market/listing";
 import {
+  DEFAULT_PRICE_SOURCE,
+  itemPrice,
+  type PriceSource,
+} from "@/lib/price-source";
+import {
   formatStickerWear,
   stripStickerPrefix,
 } from "@/lib/stickers/normalize";
@@ -36,6 +41,7 @@ const ESTIMATED_PANEL_H = 280;
 type Props = {
   item: InventoryItemView;
   currency: Currency;
+  priceSource?: PriceSource;
   /** Profile-level Steamwebapi quota warning, if any. */
   floatProviderWarning?: string | null;
   children: React.ReactNode;
@@ -97,6 +103,7 @@ function computePlacement(
 export function ItemHoverCard({
   item,
   currency,
+  priceSource = DEFAULT_PRICE_SOURCE,
   floatProviderWarning,
   children,
 }: Props) {
@@ -202,7 +209,12 @@ export function ItemHoverCard({
     ? (item.stickers ?? [])
     : [];
   const stickerTotal = stickers.reduce(
-    (sum, s) => sum + (s.buffPrice ?? s.steamPrice ?? 0),
+    (sum, s) =>
+      sum +
+      (itemPrice(
+        { steamPrice: s.steamPrice ?? null, buffPrice: s.buffPrice ?? null },
+        priceSource,
+      ) ?? 0),
     0,
   );
 
@@ -382,10 +394,19 @@ export function ItemHoverCard({
     <div
       ref={triggerRef}
       className="relative h-full"
+      tabIndex={0}
+      aria-describedby={open ? panelId : undefined}
       onMouseEnter={show}
       onMouseLeave={scheduleClose}
       onFocus={show}
       onBlur={scheduleClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          openRef.current = false;
+          setOpen(false);
+          setPlacement(null);
+        }
+      }}
     >
       {children}
       {panel}
