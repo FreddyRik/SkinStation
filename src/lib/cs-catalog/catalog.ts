@@ -1,7 +1,11 @@
 import {
+  effectiveWeaponCategory,
+  effectiveWeaponCategoryId,
   isGloveCategory,
   isKnifeCategory,
+  isZeusWeapon,
 } from "@/lib/cs-catalog/flags";
+import { resolveSkinPhase } from "@/lib/cs-catalog/phase";
 import { finishStyleFromPatternId } from "@/lib/cs-catalog/wears";
 import type {
   CatalogCollectionDetail,
@@ -64,6 +68,8 @@ type RawSkin = {
   team?: { id?: string; name?: string };
   market_hash_name?: string;
   legacy_model?: boolean;
+  /** Doppler / Gamma Doppler phase label from ByMykel. */
+  phase?: string;
 };
 
 type RawCollection = {
@@ -217,9 +223,11 @@ function slimFromDetail(detail: CatalogItemDetail): SlimCatalogItem {
     sourceImage: source?.image ?? null,
     sourceId: source?.id ?? null,
     sourceKind,
+    collectionCount: detail.collections.length,
     minFloat: detail.minFloat,
     maxFloat: detail.maxFloat,
     wearNames: detail.wears.map((w) => w.name),
+    phase: detail.phase,
     priceMinUsd: null,
     priceMaxUsd: null,
     stattrakPriceMinUsd: null,
@@ -227,10 +235,98 @@ function slimFromDetail(detail: CatalogItemDetail): SlimCatalogItem {
   };
 }
 
+/** Parse ByMykel sale dates (`2024-01-16` or `2024/01/16`). */
+function parseSaleDateMs(raw: string | null | undefined): number {
+  if (!raw) return 0;
+  const t = Date.parse(raw.replace(/\//g, "-"));
+  return Number.isFinite(t) ? t : 0;
+}
+
+function earliestSaleDate(dates: Iterable<string>): string | null {
+  let best: string | null = null;
+  let bestMs = Infinity;
+  for (const d of dates) {
+    const ms = parseSaleDateMs(d);
+    if (ms > 0 && ms < bestMs) {
+      bestMs = ms;
+      best = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Skins/stickers/etc. have no native release field in ByMykel.
+ * Derive from linked crates (and crates of linked collections), plus a
+ * reverse index of crate contains / contains_rare.
+ */
+function applyDerivedSaleDates(
+  byId: Map<string, CatalogItemDetail>,
+  collectionsById: Map<string, CatalogCollectionDetail>,
+): void {
+  const datesByContentId = new Map<string, string[]>();
+  function addContentDate(contentId: string, date: string) {
+    const list = datesByContentId.get(contentId);
+    if (list) list.push(date);
+    else datesByContentId.set(contentId, [date]);
+  }
+
+  for (const item of byId.values()) {
+    if (item.kind !== "crate" || !item.firstSaleDate) continue;
+    for (const row of item.contains) addContentDate(row.id, item.firstSaleDate);
+    for (const row of item.containsRare)
+      addContentDate(row.id, item.firstSaleDate);
+  }
+
+  for (const [id, detail] of byId) {
+    // Keep authoritative crate dates; only fill missing elsewhere.
+    if (detail.kind === "crate" && detail.firstSaleDate) continue;
+
+    const candidates: string[] = [];
+    if (detail.firstSaleDate) candidates.push(detail.firstSaleDate);
+
+    for (const crate of detail.crates) {
+      const d = byId.get(crate.id)?.firstSaleDate;
+      if (d) candidates.push(d);
+    }
+    for (const col of detail.collections) {
+      const colDetail = collectionsById.get(col.id);
+      if (!colDetail) continue;
+      for (const crate of colDetail.crates) {
+        const d = byId.get(crate.id)?.firstSaleDate;
+        if (d) candidates.push(d);
+      }
+    }
+    const reverse = datesByContentId.get(id);
+    if (reverse) candidates.push(...reverse);
+
+    const derived = earliestSaleDate(candidates);
+    if (derived && derived !== detail.firstSaleDate) {
+      byId.set(id, { ...detail, firstSaleDate: derived });
+    }
+  }
+
+  // Collection detail pages / unified lookup.
+  for (const [id, col] of collectionsById) {
+    const candidates: string[] = [];
+    for (const crate of col.crates) {
+      const d = byId.get(crate.id)?.firstSaleDate;
+      if (d) candidates.push(d);
+    }
+    const derived = earliestSaleDate(candidates);
+    if (!derived) continue;
+    const existing = byId.get(id);
+    if (existing && existing.firstSaleDate !== derived) {
+      byId.set(id, { ...existing, firstSaleDate: derived });
+    }
+  }
+}
+
 function mapSkin(raw: RawSkin): CatalogItemDetail | null {
   if (!raw.id || !raw.name) return null;
   const categoryId = raw.category?.id ?? null;
   const patternId = raw.pattern?.id ?? null;
+  const weaponName = raw.weapon?.name ?? null;
   return {
     id: raw.id,
     name: raw.name,
@@ -239,11 +335,11 @@ function mapSkin(raw: RawSkin): CatalogItemDetail | null {
     kind: "skin",
     rarity: asRarity(raw.rarity),
     marketHashName: raw.market_hash_name?.trim() || null,
-    weaponCategory: raw.category?.name ?? null,
-    weaponCategoryId: categoryId,
-    weaponName: raw.weapon?.name ?? null,
+    weaponCategory: effectiveWeaponCategory(raw.category?.name, weaponName),
+    weaponCategoryId: effectiveWeaponCategoryId(categoryId, weaponName),
+    weaponName,
     patternName: raw.pattern?.name ?? null,
-    isKnife: isKnifeCategory(categoryId),
+    isKnife: isKnifeCategory(categoryId) && !isZeusWeapon(weaponName),
     isGlove: isGloveCategory(categoryId),
     minFloat: typeof raw.min_float === "number" ? raw.min_float : null,
     maxFloat: typeof raw.max_float === "number" ? raw.max_float : null,
@@ -265,6 +361,11 @@ function mapSkin(raw: RawSkin): CatalogItemDetail | null {
     finishStyle: finishStyleFromPatternId(patternId),
     legacyModel:
       typeof raw.legacy_model === "boolean" ? raw.legacy_model : null,
+    phase: resolveSkinPhase({
+      phase: raw.phase,
+      paintIndex: raw.paint_index,
+      patternId,
+    }),
   };
 }
 
@@ -307,6 +408,7 @@ function mapSimple(
     patternId: null,
     finishStyle: null,
     legacyModel: null,
+    phase: null,
   };
 }
 
@@ -345,6 +447,7 @@ function mapCrate(raw: RawCrate): CatalogItemDetail | null {
     patternId: null,
     finishStyle: null,
     legacyModel: null,
+    phase: null,
   };
 }
 
@@ -408,6 +511,7 @@ function collectionAsItem(detail: CatalogCollectionDetail): CatalogItemDetail {
     patternId: null,
     finishStyle: null,
     legacyModel: null,
+    phase: null,
   };
 }
 
@@ -444,13 +548,11 @@ async function loadBundle(): Promise<CatalogBundle> {
 
   const byId = new Map<string, CatalogItemDetail>();
   const collectionsById = new Map<string, CatalogCollectionDetail>();
-  const items: SlimCatalogItem[] = [];
   const slimCollections: SlimCollection[] = [];
 
   const pushItem = (detail: CatalogItemDetail | null) => {
     if (!detail) return;
     byId.set(detail.id, detail);
-    items.push(slimFromDetail(detail));
   };
 
   for (const row of skins as RawSkin[]) pushItem(mapSkin(row));
@@ -482,6 +584,14 @@ async function loadBundle(): Promise<CatalogBundle> {
     slimCollections.push(collectionToSlim(detail));
     // Also index collections in byId for unified /database/[id] lookup.
     byId.set(detail.id, collectionAsItem(detail));
+  }
+
+  applyDerivedSaleDates(byId, collectionsById);
+
+  const items: SlimCatalogItem[] = [];
+  for (const detail of byId.values()) {
+    if (detail.kind === "collection") continue;
+    items.push(slimFromDetail(detail));
   }
 
   return {
@@ -540,6 +650,22 @@ export async function getCatalogPayload(force = false): Promise<{
 }> {
   const bundle = await getBundle(force);
   return { items: bundle.items, collections: bundle.collections };
+}
+
+/** Full in-memory maps for features that need contains / containsRare. */
+export async function getCatalogMaps(force = false): Promise<{
+  items: SlimCatalogItem[];
+  collections: SlimCollection[];
+  byId: Map<string, CatalogItemDetail>;
+  collectionsById: Map<string, CatalogCollectionDetail>;
+}> {
+  const bundle = await getBundle(force);
+  return {
+    items: bundle.items,
+    collections: bundle.collections,
+    byId: bundle.byId,
+    collectionsById: bundle.collectionsById,
+  };
 }
 
 export async function getItemById(

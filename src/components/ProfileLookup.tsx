@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { ReputationBadges } from "@/components/ReputationBadges";
 import type { Currency } from "@/lib/currency";
 import {
@@ -46,8 +46,14 @@ function steamProfileUrl(steamId: string): string {
 
 export function ProfileLookup({
   recentProfiles,
+  atmosphere = null,
+  accentGlow = false,
 }: {
   recentProfiles: ProfileSummary[];
+  /** Optional decorative layer rendered behind the hero card content. */
+  atmosphere?: ReactNode;
+  /** Soft accent glow on the panel edge and load button (home hub). */
+  accentGlow?: boolean;
 }) {
   const router = useRouter();
   const [input, setInput] = useState("");
@@ -116,7 +122,12 @@ export function ProfileLookup({
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/80 p-6 sm:p-10">
+      <section
+        className={`relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/80 p-6 sm:p-10 ${
+          accentGlow ? "shadow-[0_0_60px_-12px_rgba(94,234,212,0.25)]" : ""
+        }`}
+      >
+        {atmosphere}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-40"
@@ -126,6 +137,12 @@ export function ProfileLookup({
             backgroundSize: "28px 28px",
           }}
         />
+        {accentGlow ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent)]/60 to-transparent"
+          />
+        ) : null}
         <div className="relative mx-auto max-w-2xl space-y-4 text-center">
           <p className="text-sm uppercase tracking-[0.18em] text-[var(--accent-dim)]">
             Public Steam inventory
@@ -138,6 +155,18 @@ export function ProfileLookup({
             inventory, enrich floats via CSFloat, and price items on Steam Market
             and Buff163 in USD or EUR.
           </p>
+
+          {accentGlow ? (
+            <div
+              aria-hidden
+              className="mx-auto h-1 w-full max-w-md overflow-hidden rounded-full"
+              style={{
+                background:
+                  "linear-gradient(90deg, #b0c3d9 0%, #5e98d9 16%, #4b69ff 33%, #8847ff 50%, #d32ce6 66%, #eb4b4b 83%, #e4ae39 100%)",
+                opacity: 0.85,
+              }}
+            />
+          ) : null}
 
           <form
             onSubmit={onSubmit}
@@ -154,7 +183,9 @@ export function ProfileLookup({
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="rounded-xl bg-[var(--accent)] px-5 py-3 font-semibold text-[#042f2e] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0"
+              className={`rounded-xl bg-[var(--accent)] px-5 py-3 font-semibold text-[#042f2e] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0 ${
+                accentGlow ? "home-load-btn" : ""
+              }`}
             >
               {loading ? "Loading…" : "Load inventory"}
             </button>
@@ -178,7 +209,7 @@ export function ProfileLookup({
           <h2 className="text-center text-lg font-medium text-[var(--text)]">
             Recent profiles
           </h2>
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid items-stretch gap-3 sm:grid-cols-2">
             {recentProfiles.map((p) => {
               const snapshotCurrency =
                 p.latestSnapshot?.currency ?? p.currency;
@@ -196,9 +227,9 @@ export function ProfileLookup({
                 : null;
 
               return (
-                <li key={p.id}>
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/60 p-4 transition hover:border-[var(--accent)]/40 hover:bg-[var(--bg-panel)]">
-                    <div className="flex items-center gap-4">
+                <li key={p.id} className="min-w-0">
+                  <div className="flex h-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/60 p-4 transition hover:border-[var(--accent)]/40 hover:bg-[var(--bg-panel)]">
+                    <div className="flex min-w-0 flex-1 items-center gap-4">
                       <Link
                         href={inventoryHref}
                         className="relative shrink-0"
@@ -236,7 +267,7 @@ export function ProfileLookup({
                         ) : null}
                       </Link>
 
-                      <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
                         <Link
                           href={inventoryHref}
                           className="block truncate font-medium text-[var(--text)] hover:text-[var(--accent)]"
@@ -245,6 +276,7 @@ export function ProfileLookup({
                         </Link>
                         <ReputationBadges
                           size="sm"
+                          nowrap
                           reputation={{
                             steamUrl: steamProfileUrl(p.steamId),
                             faceitUrl: p.faceitUrl,

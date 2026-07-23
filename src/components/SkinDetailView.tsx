@@ -6,9 +6,12 @@ import { BuyFromOffers } from "@/components/BuyFromOffers";
 import {
   WEAR_BANDS,
   formatFloatShort,
+  formatPhaseShort,
   navFilterForWeapon,
+  phaseAccent,
   type CatalogItemDetail,
   type CatalogNamedRef,
+  type PhaseSibling,
   type SkinDetailPrices,
   type SkinVariant,
   type SkinWearPriceRow,
@@ -20,7 +23,7 @@ import {
   type Currency,
 } from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatSaleDate } from "@/lib/format";
 
 type CollectionCard = CatalogNamedRef & { itemCount: number };
 
@@ -29,12 +32,14 @@ export function SkinDetailView({
   prices,
   collections,
   buffGoodsByHash,
+  phaseSiblings = [],
 }: {
   item: CatalogItemDetail;
   prices: SkinDetailPrices;
   collections: CollectionCard[];
   /** market_hash_name → Buff163 goods_id */
   buffGoodsByHash: Record<string, number>;
+  phaseSiblings?: PhaseSibling[];
 }) {
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
   const [usdToEur, setUsdToEur] = useState(0.92);
@@ -125,8 +130,19 @@ export function SkinDetailView({
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-[var(--text)]">
           {item.patternName ?? item.name}
+          {item.phase ? (
+            <span
+              className="ml-2 align-middle text-xl font-bold tracking-wide"
+              style={{ color: phaseAccent(item.phase) }}
+            >
+              {formatPhaseShort(item.phase) ?? item.phase}
+            </span>
+          ) : null}
         </h1>
-        <p className="text-sm text-[var(--text-muted)]">{item.name}</p>
+        <p className="text-sm text-[var(--text-muted)]">
+          {item.name}
+          {item.phase ? ` · ${item.phase}` : ""}
+        </p>
       </header>
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5 sm:p-6">
@@ -167,6 +183,59 @@ export function SkinDetailView({
           ) : null}
         </div>
       </section>
+
+      {phaseSiblings.length > 1 ? (
+        <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5">
+          <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">
+            Phases
+          </h2>
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+            {phaseSiblings.map((sib) => {
+              const active = sib.id === item.id;
+              const short = formatPhaseShort(sib.phase) ?? sib.phase;
+              const accent = phaseAccent(sib.phase);
+              return (
+                <li key={sib.id}>
+                  <Link
+                    href={`/database/${encodeURIComponent(sib.id)}`}
+                    className={`flex flex-col overflow-hidden rounded-xl border transition ${
+                      active
+                        ? "border-[var(--accent)] bg-[var(--bg-elevated)]/80 ring-1 ring-[var(--accent)]/40"
+                        : "border-[var(--border)] bg-[var(--bg-elevated)]/40 hover:border-[var(--accent)]/35"
+                    }`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <span
+                      className="h-1 w-full shrink-0"
+                      style={{ backgroundColor: accent }}
+                      aria-hidden
+                    />
+                    <div className="flex h-20 items-center justify-center bg-[var(--bg)]/60 px-2 py-2">
+                      {sib.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={sib.image}
+                          alt=""
+                          className="max-h-full max-w-full object-contain"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="text-xs text-[var(--text-muted)]">—</span>
+                      )}
+                    </div>
+                    <p
+                      className="truncate px-2 py-1.5 text-center text-xs font-semibold"
+                      style={{ color: accent }}
+                    >
+                      {short}
+                    </p>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       <BuyFromSection rows={rows} buffGoodsByHash={buffGoodsByHash} />
 
@@ -238,6 +307,9 @@ export function SkinDetailView({
           {item.patternName ? (
             <SummaryRow label="Finish" value={item.patternName} />
           ) : null}
+          {item.phase ? (
+            <SummaryRow label="Phase" value={item.phase} />
+          ) : null}
           {item.finishStyle ? (
             <SummaryRow label="Finish style" value={item.finishStyle} />
           ) : null}
@@ -245,6 +317,12 @@ export function SkinDetailView({
             <SummaryRow label="Paint index" value={item.paintIndex} />
           ) : null}
           {item.team ? <SummaryRow label="Team" value={item.team} /> : null}
+          {item.firstSaleDate ? (
+            <SummaryRow
+              label="Released"
+              value={formatSaleDate(item.firstSaleDate)}
+            />
+          ) : null}
           {item.legacyModel != null ? (
             <SummaryRow
               label="Model"

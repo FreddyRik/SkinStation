@@ -18,7 +18,11 @@ export function parseSteamInput(raw: string): ParsedSteamInput {
 
   try {
     const url = new URL(input.startsWith("http") ? input : `https://${input}`);
-    if (!url.hostname.includes("steamcommunity.com")) {
+    const host = url.hostname.toLowerCase();
+    if (
+      host !== "steamcommunity.com" &&
+      !host.endsWith(".steamcommunity.com")
+    ) {
       throw new Error("URL must be a steamcommunity.com profile.");
     }
 
@@ -26,7 +30,11 @@ export function parseSteamInput(raw: string): ParsedSteamInput {
     if (parts[0] === "profiles" && parts[1] && STEAM_ID64_RE.test(parts[1])) {
       return { kind: "steamid64", value: parts[1] };
     }
-    if (parts[0] === "id" && parts[1]) {
+    if (
+      parts[0] === "id" &&
+      parts[1] &&
+      /^[a-zA-Z0-9_-]{2,64}$/.test(parts[1])
+    ) {
       return { kind: "vanity", value: parts[1] };
     }
   } catch (err) {

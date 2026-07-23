@@ -242,9 +242,10 @@ export async function syncInventory(
         paintIndex: true,
       },
     });
+    // Normalize assetId keys — Steam/JSON can disagree on string vs number-like ids.
     const previousFloats = new Map(
       previousFloatRows.map((row) => [
-        row.assetId,
+        String(row.assetId),
         {
           floatValue: row.floatValue,
           paintSeed: row.paintSeed,
@@ -252,6 +253,16 @@ export async function syncInventory(
         },
       ]),
     );
+
+    const prevFor = (assetId: string) => previousFloats.get(String(assetId));
+    const pickFiniteFloat = (
+      ...candidates: Array<number | null | undefined>
+    ): number | null => {
+      for (const c of candidates) {
+        if (typeof c === "number" && Number.isFinite(c)) return c;
+      }
+      return null;
+    };
 
     const inspectResults = enrichItemsLocally(
       inventory.map((i) => ({
@@ -286,8 +297,11 @@ export async function syncInventory(
 
     const stillMissingFloat = (assetId: string) => {
       const local = inspectResults.get(assetId);
-      const prev = previousFloats.get(assetId);
-      return local?.floatValue == null && prev?.floatValue == null;
+      const prev = prevFor(assetId);
+      return (
+        pickFiniteFloat(local?.floatValue) == null &&
+        pickFiniteFloat(prev?.floatValue) == null
+      );
     };
 
     let inspectApiFloats = new Map<
@@ -409,15 +423,15 @@ export async function syncInventory(
       { floatValue: number | null; paintSeed: number | null; paintIndex: number | null }
     >();
     const missingAfterInspect = inventory.filter((i) => {
-      const w = webapiInventory.get(i.assetId);
+      const w = webapiInventory.get(String(i.assetId));
       const local = inspectResults.get(i.assetId);
       const inspectRemote = inspectApiFloats.get(i.assetId);
-      const prev = previousFloats.get(i.assetId);
+      const prev = prevFor(i.assetId);
       return (
-        w?.floatValue == null &&
-        local?.floatValue == null &&
-        inspectRemote?.floatValue == null &&
-        prev?.floatValue == null
+        pickFiniteFloat(w?.floatValue) == null &&
+        pickFiniteFloat(local?.floatValue) == null &&
+        pickFiniteFloat(inspectRemote?.floatValue) == null &&
+        pickFiniteFloat(prev?.floatValue) == null
       );
     });
     if (
@@ -427,43 +441,91 @@ export async function syncInventory(
     ) {
       const remoteFloatEnrich = await enrichFloatsViaSteamwebapi(
         profile.steamId,
-        missingAfterInspect.map((i) => ({
-          assetId: i.assetId,
-          marketHashName: i.marketHashName,
-          type: i.type,
-        })),
+        missingAfterInspect.map((i) => {
+          const w = webapiInventory.get(String(i.assetId));
+          return {
+            assetId: String(i.assetId),
+            marketHashName: i.marketHashName,
+            type: i.type,
+            inspectLink: w?.inspectLink ?? i.inspectLink,
+          };
+        }),
       );
       remoteFloats = remoteFloatEnrich.floats;
       if (remoteFloatEnrich.limitHit) {
-        // Soft-fail quietly; local decode + INSPECT_API_URL are the primary path.
         steamwebapiLimitHit = true;
         console.warn(STEAMWEBAPI_LIMIT_MESSAGE);
       }
     }
 
-    // Soft hint when many weapons still lack floats and no remote provider exists.
-    if (
-      !floatProviderWarning &&
-      !getInspectApiBaseUrl() &&
-      !getSteamwebapiKey()
-    ) {
+    // Soft hint when weapon floats are still missing after the cascade.
+    if (!floatProviderWarning) {
       const missingCount = inventory.filter((i) => {
+        const w = webapiInventory.get(String(i.assetId));
         const local = inspectResults.get(i.assetId);
-        const prev = previousFloats.get(i.assetId);
-        return local?.floatValue == null && prev?.floatValue == null;
+        const inspectRemote = inspectApiFloats.get(i.assetId);
+        const remote = remoteFloats.get(String(i.assetId));
+        const prev = prevFor(i.assetId);
+        const name = i.marketHashName;
+        const type = (i.type ?? "").toLowerCase();
+        const weaponLike =
+          name.includes("|") &&
+          !name.startsWith("Sticker |") &&
+          !name.startsWith("Patch |") &&
+          !name.startsWith("Sealed Graffiti") &&
+          !name.startsWith("Charm |") &&
+          (type.includes("rifle") ||
+            type.includes("pistol") ||
+            type.includes("smg") ||
+            type.includes("shotgun") ||
+            type.includes("sniper") ||
+            type.includes("machinegun") ||
+            type.includes("knife") ||
+            type.includes("gloves") ||
+            !type);
+        if (!weaponLike) return false;
+        return (
+          pickFiniteFloat(w?.floatValue) == null &&
+          pickFiniteFloat(local?.floatValue) == null &&
+          pickFiniteFloat(inspectRemote?.floatValue) == null &&
+          pickFiniteFloat(remote?.floatValue) == null &&
+          pickFiniteFloat(prev?.floatValue) == null
+        );
       }).length;
+
       if (missingCount > 0) {
-        floatProviderWarning = INSPECT_API_MISSING_MESSAGE;
+        if (!getInspectApiBaseUrl() && !getSteamwebapiKey()) {
+          floatProviderWarning = INSPECT_API_MISSING_MESSAGE;
+        } else if (steamwebapiLimitHit) {
+          floatProviderWarning =
+            "Float provider quota hit — many skins still have no float. Try Force again later, or set INSPECT_API_URL to a self-hosted inspect service.";
+        } else if (
+          getSteamwebapiKey() &&
+          webapiInventory.size === 0 &&
+          !getInspectApiBaseUrl()
+        ) {
+          floatProviderWarning =
+            "Steamwebapi inventory returned no items for float enrichment. Check the API key/plan, or set INSPECT_API_URL to a self-hosted inspect service.";
+        } else if (missingCount >= 5) {
+          floatProviderWarning =
+            `${missingCount} skins still have no float after sync. ` +
+            (getInspectApiBaseUrl()
+              ? "Inspect API may be rate-limited — try Force again shortly."
+              : "Steam no longer exposes certificate floats on public inventory. Steamwebapi had gaps — Force sync again later, or set INSPECT_API_URL for a self-hosted GC bot.");
+        }
       }
     }
 
     const steamwebapiWarning = floatProviderWarning;
 
+    let priceCatalogWarning: string | null = null;
     let buffCatalog;
     try {
       buffCatalog = await getCsgoTraderBuffCatalog(currency);
     } catch {
       buffCatalog = new Map();
+      priceCatalogWarning =
+        "Buff163 price catalog unavailable — prices may be incomplete.";
     }
 
     let traderSteam = new Map<string, number>();
@@ -471,11 +533,14 @@ export async function syncInventory(
       traderSteam = await getCsgoTraderSteamCatalog(currency);
     } catch {
       traderSteam = new Map();
+      priceCatalogWarning = priceCatalogWarning
+        ? `${priceCatalogWarning} Steam Market price catalog also unavailable.`
+        : "Steam Market price catalog unavailable — prices may be incomplete.";
     }
 
     const stickerNames = new Set<string>();
     for (const item of inventory) {
-      const webapi = webapiInventory.get(item.assetId);
+      const webapi = webapiInventory.get(String(item.assetId));
       const inspect = inspectResults.get(item.assetId);
       const cert = certificateStickers.get(item.assetId);
       const inspectRemote = inspectApiFloats.get(item.assetId);
@@ -528,9 +593,9 @@ export async function syncInventory(
     const rows = inventory.map((item) => {
       const inspect = inspectResults.get(item.assetId);
       const inspectRemote = inspectApiFloats.get(item.assetId);
-      const webapi = webapiInventory.get(item.assetId);
-      const remote = remoteFloats.get(item.assetId);
-      const previous = previousFloats.get(item.assetId);
+      const webapi = webapiInventory.get(String(item.assetId));
+      const remote = remoteFloats.get(String(item.assetId));
+      const previous = prevFor(item.assetId);
       const listable = itemCanListOnMarket({
         marketable: item.marketable,
         type: item.type,
@@ -583,7 +648,7 @@ export async function syncInventory(
 
       return {
         profileId,
-        assetId: item.assetId,
+        assetId: String(item.assetId),
         classId: item.classId,
         instanceId: item.instanceId,
         marketHashName: item.marketHashName,
@@ -591,13 +656,14 @@ export async function syncInventory(
         iconUrl: item.iconUrl,
         exterior: item.exterior,
         // Prefer local + self-hosted inspect API; Steamwebapi is last resort.
-        floatValue:
-          inspect?.floatValue ??
-          inspectRemote?.floatValue ??
-          webapi?.floatValue ??
-          remote?.floatValue ??
-          previous?.floatValue ??
-          null,
+        // Always fall back to previous DB floats so a quota-burned re-sync cannot wipe them.
+        floatValue: pickFiniteFloat(
+          inspect?.floatValue,
+          inspectRemote?.floatValue,
+          webapi?.floatValue,
+          remote?.floatValue,
+          previous?.floatValue,
+        ),
         paintSeed:
           inspect?.paintSeed ??
           inspectRemote?.paintSeed ??
@@ -631,6 +697,11 @@ export async function syncInventory(
     const totalSteam = portfolioTotalFromItems(rows, "steam");
     const totalBuff = portfolioTotalFromItems(rows, "buff");
 
+    const softWarning = [steamwebapiWarning, priceCatalogWarning]
+      .filter((w): w is string => Boolean(w))
+      .join(" ")
+      || null;
+
     await prisma.$transaction(async (tx) => {
       await tx.inventoryItem.deleteMany({ where: { profileId } });
       if (rows.length > 0) {
@@ -654,7 +725,7 @@ export async function syncInventory(
           lastSyncedAt: now,
           syncing: false,
           syncLockToken: null,
-          lastError: steamwebapiWarning,
+          lastError: softWarning,
           currency,
         },
       });
@@ -670,7 +741,7 @@ export async function syncInventory(
       inspected: rows.filter((r) => r.floatValue != null).length,
       steamPricesResolved: [...steamPrices.values()].filter((v) => v != null)
         .length,
-      warning: steamwebapiWarning,
+      warning: softWarning,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown sync error";

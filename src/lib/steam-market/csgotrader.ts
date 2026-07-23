@@ -90,7 +90,11 @@ async function loadJsonCatalog(
     throw new Error(`${label} failed (HTTP ${res.status}).`);
   }
 
-  const data = (await res.json()) as Record<string, unknown>;
+  const raw: unknown = await res.json();
+  const data =
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
   const byName = new Map<string, number>();
   for (const [name, entry] of Object.entries(data)) {
     const price = pickPrice(entry);

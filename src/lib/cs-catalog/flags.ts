@@ -33,3 +33,33 @@ export function isGloveSkin(input: {
   if (input.kind != null && input.kind !== "skin") return false;
   return isGloveCategory(input.weaponCategoryId ?? input.categoryId);
 }
+
+/** ByMykel puts Zeus under Equipment; we treat it as a pistol everywhere. */
+export function isZeusWeapon(weaponName: string | null | undefined): boolean {
+  if (!weaponName) return false;
+  const n = weaponName.trim().toLowerCase();
+  return n === "zeus x27" || n.startsWith("zeus");
+}
+
+/** Pistols category id used by ByMykel / CS inventory filters. */
+export const PISTOLS_CATEGORY_ID = "csgo_inventory_weapon_category_pistols";
+
+/**
+ * Effective weapon category for nav + display.
+ * Zeus → Pistols; otherwise the upstream category name.
+ */
+export function effectiveWeaponCategory(
+  weaponCategory: string | null | undefined,
+  weaponName: string | null | undefined,
+): string | null {
+  if (isZeusWeapon(weaponName)) return "Pistols";
+  return weaponCategory ?? null;
+}
+
+export function effectiveWeaponCategoryId(
+  weaponCategoryId: string | null | undefined,
+  weaponName: string | null | undefined,
+): string | null {
+  if (isZeusWeapon(weaponName)) return PISTOLS_CATEGORY_ID;
+  return weaponCategoryId ?? null;
+}

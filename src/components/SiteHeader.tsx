@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CurrencyToggle } from "@/components/CurrencyToggle";
 import { PageThemeDropdown } from "@/components/PageThemeDropdown";
@@ -19,7 +20,14 @@ import {
   type PageTheme,
 } from "@/lib/page-theme";
 
+const NAV_LINKS = [
+  { href: "/inventory", label: "Inventory", match: (p: string) => p === "/inventory" || p.startsWith("/inventory/") },
+  { href: "/database", label: "Skin Database", match: (p: string) => p.startsWith("/database") || p.startsWith("/collections") },
+  { href: "/tradeup", label: "Trade-up", match: (p: string) => p.startsWith("/tradeup") },
+] as const;
+
 export function SiteHeader() {
+  const pathname = usePathname() ?? "/";
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
   const [pageTheme, setPageTheme] = useState<PageTheme>(DEFAULT_PAGE_THEME);
   const [syncing, setSyncing] = useState(false);
@@ -72,25 +80,24 @@ export function SiteHeader() {
             onChange={setCurrency}
             disabled={syncing}
           />
-          <nav className="flex items-center gap-3 text-sm">
-            <Link
-              href="/"
-              className="text-[var(--text-muted)] transition hover:text-[var(--text)]"
-            >
-              Home
-            </Link>
-            <Link
-              href="/database"
-              className="text-[var(--text-muted)] transition hover:text-[var(--text)]"
-            >
-              Skin Database
-            </Link>
-            <span className="hidden text-[var(--text-muted)] sm:inline" aria-hidden>
-              ·
-            </span>
-            <p className="hidden text-xs text-[var(--text-muted)] sm:block sm:text-sm">
-              Local · Steam + Buff
-            </p>
+          <nav className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            {NAV_LINKS.map((link) => {
+              const active = link.match(pathname);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`transition ${
+                    active
+                      ? "text-[var(--text)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                  }`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </nav>
         </div>
       </div>

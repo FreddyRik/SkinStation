@@ -73,11 +73,18 @@ export type SlimCatalogItem = {
   sourceImage: string | null;
   sourceId: string | null;
   sourceKind: "collection" | "crate" | null;
+  /** How many collections this item belongs to (skins/stickers/…). */
+  collectionCount: number;
   /** Skin float bounds (for wear price ranges). */
   minFloat: number | null;
   maxFloat: number | null;
   /** Available wear names (Factory New, …). */
   wearNames: string[];
+  /**
+   * Doppler / Gamma Doppler phase when applicable
+   * (Phase 1–4, Ruby, Sapphire, Emerald, Black Pearl).
+   */
+  phase: string | null;
   /** USD price across wears: cheapest → most expensive (null if unpriced). */
   priceMinUsd: number | null;
   priceMaxUsd: number | null;
@@ -130,6 +137,11 @@ export type CatalogItemDetail = {
   patternId: string | null;
   finishStyle: string | null;
   legacyModel: boolean | null;
+  /**
+   * Doppler / Gamma Doppler phase when applicable
+   * (Phase 1–4, Ruby, Sapphire, Emerald, Black Pearl).
+   */
+  phase: string | null;
 };
 
 export type CatalogCollectionDetail = {

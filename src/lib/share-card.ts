@@ -257,30 +257,44 @@ export async function buildShareCardStatsAsync(
   );
 }
 
-const ALLOWED_IMAGE_HOSTS = new Set([
-  "community.cloudflare.steamstatic.com",
-  "community.akamai.steamstatic.com",
-  "cdn.steamstatic.com",
+const ALLOWED_IMAGE_HOST_EXACT = new Set([
   "steamcdn-a.akamaihd.net",
   "steamcommunity-a.akamaihd.net",
-  "avatars.steamstatic.com",
-  "avatars.cloudflare.steamstatic.com",
-  "cdn.cloudflare.steamstatic.com",
 ]);
 
+/** Steam CDN hostnames (incl. redirect targets like *.fastly.steamstatic.com). */
 export function isAllowedImageHost(hostname: string): boolean {
-  return ALLOWED_IMAGE_HOSTS.has(hostname);
+  const host = hostname.trim().toLowerCase();
+  if (!host) return false;
+  if (ALLOWED_IMAGE_HOST_EXACT.has(host)) return true;
+  // community / avatars / cdn / clan / *.cloudflare / *.akamai / *.fastly
+  return host === "steamstatic.com" || host.endsWith(".steamstatic.com");
 }
 
-/** Same-origin proxy URL so canvas/html-to-image can export Steam CDN images. */
+/**
+ * Same-origin proxy URL so canvas/html-to-image can export Steam CDN images.
+ * Also normalizes bare economy image hashes to the Steam CDN base URL.
+ */
 export function proxiedImageUrl(src: string | null | undefined): string | null {
   if (!src) return null;
+  const trimmed = src.trim();
+  if (!trimmed) return null;
+
+  let absolute = trimmed;
+  if (!/^https?:\/\//i.test(trimmed)) {
+    // Relative Steam economy path / hash stored without a host.
+    const path = trimmed.replace(/^\/+/, "");
+    absolute = path.includes("/")
+      ? `https://community.cloudflare.steamstatic.com/${path}`
+      : `https://community.cloudflare.steamstatic.com/economy/image/${path}`;
+  }
+
   try {
-    const parsed = new URL(src);
-    if (!isAllowedImageHost(parsed.hostname)) return src;
-    return `/api/image-proxy?url=${encodeURIComponent(src)}`;
+    const parsed = new URL(absolute);
+    if (!isAllowedImageHost(parsed.hostname)) return absolute;
+    return `/api/image-proxy?url=${encodeURIComponent(parsed.toString())}`;
   } catch {
-    return src;
+    return absolute;
   }
 }
 

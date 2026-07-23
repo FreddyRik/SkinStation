@@ -1,12 +1,17 @@
 /**
  * Steamwebapi inventory — includes float/pattern/certificate when available.
  * Requires STEAMWEBAPI_KEY in .env
+ *
+ * In 2026 this is the primary float source when a key is set: public Steam
+ * inventory almost never returns locally-decodable certificate links, and the
+ * legacy S/A/D Game Coordinator path is gone (HTTP 406).
  */
 
 import {
   SteamwebapiLimitError,
   isSteamwebapiLimitResponse,
 } from "@/lib/steamwebapi/errors";
+import { isLocallyDecodableInspectLink } from "@/lib/inspect/links";
 
 export type SteamwebapiSticker = {
   slot?: number;
@@ -33,7 +38,17 @@ function getKey(): string | null {
 }
 
 function asNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const n = Number.parseFloat(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function asInt(value: unknown): number | null {
+  const n = asNumber(value);
+  return n == null ? null : Math.trunc(n);
 }
 
 function parseStickers(raw: unknown): SteamwebapiSticker[] {
@@ -47,9 +62,9 @@ function parseStickers(raw: unknown): SteamwebapiSticker[] {
     return {
       slot: asNumber(row.slot) ?? idx,
       stickerId:
-        asNumber(row.stickerId) ??
-        asNumber(row.stickerid) ??
-        asNumber(row.sticker_id) ??
+        asInt(row.stickerId) ??
+        asInt(row.stickerid) ??
+        asInt(row.sticker_id) ??
         0,
       name: nameRaw,
       wear: asNumber(row.wear) ?? undefined,
@@ -66,6 +81,58 @@ function parseStickers(raw: unknown): SteamwebapiSticker[] {
   });
 }
 
+function pickFloatBlock(
+  row: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (row.float && typeof row.float === "object" && !Array.isArray(row.float)) {
+    return row.float as Record<string, unknown>;
+  }
+  if (
+    row.iteminfo &&
+    typeof row.iteminfo === "object" &&
+    !Array.isArray(row.iteminfo)
+  ) {
+    return row.iteminfo as Record<string, unknown>;
+  }
+  return null;
+}
+
+function certificateToInspectLink(certificate: string): string {
+  const cleaned = certificate.trim().replace(/^%20/, "");
+  if (cleaned.startsWith("steam://")) return cleaned;
+  return `steam://run/730//+csgo_econ_action_preview%20${cleaned}`;
+}
+
+function pickInspectLink(
+  row: Record<string, unknown>,
+  floatBlock: Record<string, unknown> | null,
+): string | null {
+  const candidates = [
+    row.inspect,
+    row.inspectlink,
+    row.inspect_link,
+    row.inspectLink,
+    floatBlock?.inspectlink,
+    floatBlock?.inspect_link,
+    floatBlock?.inspect,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) {
+      const link = c.trim();
+      // Prefer certificate links; classic S/A/D is useless for float decode.
+      if (isLocallyDecodableInspectLink(link) || link.includes("csgo_econ")) {
+        return link;
+      }
+    }
+  }
+  const cert =
+    (typeof floatBlock?.certificate === "string" && floatBlock.certificate) ||
+    (typeof row.certificate === "string" && row.certificate) ||
+    null;
+  if (cert) return certificateToInspectLink(cert);
+  return null;
+}
+
 export async function fetchSteamwebapiInventory(
   steamId: string,
 ): Promise<Map<string, SteamwebapiInventoryItem>> {
@@ -77,6 +144,12 @@ export async function fetchSteamwebapiInventory(
     key,
     steam_id: steamId,
     game: "cs2",
+    parse: "1",
+    production: "1",
+    // Match Steam public inventory: include trade-locked / untradable skins.
+    with_no_tradable: "1",
+    // Large inventories; Steamwebapi paginates via start_assetid when needed.
+    limit: "10000",
   });
 
   const res = await fetch(
@@ -87,7 +160,7 @@ export async function fetchSteamwebapiInventory(
         "User-Agent": "InventoryTracker/1.0",
       },
       next: { revalidate: 0 },
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(60_000),
     },
   );
 
@@ -129,17 +202,17 @@ export async function fetchSteamwebapiInventory(
     ? data
     : Array.isArray((data as { items?: unknown[] }).items)
       ? (data as { items: unknown[] }).items
-      : [];
+      : Array.isArray((data as { data?: unknown[] }).data)
+        ? (data as { data: unknown[] }).data
+        : [];
 
   for (const raw of rows) {
+    if (!raw || typeof raw !== "object") continue;
     const row = raw as Record<string, unknown>;
     const assetId = String(row.assetid ?? row.assetId ?? row.id ?? "");
     if (!assetId) continue;
 
-    const floatBlock =
-      row.float && typeof row.float === "object"
-        ? (row.float as Record<string, unknown>)
-        : null;
+    const floatBlock = pickFloatBlock(row);
 
     const marketHashName = String(
       row.markethashname ??
@@ -151,28 +224,30 @@ export async function fetchSteamwebapiInventory(
 
     const floatValue =
       asNumber(floatBlock?.floatvalue) ??
+      asNumber(floatBlock?.floatValue) ??
       asNumber(floatBlock?.float) ??
+      asNumber(floatBlock?.paintwear) ??
+      asNumber(floatBlock?.paintWear) ??
       asNumber(row.floatvalue) ??
-      asNumber(row.float);
-
-    const paintSeed =
-      asNumber(floatBlock?.paintseed) ??
-      asNumber(floatBlock?.paintSeed) ??
-      asNumber(row.paintseed);
-
-    const paintIndex =
-      asNumber(floatBlock?.paintindex) ??
-      asNumber(floatBlock?.paintIndex) ??
-      asNumber(row.paintindex);
-
-    const inspectLink =
-      (typeof row.inspect === "string" && row.inspect) ||
-      (typeof row.inspectlink === "string" && row.inspectlink) ||
-      (typeof row.inspect_link === "string" && row.inspect_link) ||
-      (typeof floatBlock?.certificate === "string"
-        ? `steam://run/730//+csgo_econ_action_preview%20${floatBlock.certificate}`
+      asNumber(row.floatValue) ??
+      // Only treat top-level `float` as the wear when it is a scalar.
+      (typeof row.float === "number" || typeof row.float === "string"
+        ? asNumber(row.float)
         : null);
 
+    const paintSeed =
+      asInt(floatBlock?.paintseed) ??
+      asInt(floatBlock?.paintSeed) ??
+      asInt(row.paintseed) ??
+      asInt(row.paintSeed);
+
+    const paintIndex =
+      asInt(floatBlock?.paintindex) ??
+      asInt(floatBlock?.paintIndex) ??
+      asInt(row.paintindex) ??
+      asInt(row.paintIndex);
+
+    const inspectLink = pickInspectLink(row, floatBlock);
     const stickers = parseStickers(floatBlock?.stickers ?? row.stickers);
 
     result.set(assetId, {

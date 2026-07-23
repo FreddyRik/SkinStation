@@ -1,4 +1,5 @@
 import type { CatalogKind, SlimCatalogItem } from "@/lib/cs-catalog/types";
+import { isZeusWeapon } from "@/lib/cs-catalog/flags";
 
 /** Top-level nav sections matching marketplace-style DB chrome. */
 export type NavSection =
@@ -214,7 +215,12 @@ export function itemMatchesNavFilter(
       const kind = OTHER_KIND[filter.other];
       if (kind) return item.kind === kind;
       if (filter.other === "equipment") {
-        return item.kind === "skin" && item.weaponCategory === "Equipment";
+        // Zeus is remapped to Pistols; keep Equipment empty of Zeus if any slip through.
+        return (
+          item.kind === "skin" &&
+          item.weaponCategory === "Equipment" &&
+          !isZeusWeapon(item.weaponName)
+        );
       }
       if (filter.other === "souvenir_packages") {
         return item.kind === "crate" && item.crateType === "Souvenir";
@@ -260,6 +266,9 @@ export function navFilterForWeapon(
   weaponName: string | null | undefined,
 ): NavFilter | null {
   if (!weaponName?.trim()) return null;
+  if (isZeusWeapon(weaponName)) {
+    return { section: "pistols", weapon: weaponName };
+  }
   const category = weaponCategory ?? "";
   if (category === "Equipment") {
     return { section: "other", other: "equipment" };

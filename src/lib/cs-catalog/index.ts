@@ -19,6 +19,7 @@ export {
   getCatalogItems,
   getCollectionsCatalog,
   getCatalogPayload,
+  getCatalogMaps,
   getItemById,
   getCollectionById,
 } from "@/lib/cs-catalog/catalog";
@@ -28,8 +29,11 @@ export {
   isGloveSkin,
   isKnifeCategory,
   isGloveCategory,
+  isZeusWeapon,
+  effectiveWeaponCategory,
   KNIFE_CATEGORY_ID,
   GLOVE_CATEGORY_ID,
+  PISTOLS_CATEGORY_ID,
 } from "@/lib/cs-catalog/flags";
 
 export {
@@ -70,6 +74,25 @@ export {
 } from "@/lib/cs-catalog/wears";
 
 export type { WearKey, WearBand, SkinVariant } from "@/lib/cs-catalog/wears";
+
+export {
+  resolveSkinPhase,
+  formatPhaseShort,
+  phaseAccent,
+} from "@/lib/cs-catalog/phase";
+
+export {
+  phaseFamilyKey,
+  groupPhasedSkins,
+  findPhaseSiblings,
+  sortPhasesForDisplay,
+  collapsePhasedContains,
+} from "@/lib/cs-catalog/phase-family";
+
+export type {
+  PhaseSibling,
+  BrowseCatalogItem,
+} from "@/lib/cs-catalog/phase-family";
 
 export {
   buildSkinDetailPrices,

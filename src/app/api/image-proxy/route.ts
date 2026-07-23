@@ -145,6 +145,8 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=86400, immutable",
+        // Needed when <img crossOrigin="anonymous"> loads the proxy for canvas export.
+        "Access-Control-Allow-Origin": "*",
       },
     });
   } catch (err) {

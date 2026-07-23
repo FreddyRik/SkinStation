@@ -53,7 +53,15 @@ function sleep(ms: number) {
 export function getInspectApiBaseUrl(): string | null {
   const raw = process.env.INSPECT_API_URL?.trim();
   if (!raw) return null;
-  return raw.replace(/\/+$/, "");
+  const cleaned = raw.replace(/\/+$/, "");
+  try {
+    // Validate once so a typo does not burn the per-sync fetch budget.
+    new URL(cleaned);
+    return cleaned;
+  } catch {
+    console.warn("INSPECT_API_URL is not a valid URL; ignoring.");
+    return null;
+  }
 }
 
 export function getInspectApiKey(): string | null {

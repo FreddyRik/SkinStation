@@ -12,6 +12,7 @@ import {
   buildSkinDetailPrices,
   enrichContainsWithPrices,
   enrichSlimItemsWithPrices,
+  findPhaseSiblings,
   getCatalogPayload,
   getCollectionById,
   getItemById,
@@ -24,6 +25,7 @@ import {
   getCsgoTraderBuffCatalog,
   getCsgoTraderSteamCatalog,
 } from "@/lib/steam-market/csgotrader";
+import { formatSaleDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +38,7 @@ export async function generateMetadata({ params }: PageProps) {
   const item = await getItemById(decodeURIComponent(id));
   if (!item) return { title: "Item not found" };
   return {
-    title: `${item.name} · Skin Database`,
+    title: `${item.name}${item.phase ? ` · ${item.phase}` : ""} · Skin Database`,
     description: item.description?.slice(0, 160) || undefined,
   };
 }
@@ -89,12 +91,16 @@ export default async function CatalogItemPage({ params }: PageProps) {
       }),
     );
 
+    const payload = await getCatalogPayload();
+    const phaseSiblings = findPhaseSiblings(payload.items, item);
+
     return (
       <SkinDetailView
         item={item}
         prices={prices}
         collections={collections}
         buffGoodsByHash={buffGoodsByHash}
+        phaseSiblings={phaseSiblings}
       />
     );
   }
@@ -190,7 +196,10 @@ function GenericCatalogItemView({
               <DetailField label="Type" value={item.crateType} />
             ) : null}
             {item.firstSaleDate ? (
-              <DetailField label="First sale" value={item.firstSaleDate} />
+              <DetailField
+                label="Released"
+                value={formatSaleDate(item.firstSaleDate)}
+              />
             ) : null}
             {item.effect ? (
               <DetailField label="Effect" value={item.effect} />

@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { CatalogPriceText } from "@/components/CatalogPriceText";
-import type { CatalogContainsItem, CatalogNamedRef } from "@/lib/cs-catalog";
+import {
+  collapsePhasedContains,
+  formatPhaseShort,
+  phaseAccent,
+  resolveSkinPhase,
+  type CatalogContainsItem,
+  type CatalogNamedRef,
+} from "@/lib/cs-catalog";
 
 /** Heuristic for contains rows that lack category ids (gloves also use ★). */
 export function containsLooksLikeKnife(name: string): boolean {
@@ -34,6 +41,21 @@ export type ContainsGridItem = CatalogContainsItem & {
   priceMaxUsd?: number | null;
 };
 
+function multiPhaseFamilyNames(items: ContainsGridItem[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const phase = resolveSkinPhase({ paintIndex: item.paint_index });
+    if (!phase) continue;
+    const key = item.name.trim();
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const multi = new Set<string>();
+  for (const [name, count] of counts) {
+    if (count > 1) multi.add(name);
+  }
+  return multi;
+}
+
 export function CatalogContainsGrid({
   items,
   emptyLabel = "No items listed.",
@@ -41,7 +63,10 @@ export function CatalogContainsGrid({
   items: ContainsGridItem[];
   emptyLabel?: string;
 }) {
-  if (items.length === 0) {
+  const familyNames = multiPhaseFamilyNames(items);
+  const displayItems = collapsePhasedContains(items);
+
+  if (displayItems.length === 0) {
     return (
       <p className="text-sm text-[var(--text-muted)]">{emptyLabel}</p>
     );
@@ -49,8 +74,15 @@ export function CatalogContainsGrid({
 
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-      {items.map((item) => {
+      {displayItems.map((item) => {
         const knife = containsLooksLikeKnife(item.name);
+        const isPhaseFamily = familyNames.has(item.name.trim());
+        const phase = isPhaseFamily
+          ? null
+          : resolveSkinPhase({
+              paintIndex: item.paint_index,
+            });
+        const phaseShort = formatPhaseShort(phase);
         return (
           <li key={item.id}>
             <Link
@@ -72,9 +104,24 @@ export function CatalogContainsGrid({
               </div>
               <div className="flex items-start gap-1.5">
                 {knife ? <KnifeBadge /> : null}
-                <p className="min-w-0 flex-1 text-xs font-medium leading-snug text-[var(--text)]">
-                  {item.name}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium leading-snug text-[var(--text)]">
+                    {item.name}
+                    {phaseShort ? (
+                      <span
+                        className="ml-1 font-bold"
+                        style={{ color: phaseAccent(phase) }}
+                      >
+                        {phaseShort}
+                      </span>
+                    ) : null}
+                  </p>
+                  {isPhaseFamily ? (
+                    <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
+                      Multiple phases
+                    </p>
+                  ) : null}
+                </div>
               </div>
               {item.rarity ? (
                 <p

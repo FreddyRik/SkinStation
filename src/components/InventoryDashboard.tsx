@@ -31,6 +31,7 @@ import {
 } from "@/lib/currency";
 import { convertMoney, convertMoneyOrZero } from "@/lib/fx";
 import { formatDate, formatFloat, formatMoney } from "@/lib/format";
+import { resolveRarityColor } from "@/lib/rarity-accent";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 import {
   DEFAULT_INVENTORY_VIEW,
@@ -805,7 +806,22 @@ function InventoryGridCard({
         </p>
         <p className="truncate text-xs leading-snug text-[var(--text-muted)]">
           {item.exterior ?? item.type ?? "—"}
-          {item.rarity ? ` · ${item.rarity}` : ""}
+          {item.rarity ? (
+            <>
+              {" · "}
+              <span
+                className="font-medium"
+                style={{
+                  color:
+                    resolveRarityColor(item.rarity) ??
+                    "var(--text-muted)",
+                  opacity: 0.85,
+                }}
+              >
+                {item.rarity}
+              </span>
+            </>
+          ) : null}
         </p>
         {/* Reserved meta rows keep every card the same height in a grid row */}
         <p className="min-h-4 truncate text-xs leading-4 text-[var(--text-muted)]">

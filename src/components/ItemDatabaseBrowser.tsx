@@ -12,11 +12,15 @@ import {
   OTHER_NAV_ITEMS,
   STICKER_TOURNAMENTS,
   buildLatestReleaseCards,
+  formatPhaseShort,
+  groupPhasedSkins,
   itemMatchesNavFilter,
   navFilterForWeapon,
   navFilterLabel,
+  phaseAccent,
   uniqueWeaponsForSection,
   weaponCases,
+  type BrowseCatalogItem,
   type LatestReleaseCard,
   type NavFilter,
   type NavSection,
@@ -41,12 +45,14 @@ function matchesQuery(haystack: string, query: string): boolean {
   return haystack.toLowerCase().includes(query);
 }
 
-function itemSearchBlob(item: SlimCatalogItem): string {
+function itemSearchBlob(item: BrowseCatalogItem): string {
   return [
     item.name,
     item.marketHashName,
     item.weaponName,
     item.patternName,
+    item.phase,
+    ...item.phaseSearchLabels,
     item.weaponCategory,
     item.rarity?.name,
     item.tournamentName,
@@ -95,7 +101,7 @@ function CatalogCard({
   onWeaponClick,
   formatUsdRange,
 }: {
-  item: SlimCatalogItem;
+  item: BrowseCatalogItem;
   onWeaponClick?: (weaponName: string, weaponCategory: string | null) => void;
   formatUsdRange: (min: number | null, max: number | null) => string | null;
 }) {
@@ -107,6 +113,9 @@ function CatalogCard({
   const title = isSkin
     ? item.patternName || item.name
     : item.name;
+  const isPhaseFamily = isSkin && item.phaseFamilySize > 1;
+  const phaseShort =
+    isSkin && !isPhaseFamily ? formatPhaseShort(item.phase) : null;
   const rarityLabel = item.rarity
     ? [item.rarity.name, isSkin ? item.weaponCategory : null]
         .filter(Boolean)
@@ -128,6 +137,23 @@ function CatalogCard({
     item.kind === "skin" && item.stattrak
       ? formatUsdRange(item.stattrakPriceMinUsd, item.stattrakPriceMaxUsd)
       : null;
+
+  const extraCollections =
+    item.sourceKind === "collection" && item.collectionCount > 1
+      ? item.collectionCount - 1
+      : 0;
+  const sourceLabel =
+    extraCollections > 0
+      ? `${item.sourceName} +${extraCollections}`
+      : item.sourceName;
+  const sourceTitle =
+    extraCollections > 0
+      ? `${item.sourceName} and ${extraCollections} more collection${
+          extraCollections === 1 ? "" : "s"
+        }`
+      : item.sourceName
+        ? `Open ${item.sourceName}`
+        : undefined;
 
   return (
     <li>
@@ -158,10 +184,29 @@ function CatalogCard({
           <Link
             href={href}
             className="line-clamp-2 min-h-[2.5rem] text-base font-semibold leading-snug text-[var(--text)] transition hover:text-[var(--accent)] sm:text-lg"
-            title={item.name}
+            title={
+              isPhaseFamily
+                ? `${item.name} · ${item.phaseFamilySize} phases`
+                : phaseShort
+                  ? `${item.name} · ${item.phase}`
+                  : item.name
+            }
           >
             {title}
+            {phaseShort ? (
+              <span
+                className="ml-1.5 inline-block align-middle text-[11px] font-bold tracking-wide sm:text-xs"
+                style={{ color: phaseAccent(item.phase) }}
+              >
+                {phaseShort}
+              </span>
+            ) : null}
           </Link>
+          {isPhaseFamily ? (
+            <p className="text-[11px] text-[var(--text-muted)]">
+              {item.phaseFamilySize} phases
+            </p>
+          ) : null}
         </div>
 
         <Link href={href} className="mt-2 flex w-full flex-col items-center gap-1.5">
@@ -235,11 +280,7 @@ function CatalogCard({
           <Link
             href={sourceHref}
             className="mt-auto flex w-full items-center justify-center gap-2 border-t border-[var(--border)]/70 pt-2.5 transition hover:text-[var(--accent)]"
-            title={
-              item.sourceKind === "collection"
-                ? `Open ${item.sourceName}`
-                : `Open ${item.sourceName}`
-            }
+            title={sourceTitle}
           >
             {item.sourceImage ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -251,11 +292,14 @@ function CatalogCard({
               />
             ) : null}
             <p className="truncate text-[11px] text-[var(--text-muted)] underline-offset-2 hover:text-[var(--accent)] hover:underline sm:text-xs">
-              {item.sourceName}
+              {sourceLabel}
             </p>
           </Link>
         ) : item.sourceName ? (
-          <div className="mt-auto flex w-full items-center justify-center gap-2 border-t border-[var(--border)]/70 pt-2.5">
+          <div
+            className="mt-auto flex w-full items-center justify-center gap-2 border-t border-[var(--border)]/70 pt-2.5"
+            title={sourceTitle}
+          >
             {item.sourceImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -266,7 +310,7 @@ function CatalogCard({
               />
             ) : null}
             <p className="truncate text-[11px] text-[var(--text-muted)] sm:text-xs">
-              {item.sourceName}
+              {sourceLabel}
             </p>
           </div>
         ) : (
@@ -607,17 +651,19 @@ export function ItemDatabaseBrowser() {
     [items, collections],
   );
 
+  const browseItems = useMemo(() => groupPhasedSkins(items), [items]);
+
   const isHome = filter.section === "home";
   const showHomeLanding = isHome && !deferredQuery;
 
   const filteredItems = useMemo(() => {
     if (filter.section === "collections") return [];
     if (showHomeLanding) return [];
-    return items.filter((item) => {
+    return browseItems.filter((item) => {
       if (!isHome && !itemMatchesNavFilter(item, filter)) return false;
       return matchesQuery(itemSearchBlob(item), deferredQuery);
     });
-  }, [items, filter, deferredQuery, isHome, showHomeLanding]);
+  }, [browseItems, filter, deferredQuery, isHome, showHomeLanding]);
 
   const filteredCollections = useMemo(() => {
     if (showHomeLanding) return [];

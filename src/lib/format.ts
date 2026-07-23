@@ -34,9 +34,20 @@ export function formatUsd(value: number | null | undefined): string {
   return formatMoney(value, "USD");
 }
 
+/** Coerce API/DB values to a finite float, or null. */
+export function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
 export function formatFloat(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return value.toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
+  const n = toFiniteNumber(value);
+  if (n == null) return "—";
+  return n.toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 export function formatDate(value: string | Date | null | undefined): string {
@@ -45,6 +56,18 @@ export function formatDate(value: string | Date | null | undefined): string {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "UTC",
+  }).format(d);
+}
+
+/** Catalog first-sale / release date (date only, UTC). */
+export function formatSaleDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const normalized = value.replace(/\//g, "-");
+  const d = new Date(normalized);
+  if (!Number.isFinite(d.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
     timeZone: "UTC",
   }).format(d);
 }
