@@ -20,7 +20,7 @@ export async function GET(_req: Request, { params }: Params) {
         orderBy: [{ buffPrice: "desc" }, { marketHashName: "asc" }],
       },
       snapshots: {
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
         take: 100,
       },
     },
@@ -71,7 +71,7 @@ export async function GET(_req: Request, { params }: Params) {
       syncing: profile.syncing,
     },
     items,
-    snapshots: profile.snapshots,
+    snapshots: [...profile.snapshots].reverse(),
     totals: {
       itemCount: items.length,
       totalSteam,

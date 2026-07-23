@@ -175,26 +175,43 @@ export async function syncInventory(
     };
   }
 
-  if (profile.syncing) {
-    const lockAgeMs = Date.now() - profile.updatedAt.getTime();
-    const staleLock = lockAgeMs > 10 * 60 * 1000;
-    if (!options?.force && !staleLock) {
-      throw new Error("A sync is already in progress for this profile.");
-    }
-    // Force or stale lock: clear so we can reclaim below.
-    await prisma.profile.update({
-      where: { id: profileId },
-      data: { syncing: false },
-    });
-  }
+  const STALE_LOCK_MS = 10 * 60 * 1000;
+  const staleBefore = new Date(Date.now() - STALE_LOCK_MS);
+  const lockToken = crypto.randomUUID();
 
+  // Atomic claim: idle lock, or steal when forced / stale. Never clear then
+  // re-claim in two steps (that races and can run concurrent syncs).
   const claimed = await prisma.profile.updateMany({
-    where: { id: profileId, syncing: false },
-    data: { syncing: true, lastError: null, currency },
+    where: options?.force
+      ? { id: profileId }
+      : {
+          id: profileId,
+          OR: [
+            { syncing: false },
+            { syncing: true, updatedAt: { lt: staleBefore } },
+          ],
+        },
+    data: {
+      syncing: true,
+      syncLockToken: lockToken,
+      lastError: null,
+      currency,
+    },
   });
   if (claimed.count !== 1) {
     throw new Error("A sync is already in progress for this profile.");
   }
+
+  const releaseLock = async (lastError: string | null) => {
+    await prisma.profile.updateMany({
+      where: { id: profileId, syncLockToken: lockToken },
+      data: {
+        syncing: false,
+        syncLockToken: null,
+        lastError,
+      },
+    });
+  };
 
   try {
     // Refresh FACEIT/Leetify in parallel with inventory (best-effort, never blocks sync).
@@ -396,8 +413,6 @@ export async function syncInventory(
     }
 
     const now = new Date();
-    let totalSteam = 0;
-    let totalBuff = 0;
 
     const rows = inventory.map((item) => {
       const inspect = inspectResults.get(item.assetId);
@@ -416,9 +431,6 @@ export async function syncInventory(
       const buffPrice = listable
         ? buffPriceFor(buffCatalog, item.marketHashName)
         : null;
-
-      if (steamPrice != null) totalSteam += steamPrice;
-      if (buffPrice != null) totalBuff += buffPrice;
 
       const cert = certificateStickers.get(item.assetId);
       const canHaveStickers = itemSupportsStickers(
@@ -495,6 +507,10 @@ export async function syncInventory(
       };
     });
 
+    // Same fallback rules as the inventory grid / cooldown short-circuit.
+    const totalSteam = portfolioTotalFromItems(rows, "steam");
+    const totalBuff = portfolioTotalFromItems(rows, "buff");
+
     await prisma.$transaction(async (tx) => {
       await tx.inventoryItem.deleteMany({ where: { profileId } });
       if (rows.length > 0) {
@@ -511,11 +527,13 @@ export async function syncInventory(
         },
       });
 
-      await tx.profile.update({
-        where: { id: profileId },
+      // Only clear the lock if we still own it (another force sync may have taken over).
+      await tx.profile.updateMany({
+        where: { id: profileId, syncLockToken: lockToken },
         data: {
           lastSyncedAt: now,
           syncing: false,
+          syncLockToken: null,
           lastError: steamwebapiWarning,
           currency,
         },
@@ -536,10 +554,7 @@ export async function syncInventory(
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown sync error";
-    await prisma.profile.update({
-      where: { id: profileId },
-      data: { syncing: false, lastError: message },
-    });
+    await releaseLock(message);
     throw err;
   }
 }
