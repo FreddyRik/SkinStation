@@ -1,4 +1,10 @@
 import { stripStickerPrefix } from "@/lib/stickers/normalize";
+import {
+  buildClassicInspectLink,
+  isLocallyDecodableInspectLink,
+  isPropIdInspectLink,
+  isRemoteInspectableLink,
+} from "@/lib/inspect/links";
 
 export type SteamDescription = {
   classid: string;
@@ -131,18 +137,25 @@ function extractInspectLink(
       a.link?.includes("csgo_econ_action_preview"),
     );
 
+  // No inspect action on this description (cases, stickers, etc.).
   if (!action?.link) return null;
 
   const link = action.link
     .replace("%owner_steamid%", steamId)
     .replace("%assetid%", assetId);
 
-  // Steam often returns unresolved placeholders for public inventories — unusable for float decode
-  if (/%propid:\d+%/i.test(link)) {
-    return null;
+  if (isLocallyDecodableInspectLink(link) || isRemoteInspectableLink(link)) {
+    return link;
   }
 
-  return link;
+  // Steam often returns unresolved `%propid:N%` placeholders on public
+  // inventory JSON. Local decode cannot use those — synthesize a classic
+  // S/A/D0 link for a self-hosted inspect API (or optional Steamwebapi).
+  if (isPropIdInspectLink(link) || link.includes("csgo_econ_action_preview")) {
+    return buildClassicInspectLink(steamId, assetId);
+  }
+
+  return null;
 }
 
 function extractStickersFromDescriptions(

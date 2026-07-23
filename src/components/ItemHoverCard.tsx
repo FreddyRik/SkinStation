@@ -28,7 +28,7 @@ import {
   formatStickerWear,
   stripStickerPrefix,
 } from "@/lib/stickers/normalize";
-import { isSteamwebapiLimitMessage } from "@/lib/steamwebapi/errors";
+import { floatUnavailableHint } from "@/lib/inspect/warnings";
 import { BuffMarketLink } from "@/components/BuffMarketLink";
 import { SteamMarketLink } from "@/components/SteamMarketLink";
 
@@ -320,9 +320,7 @@ export function ItemHoverCard({
             item.floatValue == null &&
             item.paintSeed == null && (
               <p className="mt-2 text-[11px] leading-snug text-[var(--text-muted)]">
-                {isSteamwebapiLimitMessage(floatProviderWarning)
-                  ? "Float unavailable — Steamwebapi request limit reached. Try again after your plan resets or upgrade at steamwebapi.com."
-                  : "Float/pattern not returned for this item by Steamwebapi yet."}
+                {floatUnavailableHint(floatProviderWarning)}
               </p>
             )}
 

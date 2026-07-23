@@ -113,10 +113,10 @@ flowchart TD
 1. **Lock:** atomic `updateMany` where `syncing: false`. Force or stale lock (>10 min) can clear a stuck flag. Concurrent claim → error / HTTP 409.
 2. **Inventory:** `fetchSteamInventory(steamId)` from Steam Community JSON.
 3. **Floats / patterns:**
-   - Local decode of usable inspect links (`lib/csfloat/inspect.ts`).
-   - Optional Steamwebapi inventory (certificates, floats, stickers).
-   - Optional per-asset Steamwebapi float gap-fill (skipped if quota already hit).
-4. **Stickers:** `mergeStickersBySlot(webapi, Steam HTML descriptions, certificate decode, local)` → icons + prices looked up by normalized `Sticker | Name`.
+   - Local decode of masked inspect links (`lib/csfloat/inspect.ts`).
+   - Optional self-hosted inspect API (`INSPECT_API_URL`, CSGOFloat-compatible).
+   - Optional Steamwebapi inventory + per-asset float (last-resort when `STEAMWEBAPI_KEY` is set).
+4. **Stickers:** `mergeStickersBySlot(descriptions, local, inspect API, certificate, webapi)` → icons + prices looked up by normalized `Sticker | Name`.
 5. **Prices (write path):**
    1. CSGOTrader Buff163 dump → `buffPrice`
    2. CSGOTrader bulk Steam dump → `steamPrice`
@@ -124,9 +124,9 @@ flowchart TD
 6. **Persist** in one transaction:
    - Replace `InventoryItem` rows for the profile
    - Create `PortfolioSnapshot`
-   - Set `lastSyncedAt`, `syncing: false`, optional soft `lastError` (e.g. Steamwebapi limit warning)
+   - Set `lastSyncedAt`, `syncing: false`, optional soft `lastError` (float-provider warning)
 
-**Float precedence per item:** Steamwebapi → local inspect → remote float API.
+**Float precedence per item:** local inspect → `INSPECT_API_URL` → Steamwebapi → previous DB value.
 
 **Stickers in DB:** `InventoryItem.stickers` is a **JSON string**. Always parse with `parseStickersJson()` at read boundaries (pages / API).
 
@@ -210,7 +210,8 @@ Hydration rule: initialize with stable defaults, then read localStorage in `useE
 | Steam Market | `priceoverview` gap-fill |
 | CSGOTrader price dump | Buff163 + Steam prices |
 | Frankfurter | USD→EUR for CSGOTrader when needed |
-| Steamwebapi.com | Optional floats / enriched inventory (`STEAMWEBAPI_KEY`) |
+| Steamwebapi.com | Optional last-resort floats (`STEAMWEBAPI_KEY`) |
+| Self-hosted inspect API | Preferred remote floats via `INSPECT_API_URL` |
 | FACEIT Data API | Optional ranks (`FACEIT_API_KEY`) |
 | Leetify public API | Rating + FACEIT fallback |
 | ByMykel CSGO-API | Sticker icon catalog |
@@ -237,7 +238,8 @@ Optional keys degrade gracefully: skip enrichers, show soft warnings, keep core 
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | SQLite, e.g. `file:./dev.db` (relative to `prisma/`) |
 | `SYNC_COOLDOWN_MS` | No | Refresh cooldown |
-| `STEAMWEBAPI_KEY` | No | Floats / enriched inventory |
+| `INSPECT_API_URL` | No | Preferred self-hosted inspect/float API |
+| `STEAMWEBAPI_KEY` | No | Optional last-resort floats |
 | `FACEIT_API_KEY` | No | Official FACEIT ranks |
 
 See `.env.example` and `README.md` for setup.
