@@ -79,6 +79,12 @@ export function SiteHeader() {
             >
               Home
             </Link>
+            <Link
+              href="/database"
+              className="text-[var(--text-muted)] transition hover:text-[var(--text)]"
+            >
+              Skin Database
+            </Link>
             <span className="hidden text-[var(--text-muted)] sm:inline" aria-hidden>
               ·
             </span>

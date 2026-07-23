@@ -362,13 +362,14 @@ export async function syncInventory(
         ? V
         : never
     >();
+    let steamwebapiLimitHit = false;
     if (getSteamwebapiKey()) {
       try {
         webapiInventory = await fetchSteamwebapiInventory(profile.steamId);
       } catch (err) {
         if (err instanceof SteamwebapiLimitError) {
-          floatProviderWarning =
-            floatProviderWarning ?? STEAMWEBAPI_LIMIT_MESSAGE;
+          // Optional last-resort only — don't surface quota noise in the UI.
+          steamwebapiLimitHit = true;
           console.warn(STEAMWEBAPI_LIMIT_MESSAGE);
         } else {
           console.warn("Steamwebapi inventory enrich failed:", err);
@@ -421,7 +422,7 @@ export async function syncInventory(
     });
     if (
       getSteamwebapiKey() &&
-      !floatProviderWarning?.includes("Steamwebapi") &&
+      !steamwebapiLimitHit &&
       missingAfterInspect.length > 0
     ) {
       const remoteFloatEnrich = await enrichFloatsViaSteamwebapi(
@@ -434,8 +435,8 @@ export async function syncInventory(
       );
       remoteFloats = remoteFloatEnrich.floats;
       if (remoteFloatEnrich.limitHit) {
-        floatProviderWarning =
-          floatProviderWarning ?? STEAMWEBAPI_LIMIT_MESSAGE;
+        // Soft-fail quietly; local decode + INSPECT_API_URL are the primary path.
+        steamwebapiLimitHit = true;
         console.warn(STEAMWEBAPI_LIMIT_MESSAGE);
       }
     }

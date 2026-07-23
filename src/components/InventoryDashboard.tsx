@@ -61,6 +61,12 @@ import {
 } from "@/lib/price-source";
 import { canLinkBuffMarket, canLinkSteamMarket } from "@/lib/steam-market/listing";
 import { isFloatProviderSoftWarning } from "@/lib/inspect/warnings";
+import { isSteamwebapiLimitMessage } from "@/lib/steamwebapi/errors";
+
+/** Profile lastError / sync warnings we intentionally do not show in the banner. */
+function isHiddenSyncMessage(message: string | null | undefined): boolean {
+  return isSteamwebapiLimitMessage(message);
+}
 
 export type InventoryItemView = {
   id: string;
@@ -123,6 +129,21 @@ export type ProfileView = {
 
 type SortKey = "value" | "name" | "float";
 
+type ChartRangeKey = "7d" | "30d" | "90d" | "1y" | "all";
+
+const CHART_RANGES: {
+  key: ChartRangeKey;
+  label: string;
+  /** Rolling window in days; null = all history. */
+  days: number | null;
+}[] = [
+  { key: "7d", label: "7D", days: 7 },
+  { key: "30d", label: "30D", days: 30 },
+  { key: "90d", label: "90D", days: 90 },
+  { key: "1y", label: "1Y", days: 365 },
+  { key: "all", label: "All", days: null },
+];
+
 type InventoryFilters = {
   onlyStatTrak: boolean;
   onlySouvenir: boolean;
@@ -162,15 +183,22 @@ export function InventoryDashboard({
   const [inventoryView, setInventoryView] = useState<InventoryView>(
     DEFAULT_INVENTORY_VIEW,
   );
+  const [chartRange, setChartRange] = useState<ChartRangeKey>("30d");
   const [syncing, setSyncing] = useState(profile.syncing);
   const [error, setError] = useState<string | null>(
-    profile.lastError && !isFloatProviderSoftWarning(profile.lastError)
+    profile.lastError &&
+      !isHiddenSyncMessage(profile.lastError) &&
+      !isFloatProviderSoftWarning(profile.lastError)
       ? profile.lastError
       : null,
   );
   const [note, setNote] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(
-    isFloatProviderSoftWarning(profile.lastError) ? profile.lastError : null,
+    profile.lastError &&
+      !isHiddenSyncMessage(profile.lastError) &&
+      isFloatProviderSoftWarning(profile.lastError)
+      ? profile.lastError
+      : null,
   );
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -182,6 +210,11 @@ export function InventoryDashboard({
 
   useEffect(() => {
     setSyncing(profile.syncing);
+    if (isHiddenSyncMessage(profile.lastError)) {
+      setWarning(null);
+      setError(null);
+      return;
+    }
     if (isFloatProviderSoftWarning(profile.lastError)) {
       setWarning(profile.lastError);
       setError(null);
@@ -285,18 +318,34 @@ export function InventoryDashboard({
     return sorted;
   }, [displayItems, query, sort, filters, priceSource]);
 
-  const chartData = snapshots.map((s) => {
-    const from = s.currency;
-    return {
-      time: new Intl.DateTimeFormat("en-US", {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: "UTC",
-      }).format(new Date(s.createdAt)),
-      Steam: convertMoneyOrZero(s.totalSteam, from, currency, usdToEur),
-      Buff: convertMoneyOrZero(s.totalBuff, from, currency, usdToEur),
-    };
-  });
+  const chartRangeDef =
+    CHART_RANGES.find((r) => r.key === chartRange) ?? CHART_RANGES[1];
+
+  const chartData = useMemo(() => {
+    const cutoffMs =
+      chartRangeDef.days == null
+        ? null
+        : Date.now() - chartRangeDef.days * 24 * 60 * 60 * 1000;
+    const inRange = snapshots.filter((s) => {
+      if (cutoffMs == null) return true;
+      return new Date(s.createdAt).getTime() >= cutoffMs;
+    });
+    const compactLabels =
+      chartRangeDef.days == null || chartRangeDef.days >= 90;
+    return inRange.map((s) => {
+      const from = s.currency;
+      return {
+        time: new Intl.DateTimeFormat(
+          "en-US",
+          compactLabels
+            ? { dateStyle: "medium" }
+            : { dateStyle: "medium", timeStyle: "short" },
+        ).format(new Date(s.createdAt)),
+        Steam: convertMoneyOrZero(s.totalSteam, from, currency, usdToEur),
+        Buff: convertMoneyOrZero(s.totalBuff, from, currency, usdToEur),
+      };
+    });
+  }, [snapshots, chartRangeDef, currency, usdToEur]);
 
   async function refresh(force = false) {
     setSyncing(true);
@@ -318,7 +367,11 @@ export function InventoryDashboard({
       if (!res.ok) {
         throw new Error(data.error ?? "Refresh failed");
       }
-      if (typeof data.warning === "string" && data.warning) {
+      if (
+        typeof data.warning === "string" &&
+        data.warning &&
+        !isHiddenSyncMessage(data.warning)
+      ) {
         setWarning(data.warning);
       }
       if (data.skippedCooldown) {
@@ -488,53 +541,90 @@ export function InventoryDashboard({
         />
       </section>
 
-      {chartData.length > 0 && (
+      {snapshots.length > 0 && (
         <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]/50 p-4 sm:p-6">
-          <h2 className="mb-4 text-lg font-medium">Portfolio value over time</h2>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid stroke="rgba(36,51,44,0.8)" strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="time"
-                  tick={{ fill: "#8fa399", fontSize: 11 }}
-                  hide={chartData.length > 8}
-                />
-                <YAxis tick={{ fill: "#8fa399", fontSize: 11 }} width={56} />
-                <Tooltip
-                  contentStyle={{
-                    background: "#121a17",
-                    border: "1px solid #24332c",
-                    borderRadius: 8,
-                  }}
-                  formatter={(value) =>
-                    formatMoney(
-                      typeof value === "number" ? value : Number(value),
-                      currency,
-                    )
-                  }
-                />
-                <Legend />
-                {priceSource === "steam" ? (
-                  <Line
-                    type="monotone"
-                    dataKey="Steam"
-                    stroke="#66c0f4"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                ) : (
-                  <Line
-                    type="monotone"
-                    dataKey="Buff"
-                    stroke="var(--buff)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-medium">Portfolio value over time</h2>
+            <div
+              className="inline-flex flex-wrap gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)]/60 p-1"
+              role="group"
+              aria-label="Chart date range"
+            >
+              {CHART_RANGES.map((range) => {
+                const active = chartRange === range.key;
+                return (
+                  <button
+                    key={range.key}
+                    type="button"
+                    onClick={() => setChartRange(range.key)}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold tracking-wide transition ${
+                      active
+                        ? "bg-[var(--accent)] text-[var(--accent-fg)]"
+                        : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    {range.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+          {chartData.length === 0 ? (
+            <p className="py-10 text-center text-sm text-[var(--text-muted)]">
+              No snapshots in this range yet. Sync again later to build history.
+            </p>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid
+                    stroke="rgba(36,51,44,0.8)"
+                    strokeDasharray="3 3"
+                  />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fill: "#8fa399", fontSize: 11 }}
+                    hide={chartData.length > 8}
+                  />
+                  <YAxis
+                    tick={{ fill: "#8fa399", fontSize: 11 }}
+                    width={56}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "#121a17",
+                      border: "1px solid #24332c",
+                      borderRadius: 8,
+                    }}
+                    formatter={(value) =>
+                      formatMoney(
+                        typeof value === "number" ? value : Number(value),
+                        currency,
+                      )
+                    }
+                  />
+                  <Legend />
+                  {priceSource === "steam" ? (
+                    <Line
+                      type="monotone"
+                      dataKey="Steam"
+                      stroke="#66c0f4"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  ) : (
+                    <Line
+                      type="monotone"
+                      dataKey="Buff"
+                      stroke="var(--buff)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </section>
       )}
 

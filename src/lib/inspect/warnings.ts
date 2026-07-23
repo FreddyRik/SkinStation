@@ -10,12 +10,12 @@ export function isFloatProviderSoftWarning(
   message: string | null | undefined,
 ): boolean {
   if (!message) return false;
-  if (isSteamwebapiLimitMessage(message)) return true;
+  // Steamwebapi is optional last-resort — never treat its quota as a UI warning.
+  if (isSteamwebapiLimitMessage(message)) return false;
   const t = message.toLowerCase();
   return (
     t.includes("inspect api") ||
     t.includes("no remote float provider") ||
-    t.includes("float/pattern data may be incomplete") ||
     message.startsWith(INSPECT_API_LIMIT_MESSAGE.slice(0, 20)) ||
     message.startsWith(INSPECT_API_MISSING_MESSAGE.slice(0, 20))
   );
@@ -24,11 +24,8 @@ export function isFloatProviderSoftWarning(
 export function floatUnavailableHint(
   floatProviderWarning: string | null | undefined,
 ): string {
-  if (!floatProviderWarning) {
+  if (!floatProviderWarning || isSteamwebapiLimitMessage(floatProviderWarning)) {
     return "Float/pattern not available for this item yet.";
-  }
-  if (isSteamwebapiLimitMessage(floatProviderWarning)) {
-    return "Float unavailable — Steamwebapi request limit reached (optional fallback). Prefer INSPECT_API_URL for a self-hosted inspect service.";
   }
   if (floatProviderWarning.toLowerCase().includes("inspect api")) {
     return "Float unavailable — inspect API rate-limited or unavailable. Try again shortly.";

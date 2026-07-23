@@ -31,7 +31,7 @@ export default async function InventoryPage({ params }: PageProps) {
       },
       snapshots: {
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: 500,
       },
     },
   });
