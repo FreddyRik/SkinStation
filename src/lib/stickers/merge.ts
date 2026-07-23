@@ -31,7 +31,7 @@ function stickerIconOf(s: StickerSource): string | null {
 
 /**
  * Merge sticker lists by slot. Earlier sources win for each field when present.
- * Typical order: Steamwebapi → description HTML → local inspect (wear/ids).
+ * Typical order: description HTML → local inspect → remote inspect → optional Steamwebapi.
  */
 export function mergeStickersBySlot(
   ...sources: Array<StickerSource[] | null | undefined>

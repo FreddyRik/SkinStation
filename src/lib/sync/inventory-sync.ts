@@ -29,12 +29,20 @@ import {
   fetchSteamProfileMeta,
   resolveSteamId64,
 } from "@/lib/steam/resolve";
-import { enrichFloatsViaSteamwebapi } from "@/lib/steamwebapi/float";
+import {
+  enrichFloatsViaSteamwebapi,
+  getSteamwebapiKey,
+} from "@/lib/steamwebapi/float";
 import { fetchSteamwebapiInventory } from "@/lib/steamwebapi/inventory";
 import {
   STEAMWEBAPI_LIMIT_MESSAGE,
   SteamwebapiLimitError,
 } from "@/lib/steamwebapi/errors";
+import {
+  enrichFloatsViaInspectApi,
+  getInspectApiBaseUrl,
+  INSPECT_API_MISSING_MESSAGE,
+} from "@/lib/inspect/remote";
 
 const REPUTATION_REFRESH_MS = 24 * 60 * 60 * 1000;
 
@@ -269,7 +277,82 @@ export async function syncInventory(
       console.warn("Sticker icon catalog failed:", err);
     }
 
-    // Prefer Steamwebapi inventory for floats/patterns/certificates
+    // Float cascade (Steamwebapi is optional last resort, not required):
+    // 1) Local masked inspect decode (already in inspectResults)
+    // 2) Self-hosted INSPECT_API_URL (CSGOFloat-compatible)
+    // 3) Optional Steamwebapi inventory + per-asset float
+    // 4) Previous DB values (applied when building rows)
+    let floatProviderWarning: string | null = null;
+
+    const stillMissingFloat = (assetId: string) => {
+      const local = inspectResults.get(assetId);
+      const prev = previousFloats.get(assetId);
+      return local?.floatValue == null && prev?.floatValue == null;
+    };
+
+    let inspectApiFloats = new Map<
+      string,
+      {
+        floatValue: number | null;
+        paintSeed: number | null;
+        paintIndex: number | null;
+        stickers?: Array<{
+          slot: number;
+          stickerId: number;
+          name?: string;
+          wear?: number;
+        }>;
+        inspectLink?: string | null;
+      }
+    >();
+
+    const missingForInspectApi = inventory.filter((i) =>
+      stillMissingFloat(i.assetId),
+    );
+    if (missingForInspectApi.length > 0) {
+      const inspectEnrich = await enrichFloatsViaInspectApi(
+        profile.steamId,
+        missingForInspectApi.map((i) => ({
+          assetId: i.assetId,
+          marketHashName: i.marketHashName,
+          type: i.type,
+          inspectLink: i.inspectLink,
+        })),
+      );
+      inspectApiFloats = inspectEnrich.floats;
+      if (inspectEnrich.warning) {
+        floatProviderWarning = inspectEnrich.warning;
+        console.warn(inspectEnrich.warning);
+      }
+
+      // Prefer masked/certificate links returned by the inspect API for local decode.
+      for (const [assetId, remote] of inspectApiFloats) {
+        if (remote.inspectLink) {
+          const decoded = decodeInspectLocally(remote.inspectLink);
+          if (decoded) {
+            if (!inspectResults.has(assetId)) {
+              inspectResults.set(assetId, decoded);
+            } else {
+              const prev = inspectResults.get(assetId)!;
+              if (prev.floatValue == null && decoded.floatValue != null) {
+                prev.floatValue = decoded.floatValue;
+              }
+              if (prev.paintSeed == null && decoded.paintSeed != null) {
+                prev.paintSeed = decoded.paintSeed;
+              }
+              if (prev.paintIndex == null && decoded.paintIndex != null) {
+                prev.paintIndex = decoded.paintIndex;
+              }
+              if (!prev.stickers.length && decoded.stickers.length) {
+                prev.stickers = decoded.stickers;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Optional Steamwebapi — only when a key is configured and gaps remain.
     let webapiInventory = new Map<
       string,
       Awaited<ReturnType<typeof fetchSteamwebapiInventory>> extends Map<
@@ -279,15 +362,17 @@ export async function syncInventory(
         ? V
         : never
     >();
-    let steamwebapiWarning: string | null = null;
-    try {
-      webapiInventory = await fetchSteamwebapiInventory(profile.steamId);
-    } catch (err) {
-      if (err instanceof SteamwebapiLimitError) {
-        steamwebapiWarning = STEAMWEBAPI_LIMIT_MESSAGE;
-        console.warn(STEAMWEBAPI_LIMIT_MESSAGE);
-      } else {
-        console.warn("Steamwebapi inventory enrich failed:", err);
+    if (getSteamwebapiKey()) {
+      try {
+        webapiInventory = await fetchSteamwebapiInventory(profile.steamId);
+      } catch (err) {
+        if (err instanceof SteamwebapiLimitError) {
+          floatProviderWarning =
+            floatProviderWarning ?? STEAMWEBAPI_LIMIT_MESSAGE;
+          console.warn(STEAMWEBAPI_LIMIT_MESSAGE);
+        } else {
+          console.warn("Steamwebapi inventory enrich failed:", err);
+        }
       }
     }
 
@@ -302,7 +387,6 @@ export async function syncInventory(
       if (decoded?.stickers?.length) {
         certificateStickers.set(assetId, decoded.stickers);
       }
-      // Prefer certificate decode when Steam inventory inspect was masked/broken
       if (decoded && !inspectResults.has(assetId)) {
         inspectResults.set(assetId, decoded);
       } else if (decoded && inspectResults.has(assetId)) {
@@ -319,25 +403,30 @@ export async function syncInventory(
       }
     }
 
-    // Fallback float enrichment for any assets still missing floats
-    const missingFloatAssets = inventory.filter((i) => {
-      const w = webapiInventory.get(i.assetId);
-      const local = inspectResults.get(i.assetId);
-      const prev = previousFloats.get(i.assetId);
-      return (
-        w?.floatValue == null &&
-        local?.floatValue == null &&
-        prev?.floatValue == null
-      );
-    });
     let remoteFloats = new Map<
       string,
       { floatValue: number | null; paintSeed: number | null; paintIndex: number | null }
     >();
-    if (!steamwebapiWarning && missingFloatAssets.length > 0) {
+    const missingAfterInspect = inventory.filter((i) => {
+      const w = webapiInventory.get(i.assetId);
+      const local = inspectResults.get(i.assetId);
+      const inspectRemote = inspectApiFloats.get(i.assetId);
+      const prev = previousFloats.get(i.assetId);
+      return (
+        w?.floatValue == null &&
+        local?.floatValue == null &&
+        inspectRemote?.floatValue == null &&
+        prev?.floatValue == null
+      );
+    });
+    if (
+      getSteamwebapiKey() &&
+      !floatProviderWarning?.includes("Steamwebapi") &&
+      missingAfterInspect.length > 0
+    ) {
       const remoteFloatEnrich = await enrichFloatsViaSteamwebapi(
         profile.steamId,
-        missingFloatAssets.map((i) => ({
+        missingAfterInspect.map((i) => ({
           assetId: i.assetId,
           marketHashName: i.marketHashName,
           type: i.type,
@@ -345,10 +434,29 @@ export async function syncInventory(
       );
       remoteFloats = remoteFloatEnrich.floats;
       if (remoteFloatEnrich.limitHit) {
-        steamwebapiWarning = STEAMWEBAPI_LIMIT_MESSAGE;
+        floatProviderWarning =
+          floatProviderWarning ?? STEAMWEBAPI_LIMIT_MESSAGE;
         console.warn(STEAMWEBAPI_LIMIT_MESSAGE);
       }
     }
+
+    // Soft hint when many weapons still lack floats and no remote provider exists.
+    if (
+      !floatProviderWarning &&
+      !getInspectApiBaseUrl() &&
+      !getSteamwebapiKey()
+    ) {
+      const missingCount = inventory.filter((i) => {
+        const local = inspectResults.get(i.assetId);
+        const prev = previousFloats.get(i.assetId);
+        return local?.floatValue == null && prev?.floatValue == null;
+      }).length;
+      if (missingCount > 0) {
+        floatProviderWarning = INSPECT_API_MISSING_MESSAGE;
+      }
+    }
+
+    const steamwebapiWarning = floatProviderWarning;
 
     let buffCatalog;
     try {
@@ -369,11 +477,13 @@ export async function syncInventory(
       const webapi = webapiInventory.get(item.assetId);
       const inspect = inspectResults.get(item.assetId);
       const cert = certificateStickers.get(item.assetId);
+      const inspectRemote = inspectApiFloats.get(item.assetId);
       const merged = mergeStickersBySlot(
-        webapi?.stickers,
         item.stickersFromDescription,
-        cert,
         inspect?.stickers,
+        inspectRemote?.stickers,
+        cert,
+        webapi?.stickers,
       );
       for (const s of merged) {
         if (s.name) stickerNames.add(stickerMarketHashName(s.name));
@@ -416,6 +526,7 @@ export async function syncInventory(
 
     const rows = inventory.map((item) => {
       const inspect = inspectResults.get(item.assetId);
+      const inspectRemote = inspectApiFloats.get(item.assetId);
       const webapi = webapiInventory.get(item.assetId);
       const remote = remoteFloats.get(item.assetId);
       const previous = previousFloats.get(item.assetId);
@@ -439,10 +550,11 @@ export async function syncInventory(
       );
       const merged = canHaveStickers
         ? mergeStickersBySlot(
-            webapi?.stickers,
             item.stickersFromDescription,
-            cert,
             inspect?.stickers,
+            inspectRemote?.stickers,
+            cert,
+            webapi?.stickers,
           )
         : [];
 
@@ -477,26 +589,33 @@ export async function syncInventory(
         name: item.name,
         iconUrl: item.iconUrl,
         exterior: item.exterior,
+        // Prefer local + self-hosted inspect API; Steamwebapi is last resort.
         floatValue:
-          webapi?.floatValue ??
           inspect?.floatValue ??
+          inspectRemote?.floatValue ??
+          webapi?.floatValue ??
           remote?.floatValue ??
           previous?.floatValue ??
           null,
         paintSeed:
-          webapi?.paintSeed ??
           inspect?.paintSeed ??
+          inspectRemote?.paintSeed ??
+          webapi?.paintSeed ??
           remote?.paintSeed ??
           previous?.paintSeed ??
           null,
         paintIndex:
-          webapi?.paintIndex ??
           inspect?.paintIndex ??
+          inspectRemote?.paintIndex ??
+          webapi?.paintIndex ??
           remote?.paintIndex ??
           previous?.paintIndex ??
           null,
         stickers: stickers.length ? JSON.stringify(stickers) : null,
-        inspectLink: webapi?.inspectLink ?? item.inspectLink,
+        inspectLink:
+          inspectRemote?.inspectLink ??
+          webapi?.inspectLink ??
+          item.inspectLink,
         steamPrice,
         buffPrice,
         tradable: item.tradable,

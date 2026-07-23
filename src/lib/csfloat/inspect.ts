@@ -1,4 +1,9 @@
 import { decodeLink } from "@csfloat/cs2-inspect-serializer";
+import {
+  extractInspectPayload,
+  isLocallyDecodableInspectLink,
+  isMaskedInspectPayload,
+} from "@/lib/inspect/links";
 
 export type DecodedSticker = {
   slot: number;
@@ -17,41 +22,22 @@ export type InspectResult = {
   source: "local" | "description";
 };
 
-function isMaskedInspectPayload(payload: string): boolean {
-  // Hex protobuf payload (optionally URL-encoded). Classic S/A/D is not masked.
-  const cleaned = payload.replace(/\s/g, "");
-  if (/^[SM]\d+A\d+D\d+$/i.test(cleaned)) return false;
-  if (/%propid:\d+%/i.test(cleaned)) return false;
-  // Hex blob: long hex string, often starts with 00 / AA / etc.
-  const hex = cleaned.replace(/%20/g, "").replace(/^%/, "");
-  return /^[0-9A-Fa-f]{20,}$/.test(hex);
-}
+export {
+  extractInspectPayload,
+  isLocallyDecodableInspectLink,
+  isMaskedInspectPayload,
+};
 
-export function extractInspectPayload(inspectLink: string): string | null {
-  const match = inspectLink.match(
-    /csgo_econ_action_preview(?:%20|\+| )([^\s&]+)/i,
-  );
-  if (!match?.[1]) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
-  }
-}
-
+/** @deprecated Prefer isLocallyDecodableInspectLink — classic S/A/D is not local. */
 export function isUsableInspectLink(inspectLink: string | null): boolean {
-  if (!inspectLink) return false;
-  if (inspectLink.includes("%propid")) return false;
-  const payload = extractInspectPayload(inspectLink);
-  if (!payload) return false;
-  return isMaskedInspectPayload(payload) || /^[SM]\d+A\d+D\d+$/i.test(payload);
+  return isLocallyDecodableInspectLink(inspectLink);
 }
 
 /** Decode float / pattern / stickers locally from a masked CS2 inspect link. */
 export function decodeInspectLocally(
   inspectLink: string,
 ): InspectResult | null {
-  if (!isUsableInspectLink(inspectLink)) return null;
+  if (!isLocallyDecodableInspectLink(inspectLink)) return null;
 
   try {
     const decoded = decodeLink(inspectLink) as {

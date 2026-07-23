@@ -60,7 +60,7 @@ import {
   writeStoredPriceSource,
 } from "@/lib/price-source";
 import { canLinkBuffMarket, canLinkSteamMarket } from "@/lib/steam-market/listing";
-import { isSteamwebapiLimitMessage } from "@/lib/steamwebapi/errors";
+import { isFloatProviderSoftWarning } from "@/lib/inspect/warnings";
 
 export type InventoryItemView = {
   id: string;
@@ -164,13 +164,13 @@ export function InventoryDashboard({
   );
   const [syncing, setSyncing] = useState(profile.syncing);
   const [error, setError] = useState<string | null>(
-    profile.lastError && !isSteamwebapiLimitMessage(profile.lastError)
+    profile.lastError && !isFloatProviderSoftWarning(profile.lastError)
       ? profile.lastError
       : null,
   );
   const [note, setNote] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(
-    isSteamwebapiLimitMessage(profile.lastError) ? profile.lastError : null,
+    isFloatProviderSoftWarning(profile.lastError) ? profile.lastError : null,
   );
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -182,7 +182,7 @@ export function InventoryDashboard({
 
   useEffect(() => {
     setSyncing(profile.syncing);
-    if (isSteamwebapiLimitMessage(profile.lastError)) {
+    if (isFloatProviderSoftWarning(profile.lastError)) {
       setWarning(profile.lastError);
       setError(null);
     } else {
