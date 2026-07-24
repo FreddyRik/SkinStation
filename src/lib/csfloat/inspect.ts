@@ -1,6 +1,8 @@
 import { decodeLink } from "@csfloat/cs2-inspect-serializer";
+import { InspectLink } from "@vlydev/cs2-masked-inspect";
 import {
   extractInspectPayload,
+  isHybridInspectPayload,
   isLocallyDecodableInspectLink,
   isMaskedInspectPayload,
 } from "@/lib/inspect/links";
@@ -24,6 +26,7 @@ export type InspectResult = {
 
 export {
   extractInspectPayload,
+  isHybridInspectPayload,
   isLocallyDecodableInspectLink,
   isMaskedInspectPayload,
 };
@@ -33,12 +36,59 @@ export function isUsableInspectLink(inspectLink: string | null): boolean {
   return isLocallyDecodableInspectLink(inspectLink);
 }
 
-/** Decode float / pattern / stickers locally from a masked CS2 inspect link. */
-export function decodeInspectLocally(
-  inspectLink: string,
-): InspectResult | null {
-  if (!isLocallyDecodableInspectLink(inspectLink)) return null;
+function finiteOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
 
+/**
+ * `@vlydev/cs2-masked-inspect` defaults missing paintSeed to 0. Treat a lone
+ * zero seed with no wear/paint as unset (stickers, tools, etc.).
+ */
+function normalizePaintSeed(
+  paintSeed: number | null,
+  paintWear: number | null,
+  paintIndex: number | null,
+): number | null {
+  if (paintSeed == null) return null;
+  if (
+    paintSeed === 0 &&
+    paintWear == null &&
+    (paintIndex == null || paintIndex === 0)
+  ) {
+    return null;
+  }
+  return Math.trunc(paintSeed);
+}
+
+function decodeWithVlydev(inspectLink: string): InspectResult | null {
+  try {
+    const item = InspectLink.deserialize(inspectLink);
+    const floatValue = finiteOrNull(item.paintWear);
+    const paintIndex = finiteOrNull(item.paintIndex);
+    const paintSeed = normalizePaintSeed(
+      finiteOrNull(item.paintSeed),
+      floatValue,
+      paintIndex,
+    );
+
+    return {
+      floatValue,
+      paintSeed,
+      paintIndex: paintIndex != null ? Math.trunc(paintIndex) : null,
+      stickers: (item.stickers ?? []).map((s, idx) => ({
+        slot: finiteOrNull(s.slot) ?? idx,
+        stickerId: finiteOrNull(s.stickerId) ?? 0,
+        wear: finiteOrNull(s.wear) ?? undefined,
+      })),
+      customName: item.customName?.trim() ? item.customName : null,
+      source: "local",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function decodeWithCsfloat(inspectLink: string): InspectResult | null {
   try {
     const decoded = decodeLink(inspectLink) as {
       paintwear?: number;
@@ -56,18 +106,18 @@ export function decodeInspectLocally(
     };
 
     const floatValue =
-      typeof decoded.paintwear === "number"
-        ? decoded.paintwear
-        : typeof decoded.floatvalue === "number"
-          ? decoded.floatvalue
-          : null;
+      finiteOrNull(decoded.paintwear) ?? finiteOrNull(decoded.floatvalue);
+    const paintIndex = finiteOrNull(decoded.paintindex);
+    const paintSeed = normalizePaintSeed(
+      finiteOrNull(decoded.paintseed),
+      floatValue,
+      paintIndex,
+    );
 
     return {
       floatValue,
-      paintSeed:
-        typeof decoded.paintseed === "number" ? decoded.paintseed : null,
-      paintIndex:
-        typeof decoded.paintindex === "number" ? decoded.paintindex : null,
+      paintSeed,
+      paintIndex: paintIndex != null ? Math.trunc(paintIndex) : null,
       stickers: (decoded.stickers ?? []).map((s, idx) => ({
         slot: s.slot ?? idx,
         stickerId: s.stickerId ?? s.stickerid ?? 0,
@@ -80,6 +130,18 @@ export function decodeInspectLocally(
   } catch {
     return null;
   }
+}
+
+/**
+ * Decode float / pattern / stickers locally from a masked or hybrid CS2
+ * inspect link. Prefers `@vlydev/cs2-masked-inspect` (hybrid + XOR native
+ * links); falls back to `@csfloat/cs2-inspect-serializer`.
+ */
+export function decodeInspectLocally(
+  inspectLink: string,
+): InspectResult | null {
+  if (!isLocallyDecodableInspectLink(inspectLink)) return null;
+  return decodeWithVlydev(inspectLink) ?? decodeWithCsfloat(inspectLink);
 }
 
 /**
