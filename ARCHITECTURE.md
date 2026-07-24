@@ -10,7 +10,7 @@ Local-first **CS2 Inventory Tracker**: paste a public Steam profile, sync invent
 | UI | Tailwind CSS 4, Recharts, `html-to-image` |
 | Fonts | Fraunces (display), Outfit (body) via `next/font` |
 | DB | Prisma 6 + SQLite |
-| Inspect decode | `@csfloat/cs2-inspect-serializer` |
+| Inspect decode | `@vlydev/cs2-masked-inspect` (+ `@csfloat/cs2-inspect-serializer` fallback) |
 
 Prisma is imported **only** from `@/lib/db` (singleton). Never instantiate `PrismaClient` elsewhere.
 
@@ -57,7 +57,7 @@ Next.js 15: `params` / `searchParams` are **Promises** — always `await` them.
 | `lib/sync/inventory-sync.ts` | Profile upsert + full sync orchestrator |
 | `lib/steam/resolve.ts` | SteamID64 / vanity / URL → profile meta |
 | `lib/steam/inventory.ts` | Public Steam CS2 inventory fetch |
-| `lib/csfloat/inspect.ts` | Local inspect-link float / sticker decode |
+| `lib/csfloat/inspect.ts` | Local inspect-link float / sticker decode (masked + hybrid) |
 | `lib/steamwebapi/*` | Optional inventory + float enrichment |
 | `lib/stickers/*` | Parse, merge by slot, normalize names, icon catalog |
 | `lib/steam-market/*` | CSGOTrader Buff163 + Steam prices + Market gap-fill |
@@ -113,7 +113,7 @@ flowchart TD
 1. **Lock:** atomic `updateMany` where `syncing: false`. Force or stale lock (>10 min) can clear a stuck flag. Concurrent claim → error / HTTP 409.
 2. **Inventory:** `fetchSteamInventory(steamId)` from Steam Community JSON.
 3. **Floats / patterns:**
-   - Local decode of masked inspect links (`lib/csfloat/inspect.ts`).
+   - Local decode of masked/hybrid inspect links (`lib/csfloat/inspect.ts`).
    - Optional self-hosted inspect API (`INSPECT_API_URL`, CSGOFloat-compatible).
    - Optional Steamwebapi inventory + per-asset float (last-resort when `STEAMWEBAPI_KEY` is set).
 4. **Stickers:** `mergeStickersBySlot(descriptions, local, inspect API, certificate, webapi)` → icons + prices looked up by normalized `Sticker | Name`.
@@ -126,7 +126,7 @@ flowchart TD
    - Create `PortfolioSnapshot`
    - Set `lastSyncedAt`, `syncing: false`, optional soft `lastError` (float-provider warning)
 
-**Float precedence per item:** local inspect → `INSPECT_API_URL` → Steamwebapi → previous DB value.
+**Float precedence per item:** local inspect (masked/hybrid) → `INSPECT_API_URL` → Steamwebapi → previous DB value.
 
 **Stickers in DB:** `InventoryItem.stickers` is a **JSON string**. Always parse with `parseStickersJson()` at read boundaries (pages / API).
 

@@ -7,7 +7,7 @@ Local-first Counter-Strike 2 inventory tracker. Paste a public Steam profile, sy
 - Next.js (App Router) + TypeScript + Tailwind
 - SQLite via Prisma
 - Steam Community inventory
-- Local CS2 inspect decode (`@csfloat/cs2-inspect-serializer`) for masked inspect links
+- Local CS2 inspect decode (`@vlydev/cs2-masked-inspect` + `@csfloat/cs2-inspect-serializer`) for masked/hybrid inspect links
 - Optional self-hosted inspect API (`INSPECT_API_URL`) for classic / unresolved links
 - Buff163 prices via CSGOTrader + Steam Market priceoverview
 
@@ -32,7 +32,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Steam's public inventory JSON usually returns `%propid:N%` placeholders, which cannot be decoded locally. The tracker uses this cascade:
 
-1. **Local decode** of masked/hex inspect links (`@csfloat/cs2-inspect-serializer`)
+1. **Local decode** of masked/hex and hybrid `S…A…D<hex>` inspect links (`@vlydev/cs2-masked-inspect`, with `@csfloat/cs2-inspect-serializer` fallback)
 2. **`INSPECT_API_URL`** — CSGOFloat-compatible self-hosted inspect service (`GET ?url=…`)
 3. **Optional `STEAMWEBAPI_KEY`** — last-resort fallback only
 4. **Previous DB floats** preserved across syncs when enrichment fails
@@ -45,7 +45,7 @@ Point `INSPECT_API_URL` at a self-hosted [CSGOFloat](https://github.com/Step7750
 Steam rate-limits `priceoverview`. The sync fetches unique item names (prioritized by Buff163 value), with retries and backoff. If Steam throttles mid-sync, the next Refresh continues filling gaps from cache.
 
 ### Floats & stickers
-Without `INSPECT_API_URL` (or optional Steamwebapi), only masked inspect links get floats. Stickers are still parsed from Steam description HTML when present.
+Without `INSPECT_API_URL` (or optional Steamwebapi), only masked/hybrid inspect links get floats (Steam public inventory usually only has `%propid` placeholders). Stickers are still parsed from Steam description HTML when present.
 
 ### Historical prices (last 6 months)
 The chart shows **your portfolio snapshots** from each successful sync (filtered to the last 6 months). It does **not** backfill market history before you started tracking.

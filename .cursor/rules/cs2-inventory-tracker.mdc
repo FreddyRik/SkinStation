@@ -21,10 +21,10 @@ alwaysApply: true
 
 ## 3. Inventory & Pricing Logic
 
-- Decode inspect links locally with `@csfloat/cs2-inspect-serializer` when possible (float, paint seed, stickers).
+- Decode inspect links locally with `@vlydev/cs2-masked-inspect` (primary; supports hybrid `S…A…D<hex>`) and `@csfloat/cs2-inspect-serializer` fallback when possible (float, paint seed, stickers).
 - Price cascade: Buff163 via CSGOTrader first → Steam Market `priceoverview` gap-fill. Never throw on missing prices; UI uses graceful empties (`—` / unpriced).
 - Per-item display and portfolio totals must use the **same** price-source fallback rules (`itemPrice` / `portfolioTotalFromItems`).
-- Float cascade: local masked decode → optional `INSPECT_API_URL` (self-hosted CSGOFloat-compatible) → optional `STEAMWEBAPI_KEY` last resort → previous DB values. Never require Steamwebapi for floats.
+- Float cascade: local masked/hybrid decode → optional `INSPECT_API_URL` (self-hosted CSGOFloat-compatible) → optional `STEAMWEBAPI_KEY` last resort → previous DB values. Never require Steamwebapi for floats.
 - Steamwebapi / FACEIT / Leetify are optional enrichers — degrade gracefully on missing keys, 429s, or quota limits; surface soft warnings, don’t block core sync.
 
 ## 4. External APIs

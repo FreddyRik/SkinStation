@@ -4,8 +4,8 @@
  * Steam's public inventory JSON often returns unresolved `%propid:N%`
  * placeholders. Those cannot be decoded locally. Classic `S…A…D…` links can
  * still be sent to a Game-Coordinator inspect service (self-hosted CSGOFloat
- * compatible). Masked/hex links decode locally with
- * `@csfloat/cs2-inspect-serializer`.
+ * compatible). Masked/hex and hybrid `S…A…D<hex>` links decode locally with
+ * `@vlydev/cs2-masked-inspect` (primary) / `@csfloat/cs2-inspect-serializer`.
  */
 
 const CLASSIC_PREVIEW_PREFIX =
@@ -42,32 +42,56 @@ export function isClassicInspectPayload(payload: string): boolean {
   return /^[SM]\d+A\d+D\d+$/i.test(cleaned);
 }
 
+/**
+ * Hybrid: classic `S/A/D` prefix with a hex protobuf after D (not a decimal did).
+ * Offline-decodable — same protobuf blob as a pure masked link.
+ */
+export function isHybridInspectPayload(payload: string): boolean {
+  const cleaned = payload.replace(/\s/g, "");
+  const match = cleaned.match(/^[SM]\d+A\d+D([0-9A-Fa-f]+)$/i);
+  if (!match?.[1]) return false;
+  const dPart = match[1];
+  // Hex letters ⇒ protobuf payload (classic D is decimal-only).
+  return /[A-Fa-f]/.test(dPart) && dPart.length >= 10;
+}
+
+/** Pure hex/protobuf payload (no S/A/D prefix). */
 export function isMaskedInspectPayload(payload: string): boolean {
   const cleaned = payload.replace(/\s/g, "");
-  if (isClassicInspectPayload(cleaned)) return false;
+  if (isClassicInspectPayload(cleaned) || isHybridInspectPayload(cleaned)) {
+    return false;
+  }
   if (/%propid:\d+%/i.test(cleaned)) return false;
   const hex = cleaned.replace(/%20/g, "").replace(/^%/, "");
   return /^[0-9A-Fa-f]{20,}$/.test(hex);
 }
 
-/** Link contains a hex/protobuf payload that local decode can read. */
+/** Link contains a protobuf payload that local decode can read (masked or hybrid). */
 export function isLocallyDecodableInspectLink(
   inspectLink: string | null,
 ): boolean {
   if (!inspectLink || isPropIdInspectLink(inspectLink)) return false;
   const payload = extractInspectPayload(inspectLink);
-  return Boolean(payload && isMaskedInspectPayload(payload));
+  if (!payload) {
+    // Bare hex certificate strings (no steam:// wrapper).
+    return isMaskedInspectPayload(inspectLink);
+  }
+  return isMaskedInspectPayload(payload) || isHybridInspectPayload(payload);
 }
 
 /**
- * Link is usable by a remote GC inspect provider (classic S/A/D or masked).
+ * Link is usable by a remote GC inspect provider (classic, hybrid, or masked).
  * PropId placeholders are not.
  */
 export function isRemoteInspectableLink(inspectLink: string | null): boolean {
   if (!inspectLink || isPropIdInspectLink(inspectLink)) return false;
   const payload = extractInspectPayload(inspectLink);
   if (!payload) return false;
-  return isMaskedInspectPayload(payload) || isClassicInspectPayload(payload);
+  return (
+    isMaskedInspectPayload(payload) ||
+    isHybridInspectPayload(payload) ||
+    isClassicInspectPayload(payload)
+  );
 }
 
 /**
