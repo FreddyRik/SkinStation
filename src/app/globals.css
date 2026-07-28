@@ -35,8 +35,17 @@ body {
 body {
   color: var(--text);
   background: var(--page-bg);
-  font-family: "Segoe UI", "IBM Plex Sans", system-ui, sans-serif;
+  font-family: var(--font-share-body), "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-share-display), Georgia, serif;
 }
 
 a {

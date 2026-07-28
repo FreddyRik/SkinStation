@@ -1,10 +1,10 @@
 ---
-description: Core architecture rules, tech stack conventions, and coding guidelines for the CS2 Inventory Tracker app.
+description: Core architecture rules, tech stack conventions, and coding guidelines for the SkinStation app.
 globs: "**/*.{ts,tsx,css,prisma}"
 alwaysApply: true
 ---
 
-# CS2 Inventory Tracker — Architecture & Coding Rules
+# SkinStation — Architecture & Coding Rules
 
 ## 1. Core Tech Stack
 
@@ -14,10 +14,10 @@ alwaysApply: true
 - **Tailwind CSS 4**: CSS-first (`@import "tailwindcss"` / `@theme` in global CSS). Do not add legacy `tailwind.config.js` unless necessary.
 - **Typography (`next/font`)**: `Fraunces` for display/headings, `Outfit` for body UI — via CSS variables from root `layout.tsx`.
 
-## 2. Database (Prisma 6 + SQLite)
+## 2. Database (Prisma 6 + PostgreSQL)
 
 - Import Prisma from `@/lib/db` (singleton). Never `new PrismaClient()` in routes or server components.
-- Keep schema SQLite-compatible. Prefer scalar/string fields; store JSON (e.g. stickers) as strings and parse safely.
+- Provider is **PostgreSQL** (Supabase). Use `DATABASE_URL` (pooled) + `DIRECT_URL` (migrations). Prefer scalar/string fields; store JSON (e.g. stickers) as strings and parse safely.
 
 ## 3. Inventory & Pricing Logic
 

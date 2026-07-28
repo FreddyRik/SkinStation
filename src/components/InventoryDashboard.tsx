@@ -348,18 +348,17 @@ export function InventoryDashboard({
     });
   }, [snapshots, chartRangeDef, currency, usdToEur]);
 
-  async function refresh(force = false) {
+  async function refresh() {
     setSyncing(true);
     setError(null);
     setWarning(null);
-    setNote(force ? "Force refreshing…" : "Refreshing inventory…");
+    setNote("Refreshing inventory…");
     try {
       const res = await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           profileId: profile.id,
-          force,
           // Keep storing prices in the profile's storage currency; display converts.
           currency: storageCurrency,
         }),
@@ -487,20 +486,11 @@ export function InventoryDashboard({
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <button
                 type="button"
-                onClick={() => refresh(false)}
+                onClick={() => refresh()}
                 disabled={syncing}
                 className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[#042f2e] hover:bg-[var(--accent-dim)] disabled:opacity-50"
               >
                 {syncing ? "Refreshing…" : "Refresh"}
-              </button>
-              <button
-                type="button"
-                onClick={() => refresh(true)}
-                disabled={syncing && !profile.syncing}
-                className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-muted)] hover:border-[var(--warn)]/50 hover:text-[var(--warn)] disabled:opacity-50"
-                title="Bypass cooldown / clear a stuck sync"
-              >
-                Force
               </button>
               <button
                 type="button"

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Fraunces, Outfit } from "next/font/google";
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import "./globals.css";
-
 const shareDisplay = Fraunces({
   subsets: ["latin"],
   variable: "--font-share-display",
@@ -16,8 +17,8 @@ const shareBody = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "CS2 Inventory Tracker",
-  description: "Local-first Counter-Strike 2 inventory and market value tracker",
+  title: SITE_NAME,
+  description: SITE_DESCRIPTION,
 };
 
 export default function RootLayout({
@@ -28,9 +29,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${shareDisplay.variable} ${shareBody.variable}`}>
       <body>
-        <div className="min-h-screen">
+        <div className="flex min-h-screen flex-col">
           <SiteHeader />
-          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
+          <SiteFooter />
         </div>
       </body>
     </html>

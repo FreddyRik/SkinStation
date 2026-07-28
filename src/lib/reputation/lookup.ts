@@ -1,3 +1,5 @@
+import { SITE_USER_AGENT } from "@/lib/site";
+
 export type ReputationLookup = {
   faceit: {
     playerId: string | null;
@@ -160,7 +162,7 @@ async function fetchLeetifyProfile(
       {
         headers: {
           Accept: "application/json",
-          "User-Agent": "InventoryTracker/1.0",
+          "User-Agent": SITE_USER_AGENT,
         },
         cache: "no-store",
         signal: AbortSignal.timeout(8_000),

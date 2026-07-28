@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 import { ItemDatabaseBrowser } from "@/components/ItemDatabaseBrowser";
+import { sitePageTitle } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Skin Database · CS2 Inventory Tracker",
+  title: sitePageTitle("Skin Database"),
   description:
     "Browse the live Counter-Strike 2 item catalog — skins, cases, keys, stickers, and more.",
 };

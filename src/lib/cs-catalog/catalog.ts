@@ -18,6 +18,7 @@ import type {
   SlimCatalogItem,
   SlimCollection,
 } from "@/lib/cs-catalog/types";
+import { SITE_USER_AGENT } from "@/lib/site";
 
 const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
 const API_BASE =
@@ -25,7 +26,7 @@ const API_BASE =
 
 const FETCH_HEADERS = {
   Accept: "application/json",
-  "User-Agent": "InventoryTracker/1.0",
+  "User-Agent": SITE_USER_AGENT,
 } as const;
 
 type RawRarity = {

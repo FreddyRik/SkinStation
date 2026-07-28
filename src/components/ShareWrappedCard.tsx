@@ -245,7 +245,7 @@ export function ShareWrappedCard({
             className="text-[11px] font-semibold uppercase tracking-[0.28em]"
             style={{ color: "var(--share-accent-dim)" }}
           >
-            CS2 Inventory Wrapped · {year}
+            SkinStation Wrapped · {year}
           </p>
           <div className="flex items-center gap-3">
             {avatarSrc ? (
@@ -361,8 +361,8 @@ export function ShareWrappedCard({
           style={{ color: "var(--share-text-muted)" }}
         >
           <p>
-            Inventory
-            <span style={{ color: "var(--share-accent)" }}>Tracker</span>
+            Skin
+            <span style={{ color: "var(--share-accent)" }}>Station</span>
           </p>
           <p className="tabular-nums">
             {stats.pricedCount}/{stats.itemCount} priced

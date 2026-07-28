@@ -186,7 +186,7 @@ export function ShareCardDialog({
               id="share-card-title"
               className="text-lg font-semibold tracking-tight"
             >
-              Inventory Wrapped
+              SkinStation Wrapped
             </h2>
             <p className="text-sm text-[var(--text-muted)]">
               Download a graphic or share a link with your top 3 skins.

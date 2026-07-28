@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { SITE_USER_AGENT } from "@/lib/site";
 
 const GOODS_ID_URL =
   "https://raw.githubusercontent.com/ModestSerhat/cs2-marketplace-ids/main/cs2_marketplaceids.json";
@@ -39,7 +40,7 @@ async function fetchGoodsIdMap(): Promise<Map<string, number>> {
   const res = await fetch(GOODS_ID_URL, {
     headers: {
       Accept: "application/json",
-      "User-Agent": "InventoryTracker/1.0",
+      "User-Agent": SITE_USER_AGENT,
     },
     next: { revalidate: 0 },
   });

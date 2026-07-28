@@ -148,12 +148,11 @@ export function ProfileLookup({
             Public Steam inventory
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-[var(--text)] sm:text-4xl">
-            Track your CS2 skins and market value
+            Your one-stop for CS2 skins
           </h1>
           <p className="text-[var(--text-muted)] leading-relaxed">
-            Paste a Steam profile URL or SteamID64. We pull your public CS2
-            inventory, enrich floats via CSFloat, and price items on Steam Market
-            and Buff163 in USD or EUR.
+            Track your inventory, browse the skin catalog, and run trade-up
+            odds. Paste a Steam profile URL or SteamID64 to get started.
           </p>
 
           {accentGlow ? (

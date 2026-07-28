@@ -11,6 +11,7 @@ import {
 } from "@/lib/price-source";
 import { buildShareCardStats } from "@/lib/share-card";
 import { parseShareCardTheme } from "@/lib/share-card-theme";
+import { SITE_NAME } from "@/lib/site";
 import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
 
@@ -33,7 +34,7 @@ export async function generateMetadata({
     include: { items: true },
   });
   if (!profile) {
-    return { title: "Inventory Wrapped" };
+    return { title: `${SITE_NAME} Wrapped` };
   }
 
   const currency = parseCurrency(profile.currency);
@@ -42,7 +43,7 @@ export async function generateMetadata({
   const top = stats.topItems[0]?.displayName;
 
   return {
-    title: `${name} · CS2 Inventory Wrapped`,
+    title: `${name} · SkinStation Wrapped`,
     description: [
       `${stats.itemCount} items worth ${stats.headlineLabel} on ${PRICE_SOURCE_LABELS[priceSource]}`,
       top ? `Top skin: ${top}` : null,

@@ -211,7 +211,6 @@ export function TradeUpCalculator() {
 
   async function syncInventory(
     id: string,
-    opts?: { force?: boolean },
   ): Promise<{ inspected: number; itemCount: number; warning?: string | null }> {
     setSyncNote("Syncing inventory from Steam… this can take a minute.");
     const syncRes = await fetch("/api/sync", {
@@ -221,7 +220,6 @@ export function TradeUpCalculator() {
       // force a full rebuild just because the trade-up UI default is USD.
       body: JSON.stringify({
         profileId: id,
-        force: Boolean(opts?.force),
       }),
     });
     const syncData = await syncRes.json().catch(() => ({}));
@@ -552,9 +550,8 @@ export function TradeUpCalculator() {
             <span className="text-[var(--accent)]">Calculator</span>
           </h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--text-muted)]">
-            Build a CS2 trade-up contract from your inventory or a sandbox of
-            catalog skins. Odds, floats, and EV use post–October 2025 rules
-            (including 5-Covert knife/glove contracts).
+            Pick items from your inventory or the catalog to see outcome odds,
+            floats, and expected value.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

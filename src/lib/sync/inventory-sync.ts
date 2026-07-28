@@ -187,18 +187,16 @@ export async function syncInventory(
   const staleBefore = new Date(Date.now() - STALE_LOCK_MS);
   const lockToken = crypto.randomUUID();
 
-  // Atomic claim: idle lock, or steal when forced / stale. Never clear then
-  // re-claim in two steps (that races and can run concurrent syncs).
+  // Atomic claim: idle lock, or steal only when the lock is stale.
+  // Force no longer steals a fresh in-progress lock (abuse / race safe).
   const claimed = await prisma.profile.updateMany({
-    where: options?.force
-      ? { id: profileId }
-      : {
-          id: profileId,
-          OR: [
-            { syncing: false },
-            { syncing: true, updatedAt: { lt: staleBefore } },
-          ],
-        },
+    where: {
+      id: profileId,
+      OR: [
+        { syncing: false },
+        { syncing: true, updatedAt: { lt: staleBefore } },
+      ],
+    },
     data: {
       syncing: true,
       syncLockToken: lockToken,

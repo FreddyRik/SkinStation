@@ -1,6 +1,6 @@
 # Architecture
 
-Local-first **CS2 Inventory Tracker**: paste a public Steam profile, sync inventory + enrichment, store everything in SQLite, and render portfolio UI in Next.js.
+Local-first **SkinStation**: paste a public Steam profile, sync inventory + enrichment, store everything in **PostgreSQL** (Supabase for hosted / Vercel), and render portfolio UI in Next.js.
 
 ## Stack at a glance
 
@@ -9,7 +9,7 @@ Local-first **CS2 Inventory Tracker**: paste a public Steam profile, sync invent
 | App | Next.js 15 App Router, React 19, TypeScript |
 | UI | Tailwind CSS 4, Recharts, `html-to-image` |
 | Fonts | Fraunces (display), Outfit (body) via `next/font` |
-| DB | Prisma 6 + SQLite |
+| DB | Prisma 6 + PostgreSQL (Supabase) |
 | Inspect decode | `@vlydev/cs2-masked-inspect` (+ `@csfloat/cs2-inspect-serializer` fallback) |
 
 Prisma is imported **only** from `@/lib/db` (singleton). Never instantiate `PrismaClient` elsewhere.
@@ -145,7 +145,7 @@ Triggered on profile create, during sync (parallel), and on inventory page load 
 ## Frontend render path
 
 ```
-SQLite (Prisma)
+PostgreSQL / Supabase (Prisma)
     ↓
 RSC page (inventory/[id]/page.tsx)
   - load Profile + items + snapshots
@@ -236,10 +236,14 @@ Optional keys degrade gracefully: skip enrichers, show soft warnings, keep core 
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `DATABASE_URL` | Yes | SQLite, e.g. `file:./dev.db` (relative to `prisma/`) |
+| `DATABASE_URL` | Yes | Supabase **pooled** Postgres URL (runtime, often port 6543 + `pgbouncer=true`) |
+| `DIRECT_URL` | Yes | Supabase **direct** Postgres URL (migrations, port 5432) |
+| `UPSTASH_REDIS_REST_URL` | No | Distributed rate limits on Vercel (with token) |
+| `UPSTASH_REDIS_REST_TOKEN` | No | Pair with Upstash URL |
+| `SYNC_FORCE_SECRET` | No | Admin force-sync via `x-sync-force-secret` header |
 | `SYNC_COOLDOWN_MS` | No | Refresh cooldown |
-| `INSPECT_API_URL` | No | Preferred self-hosted inspect/float API |
-| `STEAMWEBAPI_KEY` | No | Optional last-resort floats |
+| `INSPECT_API_URL` | No | Preferred self-hosted inspect/float API (omit on Vercel v1 → degrade floats) |
+| `STEAMWEBAPI_KEY` | No | Optional last-resort floats (omit on Vercel v1) |
 | `FACEIT_API_KEY` | No | Official FACEIT ranks |
 
-See `.env.example` and `README.md` for setup.
+See `.env.example`, `README.md`, and `docs/DEPLOY.md` for setup. Vercel build should use `npm run build:vercel` (`prisma migrate deploy && next build`).

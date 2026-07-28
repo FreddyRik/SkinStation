@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAllowedImageHost } from "@/lib/share-card";
+import { SITE_USER_AGENT } from "@/lib/site";
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -42,7 +43,7 @@ async function fetchAllowlistedImage(startUrl: URL): Promise<Response> {
 
     const upstream = await fetch(current.toString(), {
       headers: {
-        "User-Agent": "InventoryTracker/1.0",
+        "User-Agent": SITE_USER_AGENT,
         Accept: "image/*,*/*;q=0.8",
       },
       redirect: "manual",

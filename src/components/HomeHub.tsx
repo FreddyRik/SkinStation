@@ -12,7 +12,7 @@ const HOW_IT_WORKS = [
   {
     step: "2",
     title: "Sync floats & prices",
-    body: "We enrich floats and price items on Buff163 and the Steam Market.",
+    body: "We price items on Buff163 and the Steam Market, and fill floats when inspect data is available.",
   },
   {
     step: "3",
@@ -97,6 +97,20 @@ function ToolCard({
 export function HomeHub({ showcase }: { showcase: HomeShowcase }) {
   return (
     <div className="space-y-10 sm:space-y-14">
+      <p className="rounded-xl border border-[var(--border)]/80 bg-[var(--bg-elevated)]/40 px-4 py-3 text-center text-sm leading-relaxed text-[var(--text-muted)] sm:px-5">
+        <span className="font-medium text-[var(--text)]">Early Access Beta</span>
+        <span className="mx-1.5 text-[var(--border)]" aria-hidden>
+          —
+        </span>
+        We&apos;re actively building new features and improving float sync.{" "}
+        <Link
+          href="/status"
+          className="font-medium text-[var(--accent)] transition hover:underline"
+        >
+          View Roadmap &amp; Limitations →
+        </Link>
+      </p>
+
       <ProfileLookup
         recentProfiles={[]}
         accentGlow

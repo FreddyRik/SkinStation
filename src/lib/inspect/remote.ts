@@ -18,6 +18,7 @@ import {
   isRemoteInspectableLink,
   resolveInspectLinkForEnrichment,
 } from "@/lib/inspect/links";
+import { SITE_USER_AGENT } from "@/lib/site";
 
 export type RemoteFloat = {
   floatValue: number | null;
@@ -189,7 +190,7 @@ async function fetchFloatFromInspectApi(
 
   const headers: Record<string, string> = {
     Accept: "application/json",
-    "User-Agent": "InventoryTracker/1.0",
+    "User-Agent": SITE_USER_AGENT,
   };
   if (apiKey) {
     headers.Authorization = `Bearer ${apiKey}`;

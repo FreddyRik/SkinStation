@@ -1,12 +1,12 @@
 import { HomeHub } from "@/components/HomeHub";
 import { getHomeShowcase } from "@/lib/home-showcase";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "CS2 Inventory Tracker",
-  description:
-    "Track CS2 inventories, browse the skin catalog, and calculate trade-up contracts — local Steam + Buff pricing.",
+  title: SITE_NAME,
+  description: SITE_DESCRIPTION,
 };
 
 export default async function HomePage() {

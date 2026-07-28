@@ -18,6 +18,7 @@ import {
   isMaskedInspectPayload,
 } from "@/lib/inspect/links";
 import { isSteamwebapiLimitResponse } from "@/lib/steamwebapi/errors";
+import { SITE_USER_AGENT } from "@/lib/site";
 
 export type SteamwebapiFloat = {
   floatValue: number | null;
@@ -132,7 +133,7 @@ async function fetchFloatFromAssetDb(
       {
         headers: {
           Accept: "application/json",
-          "User-Agent": "InventoryTracker/1.0",
+          "User-Agent": SITE_USER_AGENT,
         },
         next: { revalidate: 0 },
         signal: AbortSignal.timeout(12_000),
@@ -216,7 +217,7 @@ async function fetchFloatFromCertificate(
       {
         headers: {
           Accept: "application/json",
-          "User-Agent": "InventoryTracker/1.0",
+          "User-Agent": SITE_USER_AGENT,
         },
         next: { revalidate: 0 },
         signal: AbortSignal.timeout(12_000),

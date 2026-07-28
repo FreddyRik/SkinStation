@@ -290,10 +290,10 @@ export function ItemHoverCard({
                         marketHashName={item.marketHashName}
                         className="font-medium no-underline hover:underline"
                       >
-                        {formatMoney(item.steamPrice, currency)}
+                        {formatMoney(itemPrice(item, "steam"), currency)}
                       </SteamMarketLink>
                     ) : (
-                      formatMoney(item.steamPrice, currency)
+                      formatMoney(itemPrice(item, "steam"), currency)
                     )}
                   </dd>
                 </div>
@@ -305,10 +305,10 @@ export function ItemHoverCard({
                         goodsId={item.buffGoodsId}
                         className="font-medium no-underline hover:underline"
                       >
-                        {formatMoney(item.buffPrice, currency)}
+                        {formatMoney(itemPrice(item, "buff"), currency)}
                       </BuffMarketLink>
                     ) : (
-                      formatMoney(item.buffPrice, currency)
+                      formatMoney(itemPrice(item, "buff"), currency)
                     )}
                   </dd>
                 </div>
@@ -368,13 +368,31 @@ export function ItemHoverCard({
                           className="block"
                           style={{ color: "var(--steam)" }}
                         >
-                          {formatMoney(s.steamPrice ?? null, currency)}
+                          {formatMoney(
+                            itemPrice(
+                              {
+                                steamPrice: s.steamPrice ?? null,
+                                buffPrice: s.buffPrice ?? null,
+                              },
+                              "steam",
+                            ),
+                            currency,
+                          )}
                         </span>
                         <span
                           className="block"
                           style={{ color: "var(--buff)" }}
                         >
-                          {formatMoney(s.buffPrice ?? null, currency)}
+                          {formatMoney(
+                            itemPrice(
+                              {
+                                steamPrice: s.steamPrice ?? null,
+                                buffPrice: s.buffPrice ?? null,
+                              },
+                              "buff",
+                            ),
+                            currency,
+                          )}
                         </span>
                       </div>
                     </li>

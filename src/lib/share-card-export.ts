@@ -1,3 +1,5 @@
+"use client";
+
 import { toPng } from "html-to-image";
 
 /**

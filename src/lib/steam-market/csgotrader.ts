@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import type { Currency } from "@/lib/currency";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { getUsdToEurRate } from "@/lib/fx";
+import { SITE_USER_AGENT } from "@/lib/site";
 
 type TraderSteamEntry = {
   last_24h?: number | null;
@@ -80,7 +81,7 @@ async function loadJsonCatalog(
   const res = await fetch(url, {
     headers: {
       Accept: "application/json",
-      "User-Agent": "InventoryTracker/1.0",
+      "User-Agent": SITE_USER_AGENT,
     },
     next: { revalidate: 0 },
   });

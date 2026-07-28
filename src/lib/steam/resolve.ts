@@ -1,3 +1,5 @@
+import { SITE_USER_AGENT } from "@/lib/site";
+
 export type ParsedSteamInput = {
   kind: "steamid64" | "vanity" | "profile_url";
   value: string;
@@ -62,8 +64,7 @@ export async function resolveSteamId64(raw: string): Promise<string> {
     `https://steamcommunity.com/id/${encodeURIComponent(vanity)}/?xml=1`,
     {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; InventoryTracker/1.0; +local)",
+        "User-Agent": `Mozilla/5.0 (compatible; ${SITE_USER_AGENT}; +local)`,
       },
       next: { revalidate: 0 },
     },
@@ -97,8 +98,7 @@ export async function fetchSteamProfileMeta(
   try {
     const res = await fetch(`${profileUrl}/?xml=1`, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; InventoryTracker/1.0; +local)",
+        "User-Agent": `Mozilla/5.0 (compatible; ${SITE_USER_AGENT}; +local)`,
       },
       next: { revalidate: 0 },
     });

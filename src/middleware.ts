@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { clientIpFromRequest, rateLimit } from "@/lib/api/rate-limit";
 
-/** Expensive POST routes that fan out to Steam / pricing / enrichers. */
 const RATE_LIMITED_POST = new Set(["/api/sync", "/api/profiles"]);
+const RATE_LIMITED_GET = new Set(["/api/image-proxy"]);
 
-const RATE_LIMIT = { limit: 10, windowMs: 60_000 };
+const POST_LIMIT = { limit: 10, windowMs: 60_000, name: "post" };
+const IMAGE_PROXY_LIMIT = { limit: 60, windowMs: 60_000, name: "image-proxy" };
 
 function applySecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set("X-Content-Type-Options", "nosniff");
@@ -18,13 +19,24 @@ function applySecurityHeaders(res: NextResponse): NextResponse {
   return res;
 }
 
-export function middleware(req: NextRequest) {
-  if (
-    req.method === "POST" &&
-    RATE_LIMITED_POST.has(req.nextUrl.pathname)
-  ) {
-    const ip = clientIpFromRequest(req);
-    const result = rateLimit(`${req.nextUrl.pathname}:${ip}`, RATE_LIMIT);
+export async function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+  const ip = clientIpFromRequest(req);
+
+  if (req.method === "POST" && RATE_LIMITED_POST.has(path)) {
+    const result = await rateLimit(`${path}:${ip}`, POST_LIMIT);
+    if (!result.ok) {
+      const res = NextResponse.json(
+        { error: "Too many requests. Please wait and try again." },
+        { status: 429 },
+      );
+      res.headers.set("Retry-After", String(result.retryAfterSec));
+      return applySecurityHeaders(res);
+    }
+  }
+
+  if (req.method === "GET" && RATE_LIMITED_GET.has(path)) {
+    const result = await rateLimit(`${path}:${ip}`, IMAGE_PROXY_LIMIT);
     if (!result.ok) {
       const res = NextResponse.json(
         { error: "Too many requests. Please wait and try again." },

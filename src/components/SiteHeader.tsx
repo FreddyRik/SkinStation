@@ -19,6 +19,7 @@ import {
   readStoredPageTheme,
   type PageTheme,
 } from "@/lib/page-theme";
+import { SiteWordmark } from "@/components/SiteWordmark";
 
 const NAV_LINKS = [
   { href: "/inventory", label: "Inventory", match: (p: string) => p === "/inventory" || p.startsWith("/inventory/") },
@@ -65,13 +66,8 @@ export function SiteHeader() {
   return (
     <header className="relative z-40 border-b border-[var(--border)]/80 bg-[var(--bg-elevated)]/70 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <Link href="/" className="group flex items-baseline gap-3">
-          <span className="text-xl font-semibold tracking-tight text-[var(--text)] sm:text-2xl">
-            Inventory<span className="text-[var(--accent)]">Tracker</span>
-          </span>
-          <span className="hidden text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] sm:inline">
-            CS2
-          </span>
+        <Link href="/" className="group">
+          <SiteWordmark />
         </Link>
         <div className="flex items-center gap-3 sm:gap-4">
           <PageThemeDropdown value={pageTheme} onChange={setPageTheme} />

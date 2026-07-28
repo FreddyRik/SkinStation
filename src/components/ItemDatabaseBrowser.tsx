@@ -685,7 +685,7 @@ export function ItemDatabaseBrowser() {
   const pageRows = useMemo(() => {
     type Row =
       | { type: "collection"; data: SlimCollection }
-      | { type: "item"; data: SlimCatalogItem };
+      | { type: "item"; data: BrowseCatalogItem };
     const rows: Row[] = [];
     for (const c of filteredCollections) {
       rows.push({ type: "collection", data: c });
@@ -1070,7 +1070,7 @@ function LatestReleasesSection({
 
   return (
     <section className="space-y-4">
-      <h2 className="inline-block rounded-md bg-[var(--accent)]/20 px-3 py-1.5 text-sm font-semibold tracking-wide text-[var(--text)] sm:text-base">
+      <h2 className="inline-block rounded-md bg-[var(--accent)]/20 px-3 py-1.5 text-sm font-semibold tracking-wide text-[var(--text)] [font-family:var(--font-share-body),system-ui,sans-serif] sm:text-base">
         <span className="mr-2 text-[var(--accent)]" aria-hidden>
           ◆
         </span>

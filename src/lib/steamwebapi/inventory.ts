@@ -2,9 +2,9 @@
  * Steamwebapi inventory — includes float/pattern/certificate when available.
  * Requires STEAMWEBAPI_KEY in .env
  *
- * In 2026 this is the primary float source when a key is set: public Steam
- * inventory almost never returns locally-decodable certificate links, and the
- * legacy S/A/D Game Coordinator path is gone (HTTP 406).
+ * Optional last-resort float enricher after local masked decode and
+ * INSPECT_API_URL. Public Steam inventory often lacks locally-decodable
+ * certificate links; legacy S/A/D GC inspects return HTTP 406.
  */
 
 import {
@@ -12,6 +12,7 @@ import {
   isSteamwebapiLimitResponse,
 } from "@/lib/steamwebapi/errors";
 import { isLocallyDecodableInspectLink } from "@/lib/inspect/links";
+import { SITE_USER_AGENT } from "@/lib/site";
 
 export type SteamwebapiSticker = {
   slot?: number;
@@ -157,7 +158,7 @@ export async function fetchSteamwebapiInventory(
     {
       headers: {
         Accept: "application/json",
-        "User-Agent": "InventoryTracker/1.0",
+        "User-Agent": SITE_USER_AGENT,
       },
       next: { revalidate: 0 },
       signal: AbortSignal.timeout(60_000),

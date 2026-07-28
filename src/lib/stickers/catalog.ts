@@ -1,4 +1,5 @@
 import { stickerMarketHashName } from "@/lib/steam-market/csgotrader";
+import { SITE_USER_AGENT } from "@/lib/site";
 import {
   stripStickerPrefix,
   toStickerMarketHashName,
@@ -59,7 +60,7 @@ export async function getStickerIconCatalog(
       const res = await fetch(STICKERS_URL, {
         headers: {
           Accept: "application/json",
-          "User-Agent": "InventoryTracker/1.0",
+          "User-Agent": SITE_USER_AGENT,
         },
         next: { revalidate: 86400 },
       });

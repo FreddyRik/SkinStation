@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/db";
 import { ProfileLookup } from "@/components/ProfileLookup";
 import { parseCurrency } from "@/lib/currency";
+import { sitePageTitle } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Inventory · CS2 Inventory Tracker",
+  title: sitePageTitle("Inventory"),
   description:
     "Load a public Steam CS2 inventory — floats, Buff163 and Steam Market prices, and share cards.",
 };
