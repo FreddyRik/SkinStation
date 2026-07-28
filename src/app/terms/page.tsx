@@ -1,119 +1,187 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LegalArticle } from "@/components/LegalArticle";
-import { SITE_GITHUB_URL, SITE_NAME, VALVE_DISCLAIMER } from "@/lib/site";
+import { SITE_GITHUB_URL, SITE_NAME, SITE_TAGLINE, VALVE_DISCLAIMER } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: `Terms of Service — ${SITE_NAME}`,
-  description: `Terms of Service for ${SITE_NAME}, a hosted CS2 inventory and market value tool.`,
+  description: `Terms of Service for ${SITE_NAME} — inventory tracking, skin catalog, and trade-up tools.`,
 };
 
 export default function TermsPage() {
   return (
     <LegalArticle title="Terms of Service" lastUpdated="July 28, 2026">
       <p>
-        These Terms of Service (&quot;Terms&quot;) govern your use of {SITE_NAME}
-        (&quot;the app&quot;, &quot;we&quot;, &quot;us&quot;). By using the app, you agree to these Terms.
-        This is starter legal text provided for convenience and does not constitute legal advice.
+        These Terms of Service (&quot;Terms&quot;) govern your use of {SITE_NAME} (the
+        &quot;Service&quot;). {SITE_TAGLINE} By accessing or using the Service, you agree to these
+        Terms. This text describes how the product is offered today and is not legal advice.
       </p>
+
+      <section>
+        <h2>The Service</h2>
+        <p>{SITE_NAME} is a free, Early Access web app that currently includes:</p>
+        <ul>
+          <li>
+            <strong className="font-medium text-[var(--text)]">Inventory</strong> — look up a
+            public Steam CS2 inventory, sync prices, and view portfolio snapshots and share cards
+          </li>
+          <li>
+            <strong className="font-medium text-[var(--text)]">Skin Database</strong> — browse a
+            live CS2 item catalog with market context
+          </li>
+          <li>
+            <strong className="font-medium text-[var(--text)]">Trade-up Calculator</strong> —
+            estimate contract odds, floats, and expected value from inventory or a sandbox
+          </li>
+        </ul>
+        <p>
+          Features may change, break, or be incomplete while we are in Early Access. See{" "}
+          <Link href="/status" className="text-[var(--accent)] transition hover:underline">
+            Roadmap &amp; Limitations
+          </Link>{" "}
+          for known gaps (including float coverage and Steam Market throttling).
+        </p>
+      </section>
 
       <section>
         <h2>Not affiliated with Valve or Steam</h2>
         <p>{VALVE_DISCLAIMER}</p>
         <p>
-          {SITE_NAME} is an independent third-party tool. Valve Corporation, Steam, and
-          Counter-Strike are not sponsors of, affiliated with, or responsible for this app.
+          {SITE_NAME} is an independent fan-made tool. Valve, Steam, and Counter-Strike are not
+          sponsors of, partners with, or responsible for this Service.
         </p>
       </section>
 
       <section>
-        <h2>Hosted service, no accounts</h2>
+        <h2>No accounts</h2>
         <p>
-          {SITE_NAME} may be operated as a hosted web app. The app does not provide user
-          accounts or subscriptions. You look up Steam profiles by ID or URL; inventory snapshots
-          and pricing data are stored in a hosted PostgreSQL database. Inventory and share pages
-          for a profile are reachable by link after a sync.
+          The Service does not offer user accounts, paid subscriptions, or Steam OAuth. You use it
+          by browsing the catalog / trade-up tools and, for inventory features, by pasting a public
+          Steam profile identifier. Cached inventory and share pages are available to anyone with
+          the link after a sync.
+        </p>
+      </section>
+
+      <section>
+        <h2>Eligibility and public inventories</h2>
+        <p>
+          You may only look up Steam inventories that are set to <strong className="font-medium text-[var(--text)]">Public</strong>.
+          You are responsible for complying with Steam&apos;s Subscriber Agreement and applicable
+          law. Do not use the Service to access private inventories or to scrape data you are not
+          allowed to collect.
         </p>
       </section>
 
       <section>
         <h2>Acceptable use</h2>
-        <p>You agree not to misuse the app or the third-party services it contacts. In particular:</p>
+        <p>You agree not to:</p>
         <ul>
-          <li>Do not use the app to harass, impersonate, or violate the rights of others.</li>
+          <li>Harass, impersonate, or infringe others&apos; rights through the Service</li>
           <li>
-            Do not attempt to circumvent rate limits, access controls, or terms imposed by Steam,
-            Valve, or other data providers.
+            Bypass, overload, or abuse rate limits, sync cooldowns, or access controls on this
+            Service or on Steam / other providers
           </li>
           <li>
-            Do not run automated scraping or sync jobs at a volume that could harm third-party
-            APIs or this service.
+            Run high-volume automated sync or scrape jobs that degrade Steam, market APIs, or{" "}
+            {SITE_NAME}
           </li>
-          <li>
-            You are responsible for complying with Steam&apos;s Subscriber Agreement and the terms
-            of any optional API keys the operator configures.
-          </li>
+          <li>Attempt to disrupt or reverse-engineer the Service for abuse</li>
         </ul>
-      </section>
-
-      <section>
-        <h2>Data, pricing, and estimates</h2>
         <p>
-          Market prices, float values, trade-up outcomes, and portfolio totals are estimates based
-          on third-party sources and cached data. They may be incomplete, delayed, or incorrect.
-          {SITE_NAME} does not guarantee accuracy and does not provide financial, investment,
-          or trading advice. You use pricing and analytics information at your own risk.
+          We may rate-limit, block, or refuse requests that threaten stability or violate these
+          Terms.
         </p>
       </section>
 
       <section>
-        <h2>Optional third-party API keys</h2>
+        <h2>Estimates only — not financial advice</h2>
         <p>
-          Some features can be enabled with optional environment variables, such as{" "}
+          Buff163 and Steam prices, floats, sticker data, trade-up odds, expected value, and
+          portfolio totals are <strong className="font-medium text-[var(--text)]">estimates</strong>{" "}
+          built from third-party sources and caches. They can be missing, delayed, or wrong —
+          especially while float enrichment is limited in Early Access.
+        </p>
+        <p>
+          {SITE_NAME} does not provide financial, investment, or trading advice. You alone decide
+          whether to buy, sell, or trade items, and you accept the risk of relying on any number
+          shown in the Service.
+        </p>
+      </section>
+
+      <section>
+        <h2>Third-party services and optional keys</h2>
+        <p>
+          The Service depends on Steam and other third parties. Outages, rate limits, or policy
+          changes at those providers can break or degrade features without notice.
+        </p>
+        <p>
+          The operator may configure optional server secrets (for example{" "}
           <code className="text-[var(--text)]">STEAMWEBAPI_KEY</code>,{" "}
-          <code className="text-[var(--text)]">FACEIT_API_KEY</code>, or a self-hosted inspect API
-          (<code className="text-[var(--text)]">INSPECT_API_URL</code>). The operator is
-          responsible for their use, billing, quotas, and compliance with each provider&apos;s
-          terms.
+          <code className="text-[var(--text)]">FACEIT_API_KEY</code>, or{" "}
+          <code className="text-[var(--text)]">INSPECT_API_URL</code>). Those keys and their
+          billing/quotas are the operator&apos;s responsibility and are not provided to end users
+          through the browser.
+        </p>
+      </section>
+
+      <section>
+        <h2>Intellectual property</h2>
+        <p>
+          CS2 item names, images, and related marks belong to Valve and their respective owners.{" "}
+          {SITE_NAME} branding and original site code are owned by their authors. You may not
+          present the Service as an official Valve or Steam product.
         </p>
       </section>
 
       <section>
         <h2>Disclaimer of warranties</h2>
         <p>
-          The app is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind,
-          whether express or implied, including merchantability, fitness for a particular purpose,
-          and non-infringement. We do not warrant that the app will be uninterrupted, error-free,
-          or secure.
+          The Service is provided &quot;as is&quot; and &quot;as available,&quot; without warranties of any kind,
+          express or implied, including merchantability, fitness for a particular purpose, and
+          non-infringement. We do not warrant uninterrupted, accurate, or secure operation.
         </p>
       </section>
 
       <section>
         <h2>Limitation of liability</h2>
         <p>
-          To the fullest extent permitted by law, the authors and contributors of {SITE_NAME}
-          will not be liable for any indirect, incidental, special, consequential, or punitive
-          damages, or any loss of profits, data, goodwill, or inventory value arising from your
-          use of the app or reliance on its output.
+          To the fullest extent permitted by law, the authors and operators of {SITE_NAME} are
+          not liable for any indirect, incidental, special, consequential, or punitive damages, or
+          any loss of profits, data, goodwill, or inventory value arising from your use of the
+          Service or reliance on its output — including trading losses based on prices, floats, or
+          trade-up calculations.
+        </p>
+      </section>
+
+      <section>
+        <h2>Privacy</h2>
+        <p>
+          How we handle data is described in the{" "}
+          <Link href="/privacy" className="text-[var(--accent)] transition hover:underline">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </section>
 
       <section>
         <h2>Changes</h2>
         <p>
-          We may update these Terms from time to time. Continued use of the app after changes are
-          posted constitutes acceptance of the revised Terms.
+          We may update these Terms as the Service evolves. Continued use after changes are posted
+          means you accept the revised Terms. The &quot;Last updated&quot; date will reflect material
+          revisions.
         </p>
       </section>
 
       <section>
         <h2>Contact</h2>
         <p>
-          Questions about these Terms can be directed via{" "}
+          Questions about these Terms:{" "}
           <a
             href={SITE_GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--accent)] transition hover:text-[var(--accent-dim)]"
+            className="text-[var(--accent)] transition hover:underline"
           >
             GitHub
           </a>

@@ -1,124 +1,150 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LegalArticle } from "@/components/LegalArticle";
-import { SITE_GITHUB_URL, SITE_NAME, VALVE_DISCLAIMER } from "@/lib/site";
+import { SITE_GITHUB_URL, SITE_NAME, SITE_TAGLINE, VALVE_DISCLAIMER } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: `Privacy Policy — ${SITE_NAME}`,
-  description: `Privacy Policy for ${SITE_NAME}, a hosted CS2 inventory and market value tool.`,
+  description: `How ${SITE_NAME} handles data for inventory lookup, the skin catalog, and trade-up tools.`,
 };
 
 export default function PrivacyPage() {
   return (
     <LegalArticle title="Privacy Policy" lastUpdated="July 28, 2026">
       <p>
-        This Privacy Policy describes how {SITE_NAME} handles information when you use the
-        hosted app. This is starter legal text provided for convenience and does not constitute
-        legal advice.
+        This Privacy Policy explains what {SITE_NAME} collects and stores when you use the
+        hosted site ({SITE_TAGLINE.toLowerCase()}). It is written for clarity about how the
+        product works today and is not legal advice.
       </p>
 
       <section>
         <h2>Summary</h2>
         <ul>
-          <li>No user accounts or sign-in system.</li>
+          <li>No accounts, passwords, or Steam login — you never sign in to {SITE_NAME}.</li>
           <li>
-            Inventory and pricing data for looked-up Steam profiles are stored in a hosted
-            PostgreSQL database (Supabase).
+            Looking up a public Steam profile caches that inventory and related pricing on our
+            servers (PostgreSQL / Supabase).
           </li>
-          <li>Optional API keys stay in the server environment and are not sent to the browser.</li>
-          <li>We do not run advertising SDKs or third-party analytics in the app.</li>
+          <li>
+            The Skin Database and Trade-up Calculator use public catalog and market data; they do
+            not require a profile unless you link inventory to a trade-up.
+          </li>
+          <li>We do not run ads, marketing pixels, or third-party analytics SDKs in the app.</li>
+          <li>
+            Early Access limitations (for example incomplete floats) are described on{" "}
+            <Link href="/status" className="text-[var(--accent)] transition hover:underline">
+              Roadmap &amp; Limitations
+            </Link>
+            .
+          </li>
         </ul>
       </section>
 
       <section>
-        <h2>Information you provide</h2>
+        <h2>What you submit</h2>
         <p>
-          When you search for a profile, you enter a Steam ID, vanity URL, or Steam Community
-          profile link. The app uses that identifier to fetch public inventory and related data
-          from Steam and optional enrichment providers. We do not collect passwords or Steam
-          login credentials.
+          When you use Inventory Search, you may enter a SteamID64, vanity name, or Steam Community
+          profile URL. We use that to resolve the profile and fetch its <strong className="font-medium text-[var(--text)]">public</strong>{" "}
+          CS2 inventory. We never ask for Steam credentials.
+        </p>
+        <p>
+          Share and inventory URLs use opaque profile IDs. Anyone with the link can open that
+          cached snapshot.
         </p>
       </section>
 
       <section>
-        <h2>Data we store</h2>
-        <p>
-          The app persists data in PostgreSQL. Stored data may include:
-        </p>
+        <h2>What we store on our servers</h2>
+        <p>For profiles that have been looked up or synced, we may persist:</p>
         <ul>
-          <li>Steam profile identifiers and display names</li>
-          <li>Inventory item metadata, prices, floats, stickers, and sync timestamps</li>
-          <li>Cached market pricing and catalog references used by the UI</li>
-          <li>Optional reputation fields (FACEIT / Leetify) when enrichment succeeds</li>
+          <li>Steam identifiers, persona name, and avatar URL</li>
+          <li>
+            Inventory items (names, images, floats/paint seed when available, stickers, market
+            flags) and last sync metadata
+          </li>
+          <li>Cached Buff163 / Steam Market prices used for totals and the catalog</li>
+          <li>Portfolio value snapshots from successful syncs (for the history chart)</li>
+          <li>Optional FACEIT / Leetify reputation fields when enrichment succeeds</li>
         </ul>
         <p>
-          Anyone who knows a profile&apos;s inventory or share link can view that snapshot. We do
-          not publish a full public directory of every tracked profile via the API; recent
-          profiles may appear on limited in-app lists.
+          Catalog browsing caches item metadata from public CS2 item APIs. We do not publish a
+          full browsable directory of every tracked Steam account via the API; limited “recent”
+          lists may appear in the UI.
         </p>
       </section>
 
       <section>
-        <h2>Public Steam data and share links</h2>
+        <h2>Public Steam data and removal</h2>
         <p>
-          {SITE_NAME} only works with Steam inventories set to Public. By looking up a
-          profile you cause that public inventory to be cached on our servers for display,
-          pricing, and share cards. Share pages are reachable by link (unguessable IDs). If you
-          want data removed, contact us via GitHub; we may delete stored profile rows on request.
+          {SITE_NAME} only works with inventories set to Public on Steam. Looking up a profile
+          causes that public inventory (and derived prices / share cards) to be stored for display
+          and Refresh. If you want a stored profile deleted, open an issue or contact us via{" "}
+          <a
+            href={SITE_GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--accent)] transition hover:underline"
+          >
+            GitHub
+          </a>
+          ; we will remove the cached row when reasonably able to do so.
         </p>
       </section>
 
       <section>
         <h2>Browser storage</h2>
         <p>
-          The app may store small UI preferences in your browser, such as display currency and page
-          theme. These preferences are not used for tracking and remain on your device.
+          Preferences such as display currency (USD/EUR), page theme, and similar UI choices may be
+          saved in your browser&apos;s local storage. They stay on your device and are not used for
+          advertising or cross-site tracking.
         </p>
       </section>
 
       <section>
-        <h2>Third-party services</h2>
+        <h2>Third parties we contact</h2>
         <p>
-          To sync inventories and show market context, the app may contact third parties including:
+          Server-side requests may go to (depending on feature and configuration):
         </p>
         <ul>
-          <li>Steam (inventory, community profile, and market price overview APIs)</li>
-          <li>CSGOTrader / Buff163 pricing sources</li>
+          <li>Steam — community profiles, inventory, and Market priceoverview</li>
+          <li>CSGOTrader / Buff163 pricing feeds</li>
+          <li>Public CS2 catalogs (for example ByMykel CSGO-API on GitHub)</li>
           <li>
-            Optional enrichers when configured: Steamwebapi, FACEIT, Leetify, or a self-hosted
-            inspect API
+            Optional enrichers: Steamwebapi, FACEIT, Leetify, or a self-hosted inspect/float service
           </li>
-          <li>Public CS2 item catalog data hosted on GitHub (ByMykel CSGO-API and related sources)</li>
-          <li>Hosting and database providers (for example Vercel and Supabase)</li>
+          <li>
+            Infrastructure: hosting (e.g. Vercel), database (Supabase), and optional Upstash Redis
+            for rate limiting
+          </li>
         </ul>
         <p>
-          Each provider has its own privacy practices. Requests for Steam and pricing data are made
-          from our servers.
+          Those providers process data under their own policies. Optional API keys live only in the
+          server environment and are not shipped to the browser.
         </p>
       </section>
 
       <section>
-        <h2>API keys and secrets</h2>
+        <h2>Logs, rate limits, and security</h2>
         <p>
-          Optional API keys (for example{" "}
-          <code className="text-[var(--text)]">STEAMWEBAPI_KEY</code> or{" "}
-          <code className="text-[var(--text)]">FACEIT_API_KEY</code>) are read from the server
-          environment at runtime. They are not embedded in the client bundle.
+          Hosting and edge layers may retain standard operational logs (IP address, user agent,
+          request path, timestamps) to operate the service and enforce rate limits. We do not sell
+          this data.
         </p>
       </section>
 
       <section>
         <h2>Analytics and advertising</h2>
         <p>
-          {SITE_NAME} does not include advertising networks, behavioral analytics, or social
-          tracking pixels. Hosting platforms may keep operational logs (for example request logs)
-          under their own policies.
+          {SITE_NAME} does not embed advertising networks, behavioral analytics, or social
+          tracking pixels. Platform providers may keep their own operational telemetry under their
+          terms.
         </p>
       </section>
 
       <section>
         <h2>Children</h2>
         <p>
-          The app is not directed at children under 13. We do not knowingly collect personal
+          The service is not directed at children under 13. We do not knowingly collect personal
           information from children.
         </p>
       </section>
@@ -131,20 +157,20 @@ export default function PrivacyPage() {
       <section>
         <h2>Changes</h2>
         <p>
-          We may update this Privacy Policy from time to time. Material changes will be reflected
-          by updating the &quot;Last updated&quot; date above.
+          We may update this policy as the product evolves. The &quot;Last updated&quot; date at the top
+          will change when we do.
         </p>
       </section>
 
       <section>
         <h2>Contact</h2>
         <p>
-          Privacy questions can be directed via{" "}
+          Privacy questions:{" "}
           <a
             href={SITE_GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--accent)] transition hover:text-[var(--accent-dim)]"
+            className="text-[var(--accent)] transition hover:underline"
           >
             GitHub
           </a>

@@ -1,4 +1,4 @@
-export const SITE_GITHUB_URL = "https://github.com/FreddyRik";
+export const SITE_GITHUB_URL = "https://github.com/FreddyRik/SkinStation";
 
 export const SITE_NAME = "SkinStation";
 export const VALVE_DISCLAIMER =
