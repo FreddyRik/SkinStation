@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   CATALOG_KIND_LABELS,
   DEFAULT_NAV_FILTER,
@@ -413,6 +413,20 @@ function DropdownItem({
   );
 }
 
+function useSupportsHover() {
+  const [supportsHover, setSupportsHover] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const update = () => setSupportsHover(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  return supportsHover;
+}
+
 function NavDropdown({
   section,
   active,
@@ -428,18 +442,35 @@ function NavDropdown({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const supportsHover = useSupportsHover();
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || supportsHover) return;
+
+    function onPointerDown(e: PointerEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open, supportsHover, onClose]);
+
   return (
     <div
-      className="group relative"
-      onMouseEnter={onOpen}
-      onMouseLeave={onClose}
+      ref={rootRef}
+      className="group relative shrink-0"
+      onMouseEnter={supportsHover ? onOpen : undefined}
+      onMouseLeave={supportsHover ? onClose : undefined}
     >
       <button
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => (open ? onClose() : onOpen())}
-        className={`inline-flex items-center gap-1.5 px-2 py-2 text-sm transition sm:px-2.5 ${
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-2 text-sm transition sm:px-2.5 ${
           active
             ? "text-[var(--text)]"
             : "text-[var(--text-muted)] group-hover:text-[var(--text)]"
@@ -448,12 +479,9 @@ function NavDropdown({
         {NAV_SECTION_LABELS[section]}
         <Chevron />
       </button>
-      {/* Invisible hover bridge so the pointer can reach the panel */}
       <div
         role="menu"
-        className={`absolute left-0 top-full z-50 pt-1 ${
-          open ? "block" : "hidden group-hover:block"
-        }`}
+        className={`absolute left-0 top-full z-50 pt-1 ${open ? "block" : "hidden"}`}
       >
         <div className="max-h-[min(70vh,28rem)] min-w-[13rem] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] py-1.5 shadow-lg">
           {children}
