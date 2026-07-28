@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { PriceSourceToggle } from "@/components/PriceSourceToggle";
 import { ShareCardThemeToggle } from "@/components/ShareCardThemeToggle";
 import { ShareWrappedCard } from "@/components/ShareWrappedCard";
+import { ShareCardViewport } from "@/components/ShareCardViewport";
 import type { Currency } from "@/lib/currency";
 import {
   DEFAULT_PRICE_SOURCE,
@@ -171,7 +172,7 @@ export function ShareCardDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex h-dvh min-h-dvh items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex h-dvh min-h-dvh items-end justify-center bg-black/70 p-2 backdrop-blur-sm sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-card-title"
@@ -179,9 +180,9 @@ export function ShareCardDialog({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[min(92vh,92dvh)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl">
-        <div className="flex flex-col gap-4 border-b border-[var(--border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+      <div className="flex max-h-[min(94vh,94dvh)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl">
+        <div className="flex shrink-0 flex-col gap-4 border-b border-[var(--border)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="min-w-0">
             <h2
               id="share-card-title"
               className="text-lg font-semibold tracking-tight"
@@ -195,24 +196,23 @@ export function ShareCardDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
+            className="self-start rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)] sm:self-auto"
           >
             Close
           </button>
         </div>
 
-        <div className="grid gap-6 p-5 lg:grid-cols-[auto_1fr] lg:items-start">
-          <div
-            ref={cardRef}
-            className="mx-auto origin-top scale-[0.92] sm:scale-100"
-          >
-            <ShareWrappedCard
-              profile={profile}
-              stats={stats}
-              currency={currency}
-              priceSource={priceSource}
-              theme={theme}
-            />
+        <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto overscroll-contain p-4 sm:p-5 lg:grid-cols-[minmax(0,auto)_1fr] lg:items-start">
+          <div ref={cardRef} className="mx-auto w-full min-w-0 max-w-[400px]">
+            <ShareCardViewport>
+              <ShareWrappedCard
+                profile={profile}
+                stats={stats}
+                currency={currency}
+                priceSource={priceSource}
+                theme={theme}
+              />
+            </ShareCardViewport>
           </div>
 
           <div className="space-y-4">

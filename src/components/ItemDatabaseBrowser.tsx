@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
@@ -427,6 +428,12 @@ function useSupportsHover() {
   return supportsHover;
 }
 
+type MenuPosition = {
+  top: number;
+  left: number;
+  maxHeight: number;
+};
+
 function NavDropdown({
   section,
   active,
@@ -444,28 +451,132 @@ function NavDropdown({
 }) {
   const supportsHover = useSupportsHover();
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
 
   useEffect(() => {
-    if (!open || supportsHover) return;
+    setMounted(true);
+  }, []);
 
-    function onPointerDown(e: PointerEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) {
-        onClose();
-      }
+  const closeTimerRef = useRef<number | null>(null);
+
+  function clearCloseTimer() {
+    if (closeTimerRef.current != null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }
+
+  function scheduleClose() {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      onClose();
+      closeTimerRef.current = null;
+    }, 120);
+  }
+
+  function keepOpen() {
+    clearCloseTimer();
+    onOpen();
+  }
+
+  useEffect(() => {
+    return () => clearCloseTimer();
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
     }
 
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open, supportsHover, onClose]);
+    function updatePosition() {
+      const button = buttonRef.current;
+      if (!button) return;
+      const rect = button.getBoundingClientRect();
+      const gutter = 8;
+      const preferredLeft = rect.left;
+      const maxWidth = Math.min(288, window.innerWidth - gutter * 2);
+      const left = Math.min(
+        Math.max(gutter, preferredLeft),
+        window.innerWidth - maxWidth - gutter,
+      );
+      const top = rect.bottom + 4;
+      const maxHeight = Math.max(
+        160,
+        Math.min(window.innerHeight * 0.7, window.innerHeight - top - gutter),
+      );
+      setMenuPos({ top, left, maxHeight });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      onClose();
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+
+    // Defer so the opening tap itself does not immediately close the menu.
+    const timer = window.setTimeout(() => {
+      document.addEventListener("pointerdown", onPointerDown);
+    }, 0);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, onClose]);
+
+  const menu =
+    mounted && open && menuPos
+      ? createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            className="fixed z-[100] min-w-[13rem] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] py-1.5 shadow-lg"
+            style={{
+              top: menuPos.top,
+              left: menuPos.left,
+              maxHeight: menuPos.maxHeight,
+              maxWidth: "min(18rem, calc(100vw - 1rem))",
+            }}
+            onMouseEnter={supportsHover ? keepOpen : undefined}
+            onMouseLeave={supportsHover ? scheduleClose : undefined}
+          >
+            {children}
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <div
       ref={rootRef}
       className="group relative shrink-0"
-      onMouseEnter={supportsHover ? onOpen : undefined}
-      onMouseLeave={supportsHover ? onClose : undefined}
+      onMouseEnter={supportsHover ? keepOpen : undefined}
+      onMouseLeave={supportsHover ? scheduleClose : undefined}
     >
       <button
+        ref={buttonRef}
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
@@ -479,14 +590,7 @@ function NavDropdown({
         {NAV_SECTION_LABELS[section]}
         <Chevron />
       </button>
-      <div
-        role="menu"
-        className={`absolute left-0 top-full z-50 pt-1 ${open ? "block" : "hidden"}`}
-      >
-        <div className="max-h-[min(70vh,28rem)] min-w-[13rem] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] py-1.5 shadow-lg">
-          {children}
-        </div>
-      </div>
+      {menu}
     </div>
   );
 }

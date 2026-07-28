@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ShareWrappedCard } from "@/components/ShareWrappedCard";
+import { ShareCardViewport } from "@/components/ShareCardViewport";
 import type { Currency } from "@/lib/currency";
 import {
   DEFAULT_PRICE_SOURCE,
@@ -93,21 +94,20 @@ export function SharePageClient({
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-5">
-      <div
-        ref={cardRef}
-        className="share-card-enter origin-top scale-[0.92] sm:scale-100"
-      >
-        <ShareWrappedCard
-          profile={profile}
-          stats={stats}
-          currency={currency}
-          priceSource={priceSource}
-          theme={theme}
-        />
+    <div className="flex w-full min-w-0 flex-col items-center gap-5">
+      <div ref={cardRef} className="share-card-enter w-full min-w-0">
+        <ShareCardViewport>
+          <ShareWrappedCard
+            profile={profile}
+            stats={stats}
+            currency={currency}
+            priceSource={priceSource}
+            theme={theme}
+          />
+        </ShareCardViewport>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="flex w-full flex-wrap justify-center gap-2 px-1">
         <button
           type="button"
           disabled={busy}

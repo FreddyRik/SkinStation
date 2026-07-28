@@ -851,7 +851,7 @@ function InventoryGridCard({
             {appliedStickers.length > 0
               ? `${appliedStickers.length} sticker${
                   appliedStickers.length === 1 ? "" : "s"
-                } — hover for detail`
+                } — view details`
               : "\u00A0"}
           </p>
         </div>
@@ -923,7 +923,7 @@ function InventoryListRow({
       {stickerCount > 0 && (
         <div
           className="hidden shrink-0 items-center gap-1 sm:flex"
-          title={`${stickerCount} sticker${stickerCount === 1 ? "" : "s"} — hover for detail`}
+          title={`${stickerCount} sticker${stickerCount === 1 ? "" : "s"} — view details`}
         >
           {stickerIcons.length > 0
             ? stickerIcons.slice(0, 4).map((sticker, idx) => (

@@ -200,13 +200,22 @@ export function SiteHeader() {
                 />
               ))}
             </nav>
-            <div className="flex flex-wrap items-center gap-3 border-t border-[var(--border)]/60 pt-4">
-              <PageThemeDropdown value={pageTheme} onChange={setPageTheme} />
-              <CurrencyToggle
-                value={currency}
-                onChange={setCurrency}
-                disabled={syncing}
+            <div className="space-y-4 border-t border-[var(--border)]/60 pt-4">
+              <PageThemeDropdown
+                value={pageTheme}
+                onChange={setPageTheme}
+                variant="inline"
               />
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                  Currency
+                </span>
+                <CurrencyToggle
+                  value={currency}
+                  onChange={setCurrency}
+                  disabled={syncing}
+                />
+              </div>
             </div>
           </div>
         ) : null}

@@ -81,7 +81,7 @@ function TopSkinRow({
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-start justify-between gap-2">
             <p
-              className="text-sm font-semibold leading-snug"
+              className="line-clamp-2 text-sm font-semibold leading-snug"
               style={{ color: "var(--share-text)" }}
               title={item.displayName}
             >
@@ -217,7 +217,7 @@ export function ShareWrappedCard({
     <article
       data-share-card
       data-share-theme={theme}
-      className="share-card relative flex w-[360px] flex-col overflow-hidden rounded-[28px] sm:w-[400px]"
+      className="share-card relative flex w-[360px] max-w-none flex-col overflow-hidden rounded-[28px] sm:w-[400px]"
       style={{
         ...style.vars,
         ["--value-accent" as string]: accent,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   PAGE_THEMES,
   PAGE_THEME_LABELS,
@@ -9,28 +10,76 @@ import {
   writeStoredPageTheme,
 } from "@/lib/page-theme";
 
+type MenuPosition = {
+  top: number;
+  left: number;
+  openUp: boolean;
+};
+
 export function PageThemeDropdown({
   value,
   onChange,
   disabled = false,
+  /** Full-width chip row for mobile drawers — avoids clipped popovers. */
+  variant = "dropdown",
 }: {
   value: PageTheme;
   onChange: (theme: PageTheme) => void;
   disabled?: boolean;
+  variant?: "dropdown" | "inline";
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const buttonId = useId();
   const menuId = useId();
 
   useEffect(() => {
-    if (!open) return;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open || variant !== "dropdown") return;
+
+    function updatePosition() {
+      const button = buttonRef.current;
+      if (!button) return;
+      const rect = button.getBoundingClientRect();
+      const menuWidth = 168;
+      const estimatedHeight = 12 + PAGE_THEMES.length * 36;
+      const gutter = 8;
+      const spaceBelow = window.innerHeight - rect.bottom - gutter;
+      const openUp = spaceBelow < estimatedHeight && rect.top > spaceBelow;
+      const left = Math.min(
+        Math.max(gutter, rect.right - menuWidth),
+        window.innerWidth - menuWidth - gutter,
+      );
+      const top = openUp
+        ? Math.max(gutter, rect.top - estimatedHeight - 8)
+        : rect.bottom + 8;
+      setMenuPos({ top, left, openUp });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, variant]);
+
+  useEffect(() => {
+    if (!open || variant !== "dropdown") return;
 
     function onPointerDown(e: MouseEvent | PointerEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      setOpen(false);
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -67,16 +116,19 @@ export function PageThemeDropdown({
       }
     }
 
-    document.addEventListener("pointerdown", onPointerDown);
+    const timer = window.setTimeout(() => {
+      document.addEventListener("pointerdown", onPointerDown);
+    }, 0);
     document.addEventListener("keydown", onKeyDown);
     return () => {
+      window.clearTimeout(timer);
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [open, variant]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || variant !== "dropdown") return;
     const first =
       listRef.current?.querySelector<HTMLButtonElement>(
         '[role="menuitemradio"][aria-checked="true"]',
@@ -85,7 +137,7 @@ export function PageThemeDropdown({
         '[role="menuitemradio"]',
       );
     first?.focus();
-  }, [open]);
+  }, [open, variant, menuPos]);
 
   function selectTheme(theme: PageTheme) {
     writeStoredPageTheme(theme);
@@ -95,9 +147,90 @@ export function PageThemeDropdown({
 
   const accent = PAGE_THEME_STYLES[value].vars["--accent"];
 
+  if (variant === "inline") {
+    return (
+      <div className="w-full space-y-2" role="group" aria-label="Theme">
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-muted)]">
+          Theme
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {PAGE_THEMES.map((theme) => {
+            const active = value === theme;
+            const swatch = PAGE_THEME_STYLES[theme].vars["--accent"];
+            return (
+              <button
+                key={theme}
+                type="button"
+                disabled={disabled}
+                aria-pressed={active}
+                onClick={() => selectTheme(theme)}
+                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold tracking-wide transition disabled:opacity-50 ${
+                  active
+                    ? "border-[var(--accent)]/50 bg-[var(--accent)]/15 text-[var(--accent)]"
+                    : "border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ background: swatch }}
+                  aria-hidden
+                />
+                {PAGE_THEME_LABELS[theme]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  const menu =
+    mounted && open && menuPos
+      ? createPortal(
+          <ul
+            ref={listRef}
+            id={menuId}
+            role="menu"
+            aria-labelledby={buttonId}
+            className="fixed z-[120] min-w-[10.5rem] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] py-1 shadow-xl shadow-black/40"
+            style={{ top: menuPos.top, left: menuPos.left }}
+          >
+            {PAGE_THEMES.map((theme) => {
+              const active = value === theme;
+              const swatch = PAGE_THEME_STYLES[theme].vars["--accent"];
+              return (
+                <li key={theme} role="none">
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    disabled={disabled}
+                    onClick={() => selectTheme(theme)}
+                    className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-semibold tracking-wide transition disabled:opacity-50 ${
+                      active
+                        ? "bg-[var(--accent)]/15 text-[var(--accent)]"
+                        : "text-[var(--text-muted)] hover:bg-[var(--bg-panel)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ background: swatch }}
+                      aria-hidden
+                    />
+                    {PAGE_THEME_LABELS[theme]}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>,
+          document.body,
+        )
+      : null;
+
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         id={buttonId}
         disabled={disabled}
@@ -119,44 +252,7 @@ export function PageThemeDropdown({
           {open ? "▴" : "▾"}
         </span>
       </button>
-
-      {open ? (
-        <ul
-          ref={listRef}
-          id={menuId}
-          role="menu"
-          aria-labelledby={buttonId}
-          className="absolute right-0 z-50 mt-2 min-w-[10.5rem] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] py-1 shadow-xl shadow-black/40"
-        >
-          {PAGE_THEMES.map((theme) => {
-            const active = value === theme;
-            const swatch = PAGE_THEME_STYLES[theme].vars["--accent"];
-            return (
-              <li key={theme} role="none">
-                <button
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={active}
-                  disabled={disabled}
-                  onClick={() => selectTheme(theme)}
-                  className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-semibold tracking-wide transition disabled:opacity-50 ${
-                    active
-                      ? "bg-[var(--accent)]/15 text-[var(--accent)]"
-                      : "text-[var(--text-muted)] hover:bg-[var(--bg-panel)] hover:text-[var(--text)]"
-                  }`}
-                >
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ background: swatch }}
-                    aria-hidden
-                  />
-                  {PAGE_THEME_LABELS[theme]}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+      {menu}
     </div>
   );
 }
