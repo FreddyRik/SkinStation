@@ -78,8 +78,8 @@ export default function PrivacyPage() {
         </ul>
         <p>
           Catalog browsing caches item metadata from public CS2 item APIs. We do not publish a
-          full browsable directory of every tracked Steam account via the API; limited “recent”
-          lists may appear in the UI.
+          browsable directory of tracked Steam accounts. “Recent profiles” in the UI are stored only
+          in your browser (this device) and are not shared with other visitors.
         </p>
       </section>
 
@@ -104,9 +104,9 @@ export default function PrivacyPage() {
       <section>
         <h2>Browser storage</h2>
         <p>
-          Preferences such as display currency (USD/EUR), page theme, and similar UI choices may be
-          saved in your browser&apos;s local storage. They stay on your device and are not used for
-          advertising or cross-site tracking.
+          Preferences such as display currency (USD/EUR), page theme, recent profiles viewed on
+          this device, and similar UI choices may be saved in your browser&apos;s local storage.
+          They stay on your device and are not used for advertising or cross-site tracking.
         </p>
       </section>
 

@@ -19,6 +19,7 @@ import {
 import {
   CURRENCY_CHANGE_EVENT,
   DEFAULT_CURRENCY,
+  parseCurrency,
   readStoredCurrency,
   type Currency,
 } from "@/lib/currency";
@@ -30,6 +31,13 @@ import {
   readStoredPriceSource,
   type PriceSource,
 } from "@/lib/price-source";
+import {
+  readRecentProfiles,
+  recentProfileIds,
+  rememberRecentProfile,
+  writeRecentProfiles,
+  type RecentProfileEntry,
+} from "@/lib/recent-profiles";
 import { computeTradeUp } from "@/lib/tradeup/compute";
 import type {
   TradeUpCatalogPayload,
@@ -170,13 +178,7 @@ export function TradeUpCalculator() {
   }, [currency]);
 
   useEffect(() => {
-    fetch("/api/profiles")
-      .then((r) => r.json())
-      .then((data) => {
-        const list = (data.profiles ?? []) as ProfileOption[];
-        setProfiles(list);
-      })
-      .catch(() => setProfiles([]));
+    void refreshProfileList();
   }, []);
 
   async function fetchInventory(id: string): Promise<InventoryItemRow[]> {
@@ -199,13 +201,121 @@ export function TradeUpCalculator() {
     }));
   }
 
+  function profilesFromLocal(): ProfileOption[] {
+    return readRecentProfiles().map((p) => ({
+      id: p.id,
+      personaName: p.personaName,
+      avatarUrl: p.avatarUrl,
+      steamId: p.steamId,
+      itemCount: p.itemCount,
+    }));
+  }
+
   async function refreshProfileList() {
+    const ids = recentProfileIds();
+    if (ids.length === 0) {
+      setProfiles([]);
+      return;
+    }
+
     try {
-      const listRes = await fetch("/api/profiles");
-      const listData = await listRes.json();
-      setProfiles((listData.profiles ?? []) as ProfileOption[]);
+      const listRes = await fetch(
+        `/api/profiles?ids=${ids.map(encodeURIComponent).join(",")}`,
+      );
+      const listData = (await listRes.json()) as {
+        profiles?: Array<{
+          id: string;
+          personaName: string | null;
+          avatarUrl: string | null;
+          steamId: string;
+          itemCount: number;
+          currency?: string;
+          faceitUrl?: string | null;
+          faceitLevel?: number | null;
+          faceitElo?: number | null;
+          faceitNickname?: string | null;
+          faceitFound?: boolean;
+          faceitFetchedAt?: string | Date | null;
+          leetifyUrl?: string | null;
+          leetifyName?: string | null;
+          leetifyRating?: number | null;
+          leetifyFound?: boolean;
+          lastSyncedAt?: string | Date | null;
+          latestSnapshot?: {
+            currency?: string;
+            totalSteam?: number;
+            totalBuff?: number;
+          } | null;
+        }>;
+      };
+
+      if (!listRes.ok || !Array.isArray(listData.profiles)) {
+        setProfiles(profilesFromLocal());
+        return;
+      }
+
+      const byId = new Map(listData.profiles.map((p) => [p.id, p]));
+      const refreshed: RecentProfileEntry[] = [];
+      for (const id of ids) {
+        const p = byId.get(id);
+        if (!p) continue;
+        const faceitFetchedAt =
+          p.faceitFetchedAt instanceof Date
+            ? p.faceitFetchedAt.toISOString()
+            : typeof p.faceitFetchedAt === "string"
+              ? p.faceitFetchedAt
+              : null;
+        const lastSyncedAt =
+          p.lastSyncedAt instanceof Date
+            ? p.lastSyncedAt.toISOString()
+            : typeof p.lastSyncedAt === "string"
+              ? p.lastSyncedAt
+              : null;
+        const currency = parseCurrency(p.currency);
+        const snap = p.latestSnapshot;
+        refreshed.push({
+          id: p.id,
+          steamId: p.steamId,
+          personaName: p.personaName,
+          avatarUrl: p.avatarUrl,
+          currency,
+          faceitUrl: p.faceitUrl ?? null,
+          faceitLevel: p.faceitLevel ?? null,
+          faceitElo: p.faceitElo ?? null,
+          faceitNickname: p.faceitNickname ?? null,
+          faceitFound: Boolean(p.faceitFound),
+          faceitFetchedAt,
+          leetifyUrl: p.leetifyUrl ?? null,
+          leetifyName: p.leetifyName ?? null,
+          leetifyRating: p.leetifyRating ?? null,
+          leetifyFound: Boolean(p.leetifyFound),
+          itemCount: p.itemCount,
+          lastSyncedAt,
+          latestSnapshot:
+            snap &&
+            typeof snap.totalSteam === "number" &&
+            typeof snap.totalBuff === "number"
+              ? {
+                  currency: parseCurrency(snap.currency, currency),
+                  totalSteam: snap.totalSteam,
+                  totalBuff: snap.totalBuff,
+                }
+              : null,
+        });
+      }
+
+      writeRecentProfiles(refreshed);
+      setProfiles(
+        refreshed.map((p) => ({
+          id: p.id,
+          personaName: p.personaName,
+          avatarUrl: p.avatarUrl,
+          steamId: p.steamId,
+          itemCount: p.itemCount,
+        })),
+      );
     } catch {
-      // ignore list refresh failures
+      setProfiles(profilesFromLocal());
     }
   }
 
@@ -481,6 +591,34 @@ export function TradeUpCalculator() {
         throw new Error(createData.error ?? "Failed to resolve profile");
       }
       const id = createData.profile.id as string;
+      const profile = createData.profile as {
+        id: string;
+        steamId?: string;
+        personaName?: string | null;
+        avatarUrl?: string | null;
+      };
+      if (profile.steamId) {
+        rememberRecentProfile({
+          id: profile.id,
+          steamId: profile.steamId,
+          personaName: profile.personaName ?? null,
+          avatarUrl: profile.avatarUrl ?? null,
+          currency: DEFAULT_CURRENCY,
+          faceitUrl: null,
+          faceitLevel: null,
+          faceitElo: null,
+          faceitNickname: null,
+          faceitFound: false,
+          faceitFetchedAt: null,
+          leetifyUrl: null,
+          leetifyName: null,
+          leetifyRating: null,
+          leetifyFound: false,
+          itemCount: 0,
+          lastSyncedAt: null,
+          latestSnapshot: null,
+        });
+      }
       // Allow the profile effect to auto-sync if this profile has no items yet.
       autoSyncedRef.current.delete(id);
       setMode("inventory");

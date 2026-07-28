@@ -2,15 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sanitizeProfileCreateError } from "@/lib/api/errors";
 import { ensureProfileFromInput } from "@/lib/sync/inventory-sync";
+import { RECENT_PROFILES_LIMIT } from "@/lib/recent-profiles";
 
-/** Max profiles returned by the public directory (anti-enumeration). */
-const RECENT_PROFILES_LIMIT = 8;
+/** Max ids accepted for a device-local refresh (anti-enumeration). */
+const MAX_IDS = RECENT_PROFILES_LIMIT;
 
-export async function GET() {
+function parseRequestedIds(raw: string | null): string[] {
+  if (!raw?.trim()) return [];
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const part of raw.split(",")) {
+    const id = part.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+    if (ids.length >= MAX_IDS) break;
+  }
+  return ids;
+}
+
+/**
+ * Returns profiles for caller-known ids only (from this device's localStorage).
+ * Bare GET without ids returns an empty list — never a global recent directory.
+ */
+export async function GET(req: NextRequest) {
   try {
+    const ids = parseRequestedIds(req.nextUrl.searchParams.get("ids"));
+    if (ids.length === 0) {
+      return NextResponse.json({ profiles: [] });
+    }
+
     const profiles = await prisma.profile.findMany({
-      orderBy: { updatedAt: "desc" },
-      take: RECENT_PROFILES_LIMIT,
+      where: { id: { in: ids } },
       include: {
         _count: { select: { items: true, snapshots: true } },
         snapshots: {
@@ -20,8 +43,14 @@ export async function GET() {
       },
     });
 
+    const byId = new Map(profiles.map((p) => [p.id, p]));
+    // Preserve caller order (MRU from localStorage).
+    const ordered = ids
+      .map((id) => byId.get(id))
+      .filter((p): p is (typeof profiles)[number] => p != null);
+
     return NextResponse.json({
-      profiles: profiles.map((p) => ({
+      profiles: ordered.map((p) => ({
         id: p.id,
         steamId: p.steamId,
         personaName: p.personaName,

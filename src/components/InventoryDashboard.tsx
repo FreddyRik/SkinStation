@@ -63,6 +63,7 @@ import {
 import { canLinkBuffMarket, canLinkSteamMarket } from "@/lib/steam-market/listing";
 import { isFloatProviderSoftWarning } from "@/lib/inspect/warnings";
 import { isSteamwebapiLimitMessage } from "@/lib/steamwebapi/errors";
+import { rememberRecentProfile } from "@/lib/recent-profiles";
 
 /** Profile lastError / sync warnings we intentionally do not show in the banner. */
 function isHiddenSyncMessage(message: string | null | undefined): boolean {
@@ -208,6 +209,40 @@ export function InventoryDashboard({
     setInventoryView(readStoredInventoryView());
     setCurrency(readStoredCurrency());
   }, []);
+
+  useEffect(() => {
+    const latest = snapshots[snapshots.length - 1] ?? null;
+    rememberRecentProfile({
+      id: profile.id,
+      steamId: profile.steamId,
+      personaName: profile.personaName,
+      avatarUrl: profile.avatarUrl,
+      currency: profile.currency,
+      faceitUrl: profile.faceitUrl,
+      faceitLevel: profile.faceitLevel,
+      faceitElo: profile.faceitElo,
+      faceitNickname: profile.faceitNickname,
+      faceitFound: profile.faceitFound,
+      faceitFetchedAt: profile.faceitFetchedAt,
+      leetifyUrl: profile.leetifyUrl,
+      leetifyName: profile.leetifyName,
+      leetifyRating: profile.leetifyRating,
+      leetifyFound: profile.leetifyFound,
+      itemCount: totals.itemCount,
+      lastSyncedAt: profile.lastSyncedAt,
+      latestSnapshot: latest
+        ? {
+            currency: latest.currency,
+            totalSteam: latest.totalSteam,
+            totalBuff: latest.totalBuff,
+          }
+        : {
+            currency: profile.currency,
+            totalSteam: totals.totalSteam,
+            totalBuff: totals.totalBuff,
+          },
+    });
+  }, [profile, snapshots, totals]);
 
   useEffect(() => {
     setSyncing(profile.syncing);

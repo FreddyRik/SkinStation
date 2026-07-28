@@ -8,48 +8,76 @@ import type { Currency } from "@/lib/currency";
 import {
   CURRENCY_CHANGE_EVENT,
   DEFAULT_CURRENCY,
+  parseCurrency,
   readStoredCurrency,
   writeStoredCurrency,
 } from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
+import {
+  readRecentProfiles,
+  rememberRecentProfile,
+  type RecentProfileEntry,
+} from "@/lib/recent-profiles";
 
-type ProfileSummary = {
-  id: string;
-  steamId: string;
-  personaName: string | null;
-  avatarUrl: string | null;
-  currency: Currency;
-  faceitUrl: string | null;
-  faceitLevel: number | null;
-  faceitElo: number | null;
-  faceitNickname: string | null;
-  faceitFound: boolean;
-  faceitFetchedAt: string | null;
-  leetifyUrl: string | null;
-  leetifyName: string | null;
-  leetifyRating: number | null;
-  leetifyFound: boolean;
-  itemCount: number;
-  lastSyncedAt: string | null;
-  latestSnapshot: {
-    currency: Currency;
-    totalSteam: number;
-    totalBuff: number;
-  } | null;
-};
+type ProfileSummary = RecentProfileEntry;
 
 function steamProfileUrl(steamId: string): string {
   return `https://steamcommunity.com/profiles/${steamId}`;
 }
 
+function entryFromApiProfile(
+  profile: Record<string, unknown>,
+  overrides?: Partial<RecentProfileEntry>,
+): RecentProfileEntry | null {
+  const id = typeof profile.id === "string" ? profile.id : null;
+  const steamId = typeof profile.steamId === "string" ? profile.steamId : null;
+  if (!id || !steamId) return null;
+
+  const currency = parseCurrency(profile.currency);
+  const faceitFetchedAt =
+    typeof profile.faceitFetchedAt === "string"
+      ? profile.faceitFetchedAt
+      : null;
+  const lastSyncedAt =
+    typeof profile.lastSyncedAt === "string" ? profile.lastSyncedAt : null;
+
+  return {
+    id,
+    steamId,
+    personaName:
+      typeof profile.personaName === "string" ? profile.personaName : null,
+    avatarUrl: typeof profile.avatarUrl === "string" ? profile.avatarUrl : null,
+    currency,
+    faceitUrl: typeof profile.faceitUrl === "string" ? profile.faceitUrl : null,
+    faceitLevel:
+      typeof profile.faceitLevel === "number" ? profile.faceitLevel : null,
+    faceitElo: typeof profile.faceitElo === "number" ? profile.faceitElo : null,
+    faceitNickname:
+      typeof profile.faceitNickname === "string" ? profile.faceitNickname : null,
+    faceitFound: Boolean(profile.faceitFound),
+    faceitFetchedAt,
+    leetifyUrl:
+      typeof profile.leetifyUrl === "string" ? profile.leetifyUrl : null,
+    leetifyName:
+      typeof profile.leetifyName === "string" ? profile.leetifyName : null,
+    leetifyRating:
+      typeof profile.leetifyRating === "number" ? profile.leetifyRating : null,
+    leetifyFound: Boolean(profile.leetifyFound),
+    itemCount: typeof profile.itemCount === "number" ? profile.itemCount : 0,
+    lastSyncedAt,
+    latestSnapshot: null,
+    ...overrides,
+  };
+}
+
 export function ProfileLookup({
-  recentProfiles,
+  recentProfiles: seedProfiles = [],
   atmosphere = null,
   accentGlow = false,
 }: {
-  recentProfiles: ProfileSummary[];
+  recentProfiles?: ProfileSummary[];
   /** Optional decorative layer rendered behind the hero card content. */
   atmosphere?: ReactNode;
   /** Soft accent glow on the panel edge and load button (home hub). */
@@ -62,9 +90,12 @@ export function ProfileLookup({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncNote, setSyncNote] = useState<string | null>(null);
+  const [recentProfiles, setRecentProfiles] =
+    useState<ProfileSummary[]>(seedProfiles);
 
   useEffect(() => {
     setCurrency(readStoredCurrency());
+    setRecentProfiles(readRecentProfiles());
     function onCurrency(e: Event) {
       const next = (e as CustomEvent<Currency>).detail;
       if (next) setCurrency(next);
@@ -86,12 +117,20 @@ export function ProfileLookup({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input }),
       });
-      const createData = await createRes.json();
-      if (!createRes.ok) {
+      const createData = (await createRes.json()) as {
+        error?: string;
+        profile?: Record<string, unknown>;
+      };
+      if (!createRes.ok || !createData.profile) {
         throw new Error(createData.error ?? "Failed to resolve profile");
       }
 
       const profileId = createData.profile.id as string;
+      const remembered = entryFromApiProfile(createData.profile);
+      if (remembered) {
+        setRecentProfiles(rememberRecentProfile(remembered));
+      }
+
       // Store prices in USD; the UI converts with FX for display currency.
       const storageCurrency = DEFAULT_CURRENCY;
       setSyncNote(
@@ -103,7 +142,18 @@ export function ProfileLookup({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profileId, currency: storageCurrency }),
       });
-      await syncRes.json().catch(() => null);
+      const syncData = (await syncRes.json().catch(() => null)) as {
+        itemCount?: number;
+      } | null;
+      if (remembered && typeof syncData?.itemCount === "number") {
+        setRecentProfiles(
+          rememberRecentProfile({
+            ...remembered,
+            itemCount: syncData.itemCount,
+            lastSyncedAt: new Date().toISOString(),
+          }),
+        );
+      }
       if (!syncRes.ok) {
         // Open inventory so the user can retry; surface error via profile.lastError.
         router.push(`/inventory/${profileId}`);
@@ -206,7 +256,7 @@ export function ProfileLookup({
       {recentProfiles.length > 0 && (
         <section className="mx-auto max-w-3xl space-y-4">
           <h2 className="text-center text-lg font-medium text-[var(--text)]">
-            Recent profiles
+            Recent on this device
           </h2>
           <ul className="grid items-stretch gap-3 sm:grid-cols-2">
             {recentProfiles.map((p) => {
