@@ -36,6 +36,14 @@ export default function StatusPage() {
             are still parsed from Steam descriptions when present.
           </li>
           <li>
+            <strong className="font-medium text-[var(--text)]">Steam inventory fetches</strong> —
+            Fresh syncs call Steam Community from our hosting IP. Steam rate-limits those
+            requests, so new loads or Refresh can fail temporarily — especially under traffic.
+            When we already have a successful sync, we keep showing that cached inventory and
+            ask you to retry later. A dedicated Steam fetch proxy is planned to improve
+            reliability.
+          </li>
+          <li>
             <strong className="font-medium text-[var(--text)]">Steam Market prices</strong> —
             Gap-fill uses Steam’s rate-limited{" "}
             <code className="text-[var(--text)]">priceoverview</code> API. Large inventories
@@ -57,6 +65,7 @@ export default function StatusPage() {
       <section>
         <h2>What’s next</h2>
         <ul>
+          <li>Dedicated Steam inventory fetch proxy (own IP) to reduce rate-limit failures</li>
           <li>Faster and more reliable float sync (better inspect coverage)</li>
           <li>Catalog and trade-up calculator polish</li>
           <li>Share-card and inventory UX improvements</li>

@@ -38,6 +38,10 @@ import {
   writeRecentProfiles,
   type RecentProfileEntry,
 } from "@/lib/recent-profiles";
+import {
+  looksLikeSteamRateLimitMessage,
+  markSteamBackoff,
+} from "@/lib/steam-backoff";
 import { computeTradeUp } from "@/lib/tradeup/compute";
 import type {
   TradeUpCatalogPayload,
@@ -334,11 +338,27 @@ export function TradeUpCalculator() {
     });
     const syncData = await syncRes.json().catch(() => ({}));
     if (!syncRes.ok) {
+      if (
+        syncRes.status === 429 ||
+        looksLikeSteamRateLimitMessage(
+          typeof syncData.error === "string" ? syncData.error : null,
+        )
+      ) {
+        markSteamBackoff();
+      }
       throw new Error(
         typeof syncData.error === "string"
           ? syncData.error
           : "Failed to sync inventory",
       );
+    }
+    if (
+      syncData.usedCachedInventory ||
+      looksLikeSteamRateLimitMessage(
+        typeof syncData.warning === "string" ? syncData.warning : null,
+      )
+    ) {
+      markSteamBackoff();
     }
     return {
       inspected:

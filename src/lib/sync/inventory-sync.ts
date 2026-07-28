@@ -105,7 +105,68 @@ export type SyncResult = {
   skippedCooldown?: boolean;
   /** Soft warning (e.g. Steamwebapi quota) — sync still completed. */
   warning?: string | null;
+  /** Steam upstream failed; served last successful DB inventory instead. */
+  usedCachedInventory?: boolean;
 };
+
+const STEAM_RATE_LIMIT_CACHE_WARNING =
+  "Steam rate-limited this server IP. Showing your last successful sync — try Refresh again in a few minutes.";
+
+const STEAM_TRANSIENT_CACHE_WARNING =
+  "Steam inventory was temporarily unavailable. Showing your last successful sync — try Refresh again shortly.";
+
+function isPrivateInventoryError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("private") ||
+    lower.includes("hidden") ||
+    lower.includes("ensure the profile and cs2 inventory are public")
+  );
+}
+
+/** Transient Steam Community failures where serving DB cache is better than failing hard. */
+function isTransientSteamInventoryError(message: string): boolean {
+  if (isPrivateInventoryError(message)) return false;
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("rate-limited") ||
+    lower.includes("rate limited") ||
+    lower.includes("steam inventory request failed") ||
+    lower.includes("empty inventory response") ||
+    lower.includes("invalid json") ||
+    lower.includes("could not load inventory") ||
+    lower.includes("too large to sync")
+  );
+}
+
+async function syncResultFromCachedItems(
+  profileId: string,
+  steamId: string,
+  currency: Currency,
+  warning: string | null,
+  flags?: { skippedCooldown?: boolean; usedCachedInventory?: boolean },
+): Promise<SyncResult> {
+  const items = await prisma.inventoryItem.findMany({
+    where: { profileId },
+  });
+  const totalSteam = portfolioTotalFromItems(items, "steam");
+  const totalBuff = portfolioTotalFromItems(items, "buff");
+  return {
+    profileId,
+    steamId,
+    currency,
+    itemCount: items.length,
+    totalSteam,
+    totalBuff,
+    inspected: items.filter((i) => i.floatValue != null).length,
+    steamPricesResolved: items.filter(
+      (i) => itemCanListOnMarket(i) && i.steamPrice != null,
+    ).length,
+    warning,
+    skippedCooldown: flags?.skippedCooldown,
+    usedCachedInventory: flags?.usedCachedInventory,
+  };
+}
 
 export async function ensureProfileFromInput(rawInput: string) {
   const steamId = await resolveSteamId64(rawInput);
@@ -166,21 +227,15 @@ export async function syncInventory(
     const items = await prisma.inventoryItem.findMany({
       where: { profileId },
     });
-    const totalSteam = portfolioTotalFromItems(items, "steam");
-    const totalBuff = portfolioTotalFromItems(items, "buff");
-    return {
+    return syncResultFromCachedItems(
       profileId,
-      steamId: profile.steamId,
+      profile.steamId,
       currency,
-      itemCount: items.length,
-      totalSteam,
-      totalBuff,
-      inspected: items.filter((i) => i.floatValue != null).length,
-      steamPricesResolved: items.filter(
-        (i) => itemCanListOnMarket(i) && i.steamPrice != null,
-      ).length,
-      skippedCooldown: true,
-    };
+      items.length > 0
+        ? `Cooldown active (${Math.round(cooldownMs / 60000)} min). Showing cached inventory.`
+        : null,
+      { skippedCooldown: true },
+    );
   }
 
   const STALE_LOCK_MS = 10 * 60 * 1000;
@@ -225,9 +280,37 @@ export async function syncInventory(
       force: Boolean(options?.force) || !profile.faceitFetchedAt,
     }).catch((err) => console.warn("Reputation enrich failed:", err));
 
-    const inventory = await fetchSteamInventory(profile.steamId, {
-      force: Boolean(options?.force),
-    });
+    let inventory: Awaited<ReturnType<typeof fetchSteamInventory>>;
+    try {
+      inventory = await fetchSteamInventory(profile.steamId, {
+        force: Boolean(options?.force),
+      });
+    } catch (fetchErr) {
+      const message =
+        fetchErr instanceof Error ? fetchErr.message : "Steam inventory failed";
+      if (isTransientSteamInventoryError(message)) {
+        const existingCount = await prisma.inventoryItem.count({
+          where: { profileId },
+        });
+        if (existingCount > 0) {
+          const lower = message.toLowerCase();
+          const warning =
+            lower.includes("rate-limited") || lower.includes("rate limited")
+              ? STEAM_RATE_LIMIT_CACHE_WARNING
+              : STEAM_TRANSIENT_CACHE_WARNING;
+          // Soft-fail: keep cache, surface warning, clear sync lock.
+          await releaseLock(warning);
+          return syncResultFromCachedItems(
+            profileId,
+            profile.steamId,
+            currency,
+            warning,
+            { usedCachedInventory: true },
+          );
+        }
+      }
+      throw fetchErr;
+    }
 
     // Keep floats/patterns across rebuilds when re-enrichment fails (e.g. API quota
     // burned by syncing another profile). Match by Steam assetId.

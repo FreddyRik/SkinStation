@@ -20,6 +20,13 @@ import {
   rememberRecentProfile,
   type RecentProfileEntry,
 } from "@/lib/recent-profiles";
+import {
+  formatBackoffCountdown,
+  isSteamBackoffActive,
+  looksLikeSteamRateLimitMessage,
+  markSteamBackoff,
+  steamBackoffRemainingMs,
+} from "@/lib/steam-backoff";
 
 type ProfileSummary = RecentProfileEntry;
 
@@ -112,6 +119,13 @@ export function ProfileLookup({
     writeStoredCurrency(currency);
 
     try {
+      if (isSteamBackoffActive()) {
+        const left = steamBackoffRemainingMs();
+        throw new Error(
+          `Steam is rate-limiting this server right now. Wait ${formatBackoffCountdown(left)} before loading another inventory.`,
+        );
+      }
+
       const createRes = await fetch("/api/profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,6 +136,12 @@ export function ProfileLookup({
         profile?: Record<string, unknown>;
       };
       if (!createRes.ok || !createData.profile) {
+        if (
+          createRes.status === 429 ||
+          looksLikeSteamRateLimitMessage(createData.error)
+        ) {
+          markSteamBackoff();
+        }
         throw new Error(createData.error ?? "Failed to resolve profile");
       }
 
@@ -143,8 +163,22 @@ export function ProfileLookup({
         body: JSON.stringify({ profileId, currency: storageCurrency }),
       });
       const syncData = (await syncRes.json().catch(() => null)) as {
+        error?: string;
         itemCount?: number;
+        warning?: string;
+        usedCachedInventory?: boolean;
+        skippedCooldown?: boolean;
       } | null;
+
+      if (
+        syncRes.status === 429 ||
+        looksLikeSteamRateLimitMessage(syncData?.error) ||
+        looksLikeSteamRateLimitMessage(syncData?.warning) ||
+        syncData?.usedCachedInventory
+      ) {
+        markSteamBackoff();
+      }
+
       if (remembered && typeof syncData?.itemCount === "number") {
         setRecentProfiles(
           rememberRecentProfile({
@@ -154,11 +188,28 @@ export function ProfileLookup({
           }),
         );
       }
+
       if (!syncRes.ok) {
-        // Open inventory so the user can retry; surface error via profile.lastError.
+        // Prefer opening inventory when Steam fails — cached items may still be there.
+        if (
+          syncRes.status === 429 ||
+          looksLikeSteamRateLimitMessage(syncData?.error)
+        ) {
+          setSyncNote(
+            "Steam rate-limited this sync. Opening inventory — cached items will show if we have any.",
+          );
+        }
         router.push(`/inventory/${profileId}`);
         router.refresh();
         return;
+      }
+
+      if (syncData?.usedCachedInventory || syncData?.warning) {
+        setSyncNote(
+          typeof syncData.warning === "string" && syncData.warning
+            ? syncData.warning
+            : "Opened cached inventory (Steam was unavailable).",
+        );
       }
 
       router.push(`/inventory/${profileId}`);

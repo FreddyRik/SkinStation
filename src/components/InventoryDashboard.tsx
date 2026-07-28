@@ -64,6 +64,13 @@ import { canLinkBuffMarket, canLinkSteamMarket } from "@/lib/steam-market/listin
 import { isFloatProviderSoftWarning } from "@/lib/inspect/warnings";
 import { isSteamwebapiLimitMessage } from "@/lib/steamwebapi/errors";
 import { rememberRecentProfile } from "@/lib/recent-profiles";
+import {
+  formatBackoffCountdown,
+  isSteamBackoffActive,
+  looksLikeSteamRateLimitMessage,
+  markSteamBackoff,
+  steamBackoffRemainingMs,
+} from "@/lib/steam-backoff";
 
 /** Profile lastError / sync warnings we intentionally do not show in the banner. */
 function isHiddenSyncMessage(message: string | null | undefined): boolean {
@@ -203,12 +210,25 @@ export function InventoryDashboard({
       : null,
   );
   const [shareOpen, setShareOpen] = useState(false);
+  const [backoffRemainingMs, setBackoffRemainingMs] = useState(0);
 
   useEffect(() => {
     setPriceSource(readStoredPriceSource());
     setInventoryView(readStoredInventoryView());
     setCurrency(readStoredCurrency());
+    setBackoffRemainingMs(steamBackoffRemainingMs());
+    const id = window.setInterval(() => {
+      setBackoffRemainingMs(steamBackoffRemainingMs());
+    }, 1000);
+    return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (looksLikeSteamRateLimitMessage(profile.lastError)) {
+      markSteamBackoff();
+      setBackoffRemainingMs(steamBackoffRemainingMs());
+    }
+  }, [profile.lastError]);
 
   useEffect(() => {
     const latest = snapshots[snapshots.length - 1] ?? null;
@@ -384,6 +404,15 @@ export function InventoryDashboard({
   }, [snapshots, chartRangeDef, currency, usdToEur]);
 
   async function refresh() {
+    if (isSteamBackoffActive()) {
+      const left = steamBackoffRemainingMs();
+      setBackoffRemainingMs(left);
+      setNote(
+        `Steam cooldown — try Refresh again in ${formatBackoffCountdown(left)}. Showing cached inventory.`,
+      );
+      return;
+    }
+
     setSyncing(true);
     setError(null);
     setWarning(null);
@@ -400,6 +429,10 @@ export function InventoryDashboard({
       });
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 429 || looksLikeSteamRateLimitMessage(data.error)) {
+          markSteamBackoff();
+          setBackoffRemainingMs(steamBackoffRemainingMs());
+        }
         throw new Error(data.error ?? "Refresh failed");
       }
       if (
@@ -408,10 +441,25 @@ export function InventoryDashboard({
         !isHiddenSyncMessage(data.warning)
       ) {
         setWarning(data.warning);
+        if (
+          data.usedCachedInventory ||
+          looksLikeSteamRateLimitMessage(data.warning)
+        ) {
+          markSteamBackoff();
+          setBackoffRemainingMs(steamBackoffRemainingMs());
+        }
       }
       if (data.skippedCooldown) {
         setNote(
-          `Cooldown active (${Math.round(cooldownMs / 1000)}s). Showing cached inventory.`,
+          data.warning && typeof data.warning === "string"
+            ? data.warning
+            : `Cooldown active (${Math.round(cooldownMs / 1000)}s). Showing cached inventory.`,
+        );
+      } else if (data.usedCachedInventory) {
+        setNote(
+          typeof data.warning === "string" && data.warning
+            ? data.warning
+            : "Steam was unavailable — showing your last successful sync.",
         );
       } else {
         const source = parsePriceSource(priceSource);
@@ -428,6 +476,9 @@ export function InventoryDashboard({
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refresh failed");
+      if (items.length > 0) {
+        setNote("Still showing your last successful sync from our cache.");
+      }
     } finally {
       setSyncing(false);
     }
@@ -522,10 +573,19 @@ export function InventoryDashboard({
               <button
                 type="button"
                 onClick={() => refresh()}
-                disabled={syncing}
+                disabled={syncing || backoffRemainingMs > 0}
+                title={
+                  backoffRemainingMs > 0
+                    ? `Steam cooldown — ${formatBackoffCountdown(backoffRemainingMs)}`
+                    : undefined
+                }
                 className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[#042f2e] hover:bg-[var(--accent-dim)] disabled:opacity-50"
               >
-                {syncing ? "Refreshing…" : "Refresh"}
+                {syncing
+                  ? "Refreshing…"
+                  : backoffRemainingMs > 0
+                    ? `Wait ${formatBackoffCountdown(backoffRemainingMs)}`
+                    : "Refresh"}
               </button>
               <button
                 type="button"
