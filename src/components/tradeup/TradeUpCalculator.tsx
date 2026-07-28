@@ -559,7 +559,7 @@ export function TradeUpCalculator() {
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex rounded-lg border border-[var(--border)] p-0.5">
           <button
             type="button"
@@ -589,7 +589,7 @@ export function TradeUpCalculator() {
           <button
             type="button"
             onClick={clearContract}
-            className="ml-auto rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:text-[var(--danger)]"
+            className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:text-[var(--danger)] sm:ml-auto"
           >
             Clear contract
           </button>
@@ -601,7 +601,7 @@ export function TradeUpCalculator() {
           <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
             Profile
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <select
               value={profileId ?? ""}
               onChange={(e) => {
@@ -611,7 +611,7 @@ export function TradeUpCalculator() {
                 if (id) router.replace(`/tradeup?profileId=${id}`);
                 else router.replace("/tradeup");
               }}
-              className="min-w-[14rem] flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)]"
+              className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] sm:min-w-[14rem]"
             >
               <option value="">Select a synced profile…</option>
               {profiles.map((p) => (
@@ -625,8 +625,9 @@ export function TradeUpCalculator() {
               value={profileInput}
               onChange={(e) => setProfileInput(e.target.value)}
               placeholder="Or Steam URL / SteamID64"
-              className="min-w-[12rem] flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]"
+              className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] sm:min-w-[12rem]"
             />
+            <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => void loadProfileFromInput()}
@@ -643,6 +644,7 @@ export function TradeUpCalculator() {
             >
               Sync
             </button>
+            </div>
           </div>
           {inventoryLoading || syncNote ? (
             <p className="text-sm text-[var(--steam)]">

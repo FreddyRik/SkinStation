@@ -780,10 +780,11 @@ export function ItemDatabaseBrowser() {
       </div>
 
       <nav
-        className="relative z-30 overflow-visible rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/70 px-1"
+        className="relative z-30 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/70"
         aria-label="Catalog categories"
       >
-        <div className="flex flex-wrap items-stretch gap-0.5">
+        <div className="overflow-x-auto overscroll-x-contain">
+          <div className="flex min-w-max items-stretch gap-0.5 px-1 py-0.5">
           {NAV_SECTION_ORDER.map((section) => {
             const active = filter.section === section;
             const open = openSection === section;
@@ -962,6 +963,7 @@ export function ItemDatabaseBrowser() {
               </NavDropdown>
             );
           })}
+          </div>
         </div>
       </nav>
 
