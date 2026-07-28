@@ -1,15 +1,16 @@
 import { prisma } from "@/lib/db";
 import { ProfileLookup } from "@/components/ProfileLookup";
 import { parseCurrency } from "@/lib/currency";
-import { sitePageTitle } from "@/lib/site";
+import { buildPageMetadata, sitePageTitle } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: sitePageTitle("Inventory"),
+export const metadata = buildPageMetadata({
+  title: sitePageTitle("CS2 Inventory Search"),
   description:
-    "Load a public Steam CS2 inventory — floats, Buff163 and Steam Market prices, and share cards.",
-};
+    "Search a public Steam CS2 inventory — floats, Buff163 and Steam Market prices, and shareable inventory cards.",
+  path: "/inventory",
+});
 
 export default async function InventoryLookupPage() {
   const profiles = await prisma.profile.findMany({

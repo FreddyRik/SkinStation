@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { LegalArticle } from "@/components/LegalArticle";
-import { SITE_NAME, sitePageTitle } from "@/lib/site";
+import { buildPageMetadata, SITE_NAME, sitePageTitle } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: sitePageTitle("Roadmap & Limitations"),
-  description: `Early Access status for ${SITE_NAME} — known limitations and what’s coming next.`,
-};
+  description: `Early Access status for ${SITE_NAME} — known limitations and what's coming next.`,
+  path: "/status",
+});
 
 export default function StatusPage() {
   return (

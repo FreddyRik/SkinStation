@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { portfolioTotalFromItems } from "@/lib/price-source";
 import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
+import { buildPageMetadata } from "@/lib/site";
 import {
   applyReputationToProfile,
   getSyncCooldownMs,
@@ -19,6 +20,32 @@ export const dynamic = "force-dynamic";
 type PageProps = {
   params: Promise<{ id: string }>;
 };
+
+export async function generateMetadata({ params }: PageProps) {
+  const { id } = await params;
+  const profile = await prisma.profile.findUnique({
+    where: { id },
+    include: { _count: { select: { items: true } } },
+  });
+
+  if (!profile) {
+    return buildPageMetadata({
+      title: "Inventory not found",
+      description: "This CS2 inventory profile could not be found.",
+      path: `/inventory/${id}`,
+    });
+  }
+
+  const name = profile.personaName ?? profile.steamId;
+  const itemCount = profile._count.items;
+
+  return buildPageMetadata({
+    title: `${name}'s CS2 Inventory`,
+    description: `View ${name}'s public Counter-Strike 2 inventory — ${itemCount.toLocaleString("en-US")} items with floats, Buff163 and Steam Market prices on SkinStation.`,
+    path: `/inventory/${profile.id}`,
+    image: profile.avatarUrl,
+  });
+}
 
 export default async function InventoryPage({ params }: PageProps) {
   const { id } = await params;

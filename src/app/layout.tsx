@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { Fraunces, Outfit } from "next/font/google";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { rootMetadata } from "@/lib/site";
 import "./globals.css";
 const shareDisplay = Fraunces({
   subsets: ["latin"],
@@ -17,10 +17,7 @@ const shareBody = Outfit({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: SITE_NAME,
-  description: SITE_DESCRIPTION,
-};
+export const metadata: Metadata = rootMetadata();
 
 export default function RootLayout({
   children,

@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalArticle } from "@/components/LegalArticle";
-import { SITE_GITHUB_URL, SITE_NAME, SITE_TAGLINE, VALVE_DISCLAIMER } from "@/lib/site";
+import {
+  buildPageMetadata,
+  SITE_GITHUB_URL,
+  SITE_NAME,
+  SITE_TAGLINE,
+  VALVE_DISCLAIMER,
+} from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: `Terms of Service — ${SITE_NAME}`,
   description: `Terms of Service for ${SITE_NAME} — inventory tracking, skin catalog, and trade-up tools.`,
-};
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

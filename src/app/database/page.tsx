@@ -1,14 +1,15 @@
 import { Suspense } from "react";
 import { ItemDatabaseBrowser } from "@/components/ItemDatabaseBrowser";
-import { sitePageTitle } from "@/lib/site";
+import { buildPageMetadata, sitePageTitle } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: sitePageTitle("Skin Database"),
+export const metadata = buildPageMetadata({
+  title: sitePageTitle("CS2 Skin Database"),
   description:
-    "Browse the live Counter-Strike 2 item catalog — skins, cases, keys, stickers, and more.",
-};
+    "Browse the live Counter-Strike 2 skin catalog — weapons, cases, keys, stickers, agents, and more with market prices.",
+  path: "/database",
+});
 
 export default function DatabasePage() {
   return (

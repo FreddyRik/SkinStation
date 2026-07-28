@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalArticle } from "@/components/LegalArticle";
-import { SITE_GITHUB_URL, SITE_NAME, SITE_TAGLINE, VALVE_DISCLAIMER } from "@/lib/site";
+import {
+  buildPageMetadata,
+  SITE_GITHUB_URL,
+  SITE_NAME,
+  SITE_TAGLINE,
+  VALVE_DISCLAIMER,
+} from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: `Privacy Policy — ${SITE_NAME}`,
   description: `How ${SITE_NAME} handles data for inventory lookup, the skin catalog, and trade-up tools.`,
-};
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (

@@ -11,6 +11,7 @@ import {
   getCollectionById,
 } from "@/lib/cs-catalog";
 import { getCsgoTraderSteamCatalog } from "@/lib/steam-market/csgotrader";
+import { buildPageMetadata } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +21,27 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
-  const collection = await getCollectionById(decodeURIComponent(id));
-  if (!collection) return { title: "Collection not found" };
-  return {
+  const decodedId = decodeURIComponent(id);
+  const collection = await getCollectionById(decodedId);
+  if (!collection) {
+    return buildPageMetadata({
+      title: "Collection not found",
+      description: "This CS2 collection could not be found.",
+      path: `/collections/${decodedId}`,
+    });
+  }
+
+  const itemCount = collection.contains.length;
+  const description = `Browse ${itemCount.toLocaleString("en-US")} skin${
+    itemCount === 1 ? "" : "s"
+  } in the ${collection.name} Counter-Strike 2 collection on SkinStation.`;
+
+  return buildPageMetadata({
     title: `${collection.name} · Skin Database`,
-  };
+    description,
+    path: `/collections/${encodeURIComponent(collection.id)}`,
+    image: collection.image,
+  });
 }
 
 export default async function CollectionPage({ params }: PageProps) {
@@ -65,7 +82,7 @@ export default async function CollectionPage({ params }: PageProps) {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={collection.image}
-              alt=""
+              alt={collection.name}
               className="max-h-40 w-full object-contain"
             />
           ) : (

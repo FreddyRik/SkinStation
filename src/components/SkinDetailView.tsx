@@ -151,7 +151,7 @@ export function SkinDetailView({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={item.image}
-              alt=""
+              alt={item.name}
               className="max-h-72 w-full object-contain drop-shadow-lg"
             />
           ) : (

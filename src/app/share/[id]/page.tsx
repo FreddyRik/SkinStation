@@ -11,7 +11,7 @@ import {
 } from "@/lib/price-source";
 import { buildShareCardStats } from "@/lib/share-card";
 import { parseShareCardTheme } from "@/lib/share-card-theme";
-import { SITE_NAME } from "@/lib/site";
+import { buildPageMetadata, SITE_NAME } from "@/lib/site";
 import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
 
@@ -34,23 +34,30 @@ export async function generateMetadata({
     include: { items: true },
   });
   if (!profile) {
-    return { title: `${SITE_NAME} Wrapped` };
+    return buildPageMetadata({
+      title: `${SITE_NAME} Wrapped`,
+      description: "Shareable CS2 inventory card on SkinStation.",
+      path: `/share/${id}`,
+    });
   }
 
   const currency = parseCurrency(profile.currency);
   const stats = buildShareCardStats(profile.items, currency, priceSource);
   const name = profile.personaName ?? profile.steamId;
   const top = stats.topItems[0]?.displayName;
+  const description = [
+    `${stats.itemCount} items worth ${stats.headlineLabel} on ${PRICE_SOURCE_LABELS[priceSource]}`,
+    top ? `Top skin: ${top}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-  return {
+  return buildPageMetadata({
     title: `${name} · SkinStation Wrapped`,
-    description: [
-      `${stats.itemCount} items worth ${stats.headlineLabel} on ${PRICE_SOURCE_LABELS[priceSource]}`,
-      top ? `Top skin: ${top}` : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  };
+    description,
+    path: `/share/${profile.id}`,
+    image: profile.avatarUrl,
+  });
 }
 
 export default async function SharePage({ params, searchParams }: PageProps) {

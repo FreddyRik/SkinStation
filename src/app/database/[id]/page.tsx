@@ -5,6 +5,7 @@ import {
   CatalogContainsGrid,
   CatalogNamedRefList,
 } from "@/components/CatalogContainsGrid";
+import { JsonLd } from "@/components/JsonLd";
 import { SkinDetailView } from "@/components/SkinDetailView";
 import {
   CATALOG_KIND_LABELS,
@@ -26,6 +27,8 @@ import {
   getCsgoTraderSteamCatalog,
 } from "@/lib/steam-market/csgotrader";
 import { formatSaleDate } from "@/lib/format";
+import { catalogProductJsonLd } from "@/lib/json-ld";
+import { buildPageMetadata } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -35,12 +38,27 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
-  const item = await getItemById(decodeURIComponent(id));
-  if (!item) return { title: "Item not found" };
-  return {
-    title: `${item.name}${item.phase ? ` · ${item.phase}` : ""} · Skin Database`,
-    description: item.description?.slice(0, 160) || undefined,
-  };
+  const decodedId = decodeURIComponent(id);
+  const item = await getItemById(decodedId);
+  if (!item) {
+    return buildPageMetadata({
+      title: "Item not found",
+      description: "This catalog item could not be found.",
+      path: `/database/${decodedId}`,
+    });
+  }
+
+  const title = `${item.name}${item.phase ? ` · ${item.phase}` : ""} · Skin Database`;
+  const description =
+    item.description?.slice(0, 160) ||
+    `${item.name} in the Counter-Strike 2 skin database on SkinStation.`;
+
+  return buildPageMetadata({
+    title,
+    description,
+    path: `/database/${encodeURIComponent(item.id)}`,
+    image: item.image,
+  });
 }
 
 async function loadPriceMaps() {
@@ -95,13 +113,24 @@ export default async function CatalogItemPage({ params }: PageProps) {
     const phaseSiblings = findPhaseSiblings(payload.items, item);
 
     return (
-      <SkinDetailView
-        item={item}
-        prices={prices}
-        collections={collections}
-        buffGoodsByHash={buffGoodsByHash}
-        phaseSiblings={phaseSiblings}
-      />
+      <>
+        <JsonLd
+          data={catalogProductJsonLd({
+            name: item.name,
+            description: item.description,
+            image: item.image,
+            marketHashName: item.marketHashName,
+            path: `/database/${encodeURIComponent(item.id)}`,
+          })}
+        />
+        <SkinDetailView
+          item={item}
+          prices={prices}
+          collections={collections}
+          buffGoodsByHash={buffGoodsByHash}
+          phaseSiblings={phaseSiblings}
+        />
+      </>
     );
   }
 
@@ -118,12 +147,23 @@ export default async function CatalogItemPage({ params }: PageProps) {
     : item.containsRare;
 
   return (
-    <GenericCatalogItemView
-      item={item}
-      offers={offers}
-      contains={contains}
-      containsRare={containsRare}
-    />
+    <>
+      <JsonLd
+        data={catalogProductJsonLd({
+          name: item.name,
+          description: item.description,
+          image: item.image,
+          marketHashName: item.marketHashName,
+          path: `/database/${encodeURIComponent(item.id)}`,
+        })}
+      />
+      <GenericCatalogItemView
+        item={item}
+        offers={offers}
+        contains={contains}
+        containsRare={containsRare}
+      />
+    </>
   );
 }
 
@@ -173,7 +213,7 @@ function GenericCatalogItemView({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={item.image}
-              alt=""
+              alt={item.name}
               className="max-h-64 w-full object-contain"
             />
           ) : (
