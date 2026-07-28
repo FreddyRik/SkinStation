@@ -29,7 +29,10 @@ export default function PrivacyPage() {
             The Skin Database and Trade-up Calculator use public catalog and market data; they do
             not require a profile unless you link inventory to a trade-up.
           </li>
-          <li>We do not run ads, marketing pixels, or third-party analytics SDKs in the app.</li>
+          <li>
+            We use Vercel Analytics for basic, privacy-friendly page-view metrics — not ads or
+            behavioral marketing pixels.
+          </li>
           <li>
             Early Access limitations (for example incomplete floats) are described on{" "}
             <Link href="/status" className="text-[var(--accent)] transition hover:underline">
@@ -135,9 +138,31 @@ export default function PrivacyPage() {
       <section>
         <h2>Analytics and advertising</h2>
         <p>
-          {SITE_NAME} does not embed advertising networks, behavioral analytics, or social
-          tracking pixels. Platform providers may keep their own operational telemetry under their
-          terms.
+          {SITE_NAME} uses{" "}
+          <a
+            href="https://vercel.com/docs/analytics"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--accent)] transition hover:underline"
+          >
+            Vercel Analytics
+          </a>{" "}
+          on the hosted site to understand aggregate traffic (for example which pages are visited).
+          It is not used for advertising, retargeting, or selling data. Vercel processes this
+          information under its own{" "}
+          <a
+            href="https://vercel.com/legal/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--accent)] transition hover:underline"
+          >
+            privacy policy
+          </a>
+          .
+        </p>
+        <p>
+          We do not embed advertising networks, social tracking pixels, or other behavioral
+          marketing SDKs in the app.
         </p>
       </section>
 
