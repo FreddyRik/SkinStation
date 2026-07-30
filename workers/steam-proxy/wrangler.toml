@@ -1,0 +1,8 @@
+name = "skinstation-steam-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-07-01"
+
+# Set secrets after deploy:
+#   npx wrangler secret put STEAM_PROXY_SECRET
+#
+# Optional vars (non-secret) can go in [vars] if needed.

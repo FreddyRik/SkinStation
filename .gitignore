@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -34,6 +35,10 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# cloudflare workers
+**/.wrangler
+**/wrangler.toml.local
 
 # typescript
 *.tsbuildinfo

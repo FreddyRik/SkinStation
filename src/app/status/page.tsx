@@ -10,7 +10,7 @@ export const metadata: Metadata = buildPageMetadata({
 
 export default function StatusPage() {
   return (
-    <LegalArticle title="Roadmap & Limitations" lastUpdated="July 28, 2026">
+    <LegalArticle title="Roadmap & Limitations" lastUpdated="July 30, 2026">
       <p>
         {SITE_NAME} is in Early Access. The core tools work today — inventory tracking, the
         skin catalog, and trade-up odds — while we keep shipping improvements and polishing
@@ -37,11 +37,11 @@ export default function StatusPage() {
           </li>
           <li>
             <strong className="font-medium text-[var(--text)]">Steam inventory fetches</strong> —
-            Fresh syncs call Steam Community from our hosting IP. Steam rate-limits those
-            requests, so new loads or Refresh can fail temporarily — especially under traffic.
-            When we already have a successful sync, we keep showing that cached inventory and
-            ask you to retry later. A dedicated Steam fetch proxy is planned to improve
-            reliability.
+            Fresh syncs load public Steam Community inventory JSON. On production we prefer an
+            authenticated Cloudflare Worker proxy so Steam is not hit from shared Vercel egress
+            IPs. Steam can still rate-limit Cloudflare’s shared egress under load. When we
+            already have a successful sync, we keep showing that cached inventory and ask you
+            to retry later.
           </li>
           <li>
             <strong className="font-medium text-[var(--text)]">Steam Market prices</strong> —
@@ -65,7 +65,9 @@ export default function StatusPage() {
       <section>
         <h2>What’s next</h2>
         <ul>
-          <li>Dedicated Steam inventory fetch proxy (own IP) to reduce rate-limit failures</li>
+          <li>
+            Sticky dedicated egress (VPS / residential) if Cloudflare ranges become rate-limited
+          </li>
           <li>Faster and more reliable float sync (better inspect coverage)</li>
           <li>Catalog and trade-up calculator polish</li>
           <li>Share-card and inventory UX improvements</li>

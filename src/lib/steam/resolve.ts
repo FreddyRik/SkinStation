@@ -1,4 +1,7 @@
-import { SITE_USER_AGENT } from "@/lib/site";
+import {
+  fetchSteamProfileXml,
+  fetchSteamVanityXml,
+} from "@/lib/steam/steam-proxy";
 
 export type ParsedSteamInput = {
   kind: "steamid64" | "vanity" | "profile_url";
@@ -60,15 +63,7 @@ export async function resolveSteamId64(raw: string): Promise<string> {
   }
 
   const vanity = parsed.value;
-  const res = await fetch(
-    `https://steamcommunity.com/id/${encodeURIComponent(vanity)}/?xml=1`,
-    {
-      headers: {
-        "User-Agent": `Mozilla/5.0 (compatible; ${SITE_USER_AGENT}; +local)`,
-      },
-      next: { revalidate: 0 },
-    },
-  );
+  const res = await fetchSteamVanityXml(vanity);
 
   if (!res.ok) {
     throw new Error(`Failed to resolve vanity URL (HTTP ${res.status}).`);
@@ -96,12 +91,7 @@ export async function fetchSteamProfileMeta(
 ): Promise<SteamProfileMeta> {
   const profileUrl = `https://steamcommunity.com/profiles/${steamId}`;
   try {
-    const res = await fetch(`${profileUrl}/?xml=1`, {
-      headers: {
-        "User-Agent": `Mozilla/5.0 (compatible; ${SITE_USER_AGENT}; +local)`,
-      },
-      next: { revalidate: 0 },
-    });
+    const res = await fetchSteamProfileXml(steamId);
     if (!res.ok) {
       return { steamId, personaName: null, avatarUrl: null, profileUrl };
     }

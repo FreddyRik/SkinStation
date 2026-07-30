@@ -57,6 +57,7 @@ Next.js 15: `params` / `searchParams` are **Promises** — always `await` them.
 | `lib/sync/inventory-sync.ts` | Profile upsert + full sync orchestrator |
 | `lib/steam/resolve.ts` | SteamID64 / vanity / URL → profile meta |
 | `lib/steam/inventory.ts` | Public Steam CS2 inventory fetch |
+| `lib/steam/steam-proxy.ts` | Optional CF Worker proxy for Steam Community HTTP |
 | `lib/csfloat/inspect.ts` | Local inspect-link float / sticker decode (masked + hybrid) |
 | `lib/steamwebapi/*` | Optional inventory + float enrichment |
 | `lib/stickers/*` | Parse, merge by slot, normalize names, icon catalog |
@@ -111,7 +112,7 @@ flowchart TD
 ### 2. Inventory sync (`syncInventory`)
 
 1. **Lock:** atomic `updateMany` where `syncing: false`. Force or stale lock (>10 min) can clear a stuck flag. Concurrent claim → error / HTTP 409.
-2. **Inventory:** `fetchSteamInventory(steamId)` from Steam Community JSON.
+2. **Inventory:** `fetchSteamInventory(steamId)` from Steam Community JSON (via optional `STEAM_PROXY_*` Cloudflare Worker when configured; otherwise direct from the app host).
 3. **Floats / patterns:**
    - Local decode of masked/hybrid inspect links (`lib/csfloat/inspect.ts`).
    - Optional self-hosted inspect API (`INSPECT_API_URL`, CSGOFloat-compatible).
@@ -206,7 +207,8 @@ Hydration rule: initialize with stable defaults, then read localStorage in `useE
 
 | Service | Purpose |
 | --- | --- |
-| Steam Community | Vanity resolve, profile XML, public inventory |
+| Steam Community | Vanity resolve, profile XML, public inventory (optionally via CF Worker) |
+| Cloudflare Worker (`workers/steam-proxy`) | Optional authenticated Steam fetch proxy off Vercel egress |
 | Steam Market | `priceoverview` gap-fill |
 | CSGOTrader price dump | Buff163 + Steam prices |
 | Frankfurter | USD→EUR for CSGOTrader when needed |
@@ -245,5 +247,7 @@ Optional keys degrade gracefully: skip enrichers, show soft warnings, keep core 
 | `INSPECT_API_URL` | No | Preferred self-hosted inspect/float API (omit on Vercel v1 → degrade floats) |
 | `STEAMWEBAPI_KEY` | No | Optional last-resort floats (omit on Vercel v1) |
 | `FACEIT_API_KEY` | No | Official FACEIT ranks |
+| `STEAM_PROXY_URL` | No | Cloudflare Worker base URL — recommended on Vercel |
+| `STEAM_PROXY_SECRET` | No | Bearer secret shared with the Worker (never `NEXT_PUBLIC_`) |
 
 See `.env.example`, `README.md`, and `docs/DEPLOY.md` for setup. Vercel build should use `npm run build:vercel` (`prisma migrate deploy && next build`).

@@ -4,6 +4,7 @@ import {
   DEFAULT_CURRENCY,
   STEAM_CURRENCY_CODES,
 } from "@/lib/currency";
+import { fetchSteamPriceOverview } from "@/lib/steam/steam-proxy";
 
 const STEAM_PRICE_TTL_MS = 60 * 60 * 1000;
 
@@ -52,26 +53,12 @@ async function fetchSteamPriceOnce(
   currency: Currency,
   attempt = 0,
 ): Promise<number | null> {
-  const params = new URLSearchParams({
-    appid: "730",
-    currency: STEAM_CURRENCY_CODES[currency],
-    market_hash_name: marketHashName,
-  });
-
   try {
-    const res = await fetch(
-      `https://steamcommunity.com/market/priceoverview/?${params}`,
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          Accept: "application/json, text/javascript, */*; q=0.01",
-          "Accept-Language": "en-US,en;q=0.9",
-          Referer: "https://steamcommunity.com/market/",
-        },
-        next: { revalidate: 0 },
-      },
-    );
+    const res = await fetchSteamPriceOverview({
+      marketHashName,
+      currencyCode: STEAM_CURRENCY_CODES[currency],
+      appId: "730",
+    });
 
     if (res.status === 429) {
       if (attempt >= 4) return null;

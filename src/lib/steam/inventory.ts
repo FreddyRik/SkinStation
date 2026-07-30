@@ -5,6 +5,7 @@ import {
   isPropIdInspectLink,
   isRemoteInspectableLink,
 } from "@/lib/inspect/links";
+import { fetchSteamInventoryPage } from "@/lib/steam/steam-proxy";
 
 export type SteamDescription = {
   classid: string;
@@ -71,8 +72,6 @@ export type ParsedInventoryItem = {
   type: string | null;
 };
 
-const APP_ID = 730;
-const CONTEXT_ID = 2;
 const PAGE_SIZE = 2000;
 const INVENTORY_CACHE_TTL_MS = 15 * 60 * 1000;
 
@@ -292,23 +291,10 @@ async function fetchSteamInventoryFromSteam(
   let startAssetId: string | undefined;
 
   for (let page = 0; page < 20; page++) {
-    const params = new URLSearchParams({
-      l: "english",
-      count: String(PAGE_SIZE),
-    });
-    if (startAssetId) {
-      params.set("start_assetid", startAssetId);
-    }
-
-    const url = `https://steamcommunity.com/inventory/${steamId}/${APP_ID}/${CONTEXT_ID}?${params}`;
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "application/json, text/javascript, */*;q=0.01",
-        Referer: `https://steamcommunity.com/profiles/${steamId}/inventory`,
-      },
-      next: { revalidate: 0 },
+    const res = await fetchSteamInventoryPage({
+      steamId,
+      count: PAGE_SIZE,
+      startAssetId,
     });
 
     if (res.status === 403) {

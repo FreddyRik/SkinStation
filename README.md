@@ -120,6 +120,8 @@ The chart shows **your portfolio snapshots** from each successful sync (7D / 30D
 | `INSPECT_API_DELAY_MS` | No | Delay between inspect calls (default `1100`) |
 | `STEAMWEBAPI_KEY` | No | Optional last-resort float fallback |
 | `FACEIT_API_KEY` | No | Optional official FACEIT ranks (otherwise Leetify public data may fill in) |
+| `STEAM_PROXY_URL` | No | Cloudflare Worker URL for Steam Community fetches (recommended on Vercel) |
+| `STEAM_PROXY_SECRET` | No | Bearer secret shared with the Worker |
 
 ## Scripts
 
@@ -131,5 +133,6 @@ The chart shows **your portfolio snapshots** from each successful sync (7D / 30D
 | `npm run db:deploy` | `prisma migrate deploy` (CI / Vercel / shared DBs) |
 | `npm run db:migrate` | `prisma migrate dev` (local schema changes) |
 | `npm run smoke:db` | Connectivity + schema smoke check against configured Postgres |
+| `npm run smoke:steam-proxy` | Unit checks for Steam proxy config / error mapping |
 | `npm run db:harden` | Revoke Data API grants / `rls_auto_enable` EXECUTE (Supabase) |
 | `npm run test:inspect-decode` | Probe local masked/hybrid float decode |

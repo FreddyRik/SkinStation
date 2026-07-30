@@ -42,6 +42,17 @@ export function sanitizeSyncClientError(err: unknown): {
     };
   }
   if (
+    lower.includes("steam proxy unauthorized") ||
+    lower.includes("steam proxy is misconfigured") ||
+    lower.includes("proxy authentication failed")
+  ) {
+    return {
+      status: 502,
+      error:
+        "Steam fetch proxy is misconfigured. Check STEAM_PROXY_URL and STEAM_PROXY_SECRET.",
+    };
+  }
+  if (
     lower.includes("could not resolve") ||
     lower.includes("invalid steam") ||
     lower.includes("vanity") ||

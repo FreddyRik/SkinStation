@@ -26,6 +26,10 @@ import { stripStickerPrefix } from "@/lib/stickers/normalize";
 import { resolveSteamPrices } from "@/lib/steam-market/prices";
 import { fetchSteamInventory } from "@/lib/steam/inventory";
 import {
+  isSteamProxyConfigError,
+  isSteamProxyTransientError,
+} from "@/lib/steam/steam-proxy";
+import {
   fetchSteamProfileMeta,
   resolveSteamId64,
 } from "@/lib/steam/resolve";
@@ -110,7 +114,7 @@ export type SyncResult = {
 };
 
 const STEAM_RATE_LIMIT_CACHE_WARNING =
-  "Steam rate-limited this server IP. Showing your last successful sync — try Refresh again in a few minutes.";
+  "Steam rate-limited the inventory fetch. Showing your last successful sync — try Refresh again in a few minutes.";
 
 const STEAM_TRANSIENT_CACHE_WARNING =
   "Steam inventory was temporarily unavailable. Showing your last successful sync — try Refresh again shortly.";
@@ -127,6 +131,9 @@ function isPrivateInventoryError(message: string): boolean {
 /** Transient Steam Community failures where serving DB cache is better than failing hard. */
 function isTransientSteamInventoryError(message: string): boolean {
   if (isPrivateInventoryError(message)) return false;
+  // Proxy auth/config mistakes should hard-fail so ops notices — not look like Steam 429.
+  if (isSteamProxyConfigError(message)) return false;
+  if (isSteamProxyTransientError(message)) return true;
   const lower = message.toLowerCase();
   return (
     lower.includes("rate-limited") ||
@@ -135,7 +142,8 @@ function isTransientSteamInventoryError(message: string): boolean {
     lower.includes("empty inventory response") ||
     lower.includes("invalid json") ||
     lower.includes("could not load inventory") ||
-    lower.includes("too large to sync")
+    lower.includes("too large to sync") ||
+    lower.includes("timed out")
   );
 }
 

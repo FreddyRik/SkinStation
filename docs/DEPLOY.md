@@ -16,7 +16,25 @@ Do this before the first production deploy. Do **not** commit `.env`.
    Or paste [`scripts/supabase-harden.sql`](scripts/supabase-harden.sql) into the Supabase SQL Editor.
 3. Omit `STEAMWEBAPI_KEY` / `INSPECT_API_*` on Vercel for v1 (degraded floats).
 
-## 2. Upstash (recommended for production rate limits)
+## 2. Steam fetch proxy (recommended on Vercel)
+
+Steam rate-limits shared Vercel egress. Deploy the Worker in [`workers/steam-proxy`](../workers/steam-proxy/README.md):
+
+```bash
+cd workers/steam-proxy
+npm install
+npx wrangler secret put STEAM_PROXY_SECRET
+npx wrangler deploy
+```
+
+Set on Vercel (Production + Preview):
+
+- `STEAM_PROXY_URL` — Worker URL (no trailing slash)
+- `STEAM_PROXY_SECRET` — same value as the Worker secret
+
+When both are set, inventory / vanity / profile XML / `priceoverview` go through Cloudflare. When unset, the app calls Steam directly (fine for local dev). Do **not** rely on silent direct fallback in production if the proxy is misconfigured — fix the secret instead.
+
+## 3. Upstash (recommended for production rate limits)
 
 1. Create a Redis database at [Upstash](https://upstash.com).
 2. Copy REST URL + token into Vercel env:
@@ -24,7 +42,7 @@ Do this before the first production deploy. Do **not** commit `.env`.
    - `UPSTASH_REDIS_REST_TOKEN`
 3. Without these, the app falls back to **per-instance** in-memory limits (weaker on serverless).
 
-## 3. Vercel project
+## 4. Vercel project
 
 Set **server** environment variables (Production + Preview as needed):
 
@@ -37,6 +55,8 @@ Set **server** environment variables (Production + Preview as needed):
 | `SYNC_COOLDOWN_MS` | Optional (default 15m in code if unset) |
 | `SYNC_FORCE_SECRET` | Optional; required only if you need admin force-sync via `x-sync-force-secret` header |
 | `FACEIT_API_KEY` | Optional |
+| `STEAM_PROXY_URL` | Recommended on Vercel — Cloudflare Worker base URL (see `workers/steam-proxy`) |
+| `STEAM_PROXY_SECRET` | Recommended with URL — shared Bearer secret (Worker + Vercel) |
 
 Build command (also in `vercel.json`):
 
@@ -46,14 +66,14 @@ npm run build:vercel
 
 (`prisma migrate deploy && next build`)
 
-## 4. Post-deploy smoke
+## 5. Post-deploy smoke
 
 1. Open the production URL over HTTPS.
 2. Paste a **public** Steam profile → Load inventory.
 3. Confirm inventory page, Refresh cooldown, share card, trade-up catalog.
 4. Confirm `/privacy` and `/terms` reflect hosted Postgres language.
 
-## 5. Admin force sync (optional)
+## 6. Admin force sync (optional)
 
 Public UI no longer exposes Force. To bypass cooldown with a secret:
 
