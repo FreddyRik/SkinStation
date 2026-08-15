@@ -30,5 +30,8 @@ describe("parseSteamInput", () => {
     expect(() => parseSteamInput("gaben")).toThrow(
       /steamcommunity.com profile/,
     );
+    expect(() => parseSteamInput("10000000000000000")).toThrow(
+      /Could not parse Steam profile URL or SteamID64/,
+    );
   });
 });

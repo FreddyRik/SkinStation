@@ -203,6 +203,11 @@ Documented in [§6](#6-authentication-and-api-routes).
 | `lib/reputation/lookup.ts` | FACEIT + Leetify |
 | `lib/api/rate-limit.ts` | Upstash / in-memory limiter |
 | `lib/api/errors.ts` | Sanitized client errors + force-sync auth |
+| `lib/api/schemas.ts` | Zod request bodies, SteamID64, inspect links |
+| `lib/net/ssrf.ts` | HTTPS / allowlist / private-IP outbound guards |
+| `lib/net/circuit-breaker.ts` | Per-provider open / half-open / closed |
+| `lib/cache/two-tier.ts` | Redis + Postgres stale-while-revalidate |
+| `lib/portfolio/history.ts` | Downsampled snapshot queries |
 | `lib/currency.ts` / `lib/price-source.ts` | Currency / price-source prefs + totals |
 | `lib/share-card*.ts` | Share card stats, theme, PNG helpers, image allowlist |
 | `lib/fx.ts` | USD→EUR (Frankfurter, 24h in-process cache) |
@@ -255,6 +260,48 @@ flowchart TD
 3. Client stores the opaque `profile.id` in `skinstation-recent-profiles` (max 8) and calls `POST /api/sync`.
 
 ### 5.2 Inventory sync (`syncInventory`)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant UI as Browser
+  participant API as POST /api/sync
+  participant RL as Upstash / memory limiter
+  participant DB as PostgreSQL
+  participant Steam as Steam Community / CF Worker
+  participant Local as Local inspect decode
+  participant Inspect as INSPECT_API_URL
+  participant Webapi as Steamwebapi
+  participant Prices as CSGOTrader + PriceCache
+
+  UI->>API: { profileId or input, currency? }
+  API->>API: Zod body (strict) + size cap
+  API->>RL: IP + SteamID64 sliding windows
+  alt rate limited
+    RL-->>UI: 429 Retry-After
+  end
+  API->>DB: cooldown / atomic sync lock
+  API->>Steam: public CS2 inventory JSON
+  alt Steam 429 / timeout / circuit open
+    Steam-->>API: fail
+    API->>DB: last InventoryItem rows
+    API-->>UI: warning + usedCachedInventory
+  else ok
+    Steam-->>API: assets + descriptions
+    API->>Local: masked / hybrid inspect links
+    alt still missing floats
+      API->>Inspect: GET ?url= (HTTPS allowlist, 4s, circuit)
+      Inspect-->>API: float / certificate or skip
+    end
+    alt still missing and key set
+      API->>Webapi: inventory + /float/assets (4s, circuit)
+      Webapi-->>API: gap-fill or quota
+    end
+    API->>Prices: Buff dump → Steam dump → priceoverview SWR
+    API->>DB: replace items + PortfolioSnapshot + release lock
+    API-->>UI: itemCount / totals / warning
+  end
+```
 
 1. **Cooldown.** If `lastSyncedAt` is within `SYNC_COOLDOWN_MS` and this is not an authorized force or currency change, return cached items (`skippedCooldown: true`). Reputation still refreshes if never fetched.
 2. **Lock.** Atomic `updateMany` where `syncing: false` **or** `syncing: true` and `updatedAt` older than **10 minutes**. Sets `syncLockToken` (UUID). Concurrent claim → thrown error → HTTP 409. Force does **not** steal a fresh lock.
@@ -474,6 +521,12 @@ erDiagram
     datetime fetchedAt
     int itemCount
   }
+
+  KvCache {
+    string key PK "e.g. fx:usd-eur"
+    string value "JSON"
+    datetime fetchedAt
+  }
 ```
 
 ### 7.1 Indexes and uniqueness
@@ -503,7 +556,9 @@ Release is token-scoped so a stolen stale lock cannot be cleared by the previous
 - Price-source toggle, page theme, recent profile MRU → **browser localStorage**
 - ByMykel catalog JSON → in-process memory (24h TTL)
 - Steam inventory JSON → in-process memory (15 min TTL) plus durable `InventoryItem` rows after a successful sync
-- FX rate → in-process memory (24h TTL)
+- FX rate → Redis (1h) + `KvCache` row `fx:usd-eur` (stale-while-revalidate) + in-process memory
+
+`KvCache` is a generic JSON blob table used when Redis is down or cold: read Redis → else Postgres → if stale, revalidate upstream with a circuit breaker and keep serving the stale row.
 
 ---
 
@@ -530,7 +585,31 @@ flowchart LR
 
 Stickers merge by **slot**, not by name: Steam HTML descriptions, local decode, inspect API, certificate inspect, Steamwebapi. Icons resolve from (1) sticker items already in the same inventory, (2) ByMykel `stickers.json`, (3) HTML `img src`.
 
-`INSPECT_API_MAX_FETCHES` (default 120) and `INSPECT_API_DELAY_MS` (default 1100) cap GC-bot load per sync. Quota / 429 becomes a **soft warning** on `Profile.lastError`, not a failed sync.
+`INSPECT_API_MAX_FETCHES` (default 120) and `INSPECT_API_DELAY_MS` (default 1100) cap GC-bot load per sync. Each remote step uses a **4s timeout**, exponential backoff on failure, and a named circuit breaker (`inspect-api`, `steamwebapi`) so a dead worker cannot stall the whole sync. Quota / 429 / open circuit becomes a **soft warning** on `Profile.lastError`, not a failed sync. Inspect fetches only target `INSPECT_API_URL`'s host (optional `INSPECT_API_ALLOWED_HOSTS`) after a public-DNS SSRF check.
+
+```mermaid
+sequenceDiagram
+  participant Sync as syncInventory
+  participant CB as Circuit breaker
+  participant API as Inspect / Steamwebapi
+  participant Cache as Previous InventoryItem
+
+  Sync->>CB: isCircuitOpen(provider)?
+  alt open
+    CB-->>Sync: skip provider
+    Sync->>Cache: keep previous float
+  else closed / half-open
+    Sync->>API: fetch (4s timeout, backoff)
+    alt success
+      API-->>Sync: float / miss
+      Sync->>CB: record success
+    else timeout / 5xx / 429
+      API-->>Sync: fail
+      Sync->>CB: record failure (opens after threshold)
+      Sync->>Cache: keep previous float
+    end
+  end
+```
 
 ---
 
@@ -540,8 +619,37 @@ Stickers merge by **slot**, not by name: Steam HTML descriptions, local decode, 
 
 1. CSGOTrader Buff163 dump → `buffPrice` (`starting_at.price`)
 2. CSGOTrader bulk Steam dump → `steamPrice` (`last_24h` then 7d / 30d / 90d)
-3. Steam Market `priceoverview` → limited gap-fill (`resolveSteamPrices`, max 15 fetches, 1100ms delay, 429 backoff)
-4. Results upserted into `PriceCache` keyed by `(marketHashName, currency)`
+3. Steam Market `priceoverview` → limited gap-fill (`resolveSteamPrices`, max 15 fetches, backoff, 429/circuit skip)
+4. Results upserted into `PriceCache` keyed by `(marketHashName, currency)`. Fresh TTL 1h; rows up to 24h are served stale-while-revalidate when Steam is down.
+
+FX (`GET /api/fx` / `getUsdToEurRate`): Redis 1h → Postgres `KvCache` → Frankfurter (4s, circuit) → last stale rate → `0.92`.
+
+```mermaid
+sequenceDiagram
+  participant App as Next.js
+  participant Redis as Upstash Redis
+  participant PG as KvCache / PriceCache
+  participant Up as Frankfurter / Steam / CSGOTrader
+
+  App->>Redis: GET fx:usd-eur / price key
+  alt fresh hit
+    Redis-->>App: JSON
+  else miss
+    App->>PG: SELECT by key / (name, currency)
+    alt row younger than fresh TTL
+      PG-->>App: value (promote to Redis)
+    else stale or missing
+      App->>Up: fetch (4s, circuit)
+      alt ok
+        Up-->>App: payload
+        App->>Redis: SET TTL
+        App->>PG: UPSERT
+      else fail / circuit open
+        PG-->>App: stale row or 0.92 / last steamPrice
+      end
+    end
+  end
+```
 
 Non-listable items (`itemCanListOnMarket` false — e.g. some non-market types) store `null` prices even if a catalog hit exists.
 
@@ -584,15 +692,18 @@ Knives/gloves cannot be **inputs**.
 PostgreSQL (Prisma)
     ↓
 RSC page (inventory/[id]/page.tsx)
-  - load Profile + items + snapshots (up to 500)
+  - load Profile + items
+  - downsampled snapshots (hourly ≤30d, daily older) via (profileId, createdAt)
   - parse stickers JSON
   - optional non-blocking reputation backfill
     ↓
 InventoryDashboard (client)
   - filters / sort / search / grid-list
+  - window virtualization above ~48 items
   - currency + price-source toggles
   - Refresh → POST /api/sync → router.refresh()
-  - ItemHoverCard, ReputationBadges, Recharts, ShareCardDialog
+  - ItemHoverCard, ReputationBadges, Recharts
+  - ShareCardDialog inside SectionErrorBoundary
 ```
 
 Share flow: `ShareCardDialog` / `/share/[id]` builds stats (`lib/share-card.ts`), proxies Steam images (`/api/image-proxy`), exports PNG via `html-to-image` **in a click handler only** (never during SSR/render).

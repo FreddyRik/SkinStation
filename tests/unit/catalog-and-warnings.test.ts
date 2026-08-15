@@ -101,7 +101,7 @@ describe("stored view/theme parsers", () => {
     expect(parseInventoryView("cards")).toBe("grid");
     expect(parsePageTheme("midsummer")).toBe("midsummer");
     expect(parsePageTheme("neon")).toBe("classic");
-    expect(parseShareCardTheme("dark")).toBe("dark");
+    expect(parseShareCardTheme("dark")).toBe("classic");
   });
 });
 

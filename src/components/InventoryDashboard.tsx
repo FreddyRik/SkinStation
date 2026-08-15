@@ -21,6 +21,8 @@ import { ReputationBadges } from "@/components/ReputationBadges";
 import { ShareCardDialog } from "@/components/ShareCardDialog";
 import { SteamMarketLink } from "@/components/SteamMarketLink";
 import { BuffMarketLink } from "@/components/BuffMarketLink";
+import { SectionErrorBoundary } from "@/components/ui/SectionErrorBoundary";
+import { VirtualizedInventory } from "@/components/VirtualizedInventory";
 import type { Currency } from "@/lib/currency";
 import {
   CURRENCY_CHANGE_EVENT,
@@ -601,14 +603,16 @@ export function InventoryDashboard({
         </div>
       </section>
 
-      <ShareCardDialog
-        open={shareOpen}
-        onClose={() => setShareOpen(false)}
-        profile={profile}
-        items={displayItems}
-        currency={currency}
-        priceSource={priceSource}
-      />
+      <SectionErrorBoundary name="Share card generator">
+        <ShareCardDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          profile={profile}
+          items={displayItems}
+          currency={currency}
+          priceSource={priceSource}
+        />
+      </SectionErrorBoundary>
 
       {(error || note || warning) && (
         <div className="space-y-1 text-sm">
@@ -789,52 +793,44 @@ export function InventoryDashboard({
               : "No items match these filters."}
           </p>
         ) : (
-          <ul
-            className={
-              inventoryView === "list"
-                ? "flex flex-col gap-1.5"
-                : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-            }
-          >
-            {filtered.map((item) => {
+          <VirtualizedInventory
+            items={filtered}
+            view={inventoryView}
+            getKey={(item) => item.id}
+            renderItem={(item) => {
               const showPrice = itemCanListOnMarket(item);
               const price = showPrice ? itemPrice(item, priceSource) : null;
               const floatProviderWarning = warning ?? profile.lastError;
               return (
-                <li
-                  key={item.id}
-                  className={inventoryView === "grid" ? "h-full" : undefined}
+                <ItemHoverCard
+                  item={item}
+                  currency={currency}
+                  priceSource={priceSource}
+                  floatProviderWarning={floatProviderWarning}
                 >
-                  <ItemHoverCard
-                    item={item}
-                    currency={currency}
-                    priceSource={priceSource}
-                    floatProviderWarning={floatProviderWarning}
-                  >
-                    {inventoryView === "list" ? (
-                      <InventoryListRow
-                        item={item}
-                        price={price}
-                        showPrice={showPrice}
-                        currency={currency}
-                        priceSource={priceSource}
-                        accent={portfolioAccent}
-                      />
-                    ) : (
-                      <InventoryGridCard
-                        item={item}
-                        price={price}
-                        showPrice={showPrice}
-                        currency={currency}
-                        priceSource={priceSource}
-                        accent={portfolioAccent}
-                      />
-                    )}
-                  </ItemHoverCard>
-                </li>
+                  {inventoryView === "list" ? (
+                    <InventoryListRow
+                      item={item}
+                      price={price}
+                      showPrice={showPrice}
+                      currency={currency}
+                      priceSource={priceSource}
+                      accent={portfolioAccent}
+                    />
+                  ) : (
+                    <InventoryGridCard
+                      item={item}
+                      price={price}
+                      showPrice={showPrice}
+                      currency={currency}
+                      priceSource={priceSource}
+                      accent={portfolioAccent}
+                    />
+                  )}
+                </ItemHoverCard>
               );
-            })}
-          </ul>
+            }}
+          />
         )}
       </section>
     </div>

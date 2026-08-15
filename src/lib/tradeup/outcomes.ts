@@ -8,6 +8,7 @@ import {
   nextTier,
   type TradeUpTier,
 } from "@/lib/tradeup/rarity";
+import { normalizeProbabilities } from "@/lib/tradeup/math";
 
 export type OutcomeCandidate = {
   skinId: string;
@@ -176,6 +177,11 @@ export function buildWeightedOutcomes(args: {
     out.push({ ...meta, probability: prob, groupId, groupName });
   }
 
+  const normalized = normalizeProbabilities(out.map((o) => o.probability));
+  for (let i = 0; i < out.length; i++) {
+    out[i] = { ...out[i]!, probability: normalized[i] ?? 0 };
+  }
+
   out.sort((a, b) => b.probability - a.probability || a.name.localeCompare(b.name));
   return out;
 }
@@ -193,10 +199,37 @@ export function groupKeyForInput(
     }
     return null;
   }
-  // Prefer first collection that exists in our trade-up map.
-  // Do not return an id absent from ctx — buildWeightedOutcomes would drop its weight.
+  // Prefer first collection that exists in our trade-up map AND has a next-tier pool.
   for (const collectionId of skin.collectionIds) {
-    if (ctx.collectionsById.has(collectionId)) return collectionId;
+    if (!ctx.collectionsById.has(collectionId)) continue;
+    if (groupHasOutcomePool(inputTier, "normal", collectionId, ctx)) return collectionId;
   }
   return null;
+}
+
+/** True when this collection/crate can produce at least one outcome at the next tier. */
+export function groupHasOutcomePool(
+  inputTier: TradeUpTier,
+  variant: TradeUpVariant,
+  groupKey: string,
+  ctx: TradeUpPoolContext,
+): boolean {
+  if (inputTier === "covert") {
+    const crate = ctx.cratesById.get(groupKey);
+    if (!crate) return false;
+    let rares = crate.containsRare;
+    if (variant === "stattrak") {
+      rares = rares.filter((r) => r.isKnife && !r.isGlove);
+    }
+    return rares.length > 0;
+  }
+  const target = nextTier(inputTier);
+  if (!target) return false;
+  const collection = ctx.collectionsById.get(groupKey);
+  if (!collection) return false;
+  return collection.contains.some((c) => {
+    if (c.rarityTier !== target) return false;
+    const skin = ctx.skinsById.get(c.id);
+    return Boolean(skin && !skin.isKnife && !skin.isGlove);
+  });
 }

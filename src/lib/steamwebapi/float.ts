@@ -17,6 +17,8 @@ import {
   extractInspectPayload,
   isMaskedInspectPayload,
 } from "@/lib/inspect/links";
+import { isCircuitOpen, recordCircuitFailure, recordCircuitSuccess } from "@/lib/net/circuit-breaker";
+import { fetchWithTimeout, sleep, UPSTREAM_STEP_TIMEOUT_MS } from "@/lib/net/resilient-fetch";
 import { isSteamwebapiLimitResponse } from "@/lib/steamwebapi/errors";
 import { SITE_USER_AGENT } from "@/lib/site";
 import {
@@ -45,9 +47,7 @@ export type SteamwebapiFloatEnrichResult = {
   missed: number;
 };
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const STEAMWEBAPI_CIRCUIT = "steamwebapi";
 
 export function getSteamwebapiKey(): string | null {
   const key = process.env.STEAMWEBAPI_KEY?.trim();
@@ -113,6 +113,10 @@ function parseFloatPayload(data: JsonObject): SteamwebapiFloat | null {
   return { floatValue, paintSeed, paintIndex, inspectLink };
 }
 
+function isTimeoutError(err: unknown): boolean {
+  return err instanceof Error && (err.name === "AbortError" || /aborted|timeout/i.test(err.message));
+}
+
 type FloatFetchOutcome =
   | { ok: true; value: SteamwebapiFloat | null }
   | { ok: false; limitHit: true };
@@ -132,16 +136,16 @@ async function fetchFloatFromAssetDb(
   });
 
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://www.steamwebapi.com/steam/api/float/assets?${params}`,
       {
         headers: {
           Accept: "application/json",
           "User-Agent": SITE_USER_AGENT,
         },
-        next: { revalidate: 0 },
-        signal: AbortSignal.timeout(12_000),
+        cache: "no-store",
       },
+      UPSTREAM_STEP_TIMEOUT_MS,
     );
     const body = await res.text();
     if (isSteamwebapiLimitResponse(res.status, body)) {
@@ -171,7 +175,8 @@ async function fetchFloatFromAssetDb(
       if (parsed) return { ok: true, value: parsed };
     }
     return { ok: true, value: null };
-  } catch {
+  } catch (err) {
+    if (isTimeoutError(err)) return { ok: false, limitHit: true };
     return { ok: true, value: null };
   }
 }
@@ -196,16 +201,16 @@ async function fetchFloatFromCertificate(
   });
 
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://www.steamwebapi.com/steam/api/float?${params}`,
       {
         headers: {
           Accept: "application/json",
           "User-Agent": SITE_USER_AGENT,
         },
-        next: { revalidate: 0 },
-        signal: AbortSignal.timeout(12_000),
+        cache: "no-store",
       },
+      UPSTREAM_STEP_TIMEOUT_MS,
     );
     const body = await res.text();
     if (isSteamwebapiLimitResponse(res.status, body)) {
@@ -223,7 +228,8 @@ async function fetchFloatFromCertificate(
     }
 
     return { ok: true, value: parseFloatPayload(data) };
-  } catch {
+  } catch (err) {
+    if (isTimeoutError(err)) return { ok: false, limitHit: true };
     return { ok: true, value: null };
   }
 }
@@ -246,6 +252,10 @@ export async function enrichFloatsViaSteamwebapi(
   const floats = new Map<string, SteamwebapiFloat>();
   if (!key) {
     return { floats, limitHit: false, resolved: 0, missed: 0 };
+  }
+
+  if (await isCircuitOpen(STEAMWEBAPI_CIRCUIT)) {
+    return { floats, limitHit: true, resolved: 0, missed: 0 };
   }
 
   const maxFetches = options?.maxFetches ?? 80;
@@ -302,6 +312,7 @@ export async function enrichFloatsViaSteamwebapi(
     fetched += 1;
     if (!outcome.ok) {
       limitHit = true;
+      await recordCircuitFailure(STEAMWEBAPI_CIRCUIT);
       break;
     }
 
@@ -316,6 +327,7 @@ export async function enrichFloatsViaSteamwebapi(
       fetched += 1;
       if (!outcome.ok) {
         limitHit = true;
+        await recordCircuitFailure(STEAMWEBAPI_CIRCUIT);
         break;
       }
     }
@@ -323,6 +335,7 @@ export async function enrichFloatsViaSteamwebapi(
     if (outcome.value) {
       floats.set(target.assetId, outcome.value);
       resolved += 1;
+      await recordCircuitSuccess(STEAMWEBAPI_CIRCUIT);
     } else {
       missed += 1;
     }

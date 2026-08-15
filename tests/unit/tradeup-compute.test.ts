@@ -111,6 +111,28 @@ describe("validateTradeUpContract", () => {
     });
   });
 
+  it("rejects souvenir inputs and StatTrak/normal mixing", () => {
+    const souvenir = tenInputs();
+    souvenir[0] = {
+      ...souvenir[0]!,
+      marketHashName: "Souvenir AK-47 | Redline (Field-Tested)",
+    };
+    expect(validateTradeUpContract(souvenir, skinsById, ctx)).toMatchObject({
+      ok: false,
+      error: "Souvenir items cannot be used in trade-up contracts.",
+    });
+
+    const mixed = tenInputs();
+    mixed[1] = {
+      ...mixed[1]!,
+      marketHashName: "StatTrak™ AK-47 | Redline (Field-Tested)",
+    };
+    expect(validateTradeUpContract(mixed, skinsById, ctx)).toMatchObject({
+      ok: false,
+      error: "StatTrak and normal skins cannot be mixed in one contract.",
+    });
+  });
+
   it("rejects knives as inputs", () => {
     const knife = skin({
       id: "knife",

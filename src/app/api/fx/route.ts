@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/errors";
-import { getUsdToEurRate, parseUsdToEurRate } from "@/lib/fx";
+import { getUsdToEurRate } from "@/lib/fx-live";
+import { parseUsdToEurRate } from "@/lib/fx";
 
 export const dynamic = "force-dynamic";
 

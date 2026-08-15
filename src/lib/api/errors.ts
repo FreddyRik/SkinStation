@@ -8,6 +8,19 @@ import { secretsEqual } from "@/lib/api/secrets";
 const SECRET_LEAK_RE =
   /STEAM_PROXY|SYNC_FORCE|STEAMWEBAPI_KEY|FACEIT_API_KEY|INSPECT_API|API_KEY|SECRET|Bearer\s+\S+|authorization/i;
 
+export function isDatabaseError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const name = "name" in err && typeof err.name === "string" ? err.name : "";
+  return (
+    name.startsWith("PrismaClient") ||
+    name === "PrismaClientKnownRequestError" ||
+    name === "PrismaClientUnknownRequestError" ||
+    name === "PrismaClientRustPanicError" ||
+    name === "PrismaClientInitializationError" ||
+    name === "PrismaClientValidationError"
+  );
+}
+
 export function publicApiError(
   err: unknown,
   fallback: string,
@@ -45,6 +58,9 @@ export function sanitizeSyncClientError(err: unknown): {
   status: number;
   error: string;
 } {
+  if (isDatabaseError(err)) {
+    return { status: 500, error: "Sync failed. Please try again later." };
+  }
   const raw = err instanceof Error ? err.message : "Sync failed";
   const lower = raw.toLowerCase();
 
@@ -111,6 +127,9 @@ export function sanitizeProfileCreateError(err: unknown): {
   status: number;
   error: string;
 } {
+  if (isDatabaseError(err)) {
+    return { status: 500, error: "Failed to create profile. Please try again." };
+  }
   const raw = err instanceof Error ? err.message : "Failed to create profile";
   const lower = raw.toLowerCase();
 

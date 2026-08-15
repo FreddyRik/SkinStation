@@ -298,7 +298,11 @@ SkinStation is a **public lookup cache**, not a multi-tenant SaaS with logins.
 | --- | --- |
 | User auth | None. No passwords, sessions, or Steam OAuth |
 | API errors | Structured `{ error: string }` — internal messages are sanitized (`src/lib/api/errors.ts`) |
-| Rate limits | Middleware: 10 POSTs/min/IP on `/api/sync` and `/api/profiles`; 60 GETs/min/IP on `/api/image-proxy`. Extra 6 syncs/hour per `profileId+IP` on `/api/sync` |
+| Rate limits | Middleware: 10 POSTs/min/IP on `/api/sync` and `/api/profiles`; 120 GETs/min/IP on `/api/*`; 60 GETs/min/IP on `/api/image-proxy`. Extra 6 syncs/hour per `profileId+IP` **and** per SteamID64. Trade-up catalog 30/min/IP |
+| Input validation | Zod on every JSON body and path id; SteamID64 BigInt universe/type checks; inspect links must be `steam://rungame/730/...` |
+| SSRF | Image proxy + inspect API + Steam worker URL: HTTPS, no credentials, DNS private-IP block, host allowlists |
+| Secrets | Server-only env (`STEAMWEBAPI_KEY`, `STEAM_PROXY_SECRET`, `DATABASE_URL`). Only `NEXT_PUBLIC_SITE_URL` is client-visible |
+| Circuit breakers | Inspect API, Steamwebapi, Frankfurter, Steam proxy, `priceoverview` — 4s step timeout + exponential backoff |
 | Sync lock | Atomic `updateMany` claim with `syncLockToken`; stale after 10 minutes |
 | Image proxy | HTTPS only; allowlisted Steam CDN hosts; 8 MB cap; blocks localhost / `.internal` |
 | Steam proxy | Bearer secret; no `Access-Control-Allow-Origin: *`; CS2-only (`appid` 730) |
@@ -312,7 +316,7 @@ SkinStation is a **public lookup cache**, not a multi-tenant SaaS with logins.
 
 ```
 skinstation/
-├── prisma/schema.prisma          # Profile, InventoryItem, PriceCache, snapshots
+├── prisma/schema.prisma          # Profile, InventoryItem, PriceCache, snapshots, KvCache
 ├── prisma/migrations/            # PostgreSQL migrations
 ├── src/app/                      # App Router pages + Route Handlers
 ├── src/components/               # Client UI ("use client")

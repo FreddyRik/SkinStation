@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/fx", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/fx")>();
-  return {
-    ...actual,
-    getUsdToEurRate: vi.fn(),
-  };
-});
+vi.mock("@/lib/fx-live", () => ({
+  getUsdToEurRate: vi.fn(),
+}));
 
 import { GET } from "@/app/api/fx/route";
-import { getUsdToEurRate } from "@/lib/fx";
+import { getUsdToEurRate } from "@/lib/fx-live";
 
 describe("GET /api/fx", () => {
   beforeEach(() => {

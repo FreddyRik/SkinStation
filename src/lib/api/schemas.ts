@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { CURRENCIES } from "@/lib/currency";
+import { isWellFormedInspectLink } from "@/lib/inspect/links";
 import { RECENT_PROFILES_LIMIT } from "@/lib/recent-profiles";
+import { isSteamAssetId, isSteamId64 } from "@/lib/steam/steamid";
 
 /** Prisma cuid() ids — alphanumeric, bounded to reject junk / injection probes. */
 export const profileIdSchema = z
@@ -9,6 +11,23 @@ export const profileIdSchema = z
   .min(8)
   .max(64)
   .regex(/^[a-zA-Z0-9]+$/, "Invalid profile id.");
+
+export const steamId64Schema = z
+  .string()
+  .trim()
+  .refine(isSteamId64, "Invalid SteamID64.");
+
+export const steamAssetIdSchema = z
+  .string()
+  .trim()
+  .refine(isSteamAssetId, "Invalid asset id.");
+
+export const inspectLinkSchema = z
+  .string()
+  .trim()
+  .min(24)
+  .max(4096)
+  .refine(isWellFormedInspectLink, "Invalid CS2 inspect link.");
 
 export const steamInputSchema = z
   .string()

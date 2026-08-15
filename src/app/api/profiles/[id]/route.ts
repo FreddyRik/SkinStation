@@ -6,6 +6,8 @@ import {
 import { jsonError, sanitizePublicErrorMessage } from "@/lib/api/errors";
 import { profileIdSchema } from "@/lib/api/schemas";
 import { prisma } from "@/lib/db";
+import { parseCurrency } from "@/lib/currency";
+import { loadPortfolioHistory } from "@/lib/portfolio/history";
 import { portfolioTotalFromItems } from "@/lib/price-source";
 import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
@@ -26,10 +28,6 @@ export async function GET(_req: Request, { params }: Params) {
       include: {
         items: {
           orderBy: [{ buffPrice: "desc" }, { marketHashName: "asc" }],
-        },
-        snapshots: {
-          orderBy: { createdAt: "desc" },
-          take: 100,
         },
       },
     });
@@ -56,6 +54,11 @@ export async function GET(_req: Request, { params }: Params) {
     const totalSteam = portfolioTotalFromItems(items, "steam");
     const totalBuff = portfolioTotalFromItems(items, "buff");
 
+    const snapshots = await loadPortfolioHistory(
+      id,
+      parseCurrency(profile.currency),
+    );
+
     return NextResponse.json({
       profile: {
         id: profile.id,
@@ -81,7 +84,7 @@ export async function GET(_req: Request, { params }: Params) {
         syncing: profile.syncing,
       },
       items,
-      snapshots: [...profile.snapshots].reverse(),
+      snapshots,
       totals: {
         itemCount: items.length,
         totalSteam,

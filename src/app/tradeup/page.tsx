@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { TradeUpCalculator } from "@/components/tradeup/TradeUpCalculator";
+import { SectionErrorBoundary } from "@/components/ui/SectionErrorBoundary";
 import { buildPageMetadata, sitePageTitle } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,9 @@ export default function TradeUpPage() {
         </p>
       }
     >
-      <TradeUpCalculator />
+      <SectionErrorBoundary name="Trade-up calculator">
+        <TradeUpCalculator />
+      </SectionErrorBoundary>
     </Suspense>
   );
 }

@@ -7,6 +7,7 @@ import {
   isLocallyDecodableInspectLink,
   isMaskedInspectPayload,
   isPropIdInspectLink,
+  isWellFormedInspectLink,
 } from "@/lib/inspect/links";
 
 describe("inspect links", () => {
@@ -40,5 +41,13 @@ describe("inspect links", () => {
     expect(isLocallyDecodableInspectLink(masked)).toBe(true);
     expect(isLocallyDecodableInspectLink("preview %propid:1%")).toBe(false);
     expect(isLocallyDecodableInspectLink(null)).toBe(false);
+  });
+
+  it("accepts only steam:// CS2 inspect URIs", () => {
+    const ok =
+      "steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20S76561198000000000A123D0";
+    expect(isWellFormedInspectLink(ok)).toBe(true);
+    expect(isWellFormedInspectLink("https://evil.example/inspect")).toBe(false);
+    expect(isWellFormedInspectLink("javascript:alert(1)")).toBe(false);
   });
 });

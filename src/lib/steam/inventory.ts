@@ -6,6 +6,7 @@ import {
   isRemoteInspectableLink,
 } from "@/lib/inspect/links";
 import { fetchSteamInventoryPage } from "@/lib/steam/steam-proxy";
+import { isSteamAssetId } from "@/lib/steam/steamid";
 
 export type SteamDescription = {
   classid: string;
@@ -226,6 +227,7 @@ function parsePage(
       descriptions.get(descriptionKey(asset.classid, "0"));
 
     if (!desc) continue;
+    if (!isSteamAssetId(asset.assetid)) continue;
 
     const marketHashName =
       desc.market_hash_name ?? desc.market_name ?? desc.name;

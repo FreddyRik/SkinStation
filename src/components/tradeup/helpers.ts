@@ -140,6 +140,15 @@ export function inventoryItemEligibility(
   reason?: string;
 } {
   const detected = detectMarketVariant(item.marketHashName);
+  if (detected.variant === "souvenir") {
+    return {
+      ok: false,
+      skin: null,
+      tier: rarityNameToTier(item.rarity),
+      variant: "normal",
+      reason: "Souvenir",
+    };
+  }
   const variant: TradeUpVariant =
     detected.variant === "stattrak" ? "stattrak" : "normal";
 

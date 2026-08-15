@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import type { Currency } from "@/lib/currency";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
-import { getUsdToEurRate } from "@/lib/fx";
+import { getUsdToEurRate } from "@/lib/fx-live";
 import { SITE_USER_AGENT } from "@/lib/site";
 import { jsonObject, jsonObjectField } from "@/types/json";
 
@@ -75,7 +75,8 @@ async function loadJsonCatalog(
       Accept: "application/json",
       "User-Agent": SITE_USER_AGENT,
     },
-    next: { revalidate: 0 },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
   });
 
   if (!res.ok) {

@@ -4,6 +4,15 @@ vi.mock("@/lib/tradeup/catalog", () => ({
   buildTradeUpCatalogPayload: vi.fn(),
 }));
 
+vi.mock("@/lib/api/rate-limit", () => ({
+  rateLimit: vi.fn(async () => ({
+    ok: true,
+    remaining: 10,
+    retryAfterSec: 0,
+  })),
+  clientIpFromRequest: vi.fn(() => "1.2.3.4"),
+}));
+
 import { GET } from "@/app/api/tradeup/catalog/route";
 import { buildTradeUpCatalogPayload } from "@/lib/tradeup/catalog";
 

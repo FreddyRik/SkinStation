@@ -6,6 +6,8 @@ import {
 } from "@/lib/buff/goods-ids";
 import { parseCurrency } from "@/lib/currency";
 import { prisma } from "@/lib/db";
+import { profileIdSchema } from "@/lib/api/schemas";
+import { loadPortfolioHistory } from "@/lib/portfolio/history";
 import { portfolioTotalFromItems } from "@/lib/price-source";
 import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
@@ -49,17 +51,18 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 export default async function InventoryPage({ params }: PageProps) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const idParsed = profileIdSchema.safeParse(rawId);
+  if (!idParsed.success) {
+    notFound();
+  }
+  const id = idParsed.data;
 
   const profile = await prisma.profile.findUnique({
     where: { id },
     include: {
       items: {
         orderBy: [{ buffPrice: "desc" }, { marketHashName: "asc" }],
-      },
-      snapshots: {
-        orderBy: { createdAt: "desc" },
-        take: 500,
       },
     },
   });
@@ -111,6 +114,7 @@ export default async function InventoryPage({ params }: PageProps) {
 
   const totalSteam = portfolioTotalFromItems(items, "steam");
   const totalBuff = portfolioTotalFromItems(items, "buff");
+  const snapshots = await loadPortfolioHistory(id, currency);
 
   return (
     <InventoryDashboard
@@ -138,14 +142,7 @@ export default async function InventoryPage({ params }: PageProps) {
         syncing: profile.syncing,
       }}
       items={items}
-      snapshots={[...profile.snapshots].reverse().map((s) => ({
-        id: s.id,
-        currency: parseCurrency(s.currency, currency),
-        itemCount: s.itemCount,
-        totalSteam: s.totalSteam,
-        totalBuff: s.totalBuff,
-        createdAt: s.createdAt.toISOString(),
-      }))}
+      snapshots={snapshots}
       totals={{
         itemCount: items.length,
         totalSteam,

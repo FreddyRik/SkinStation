@@ -13,6 +13,19 @@ vi.mock("@/lib/buff/goods-ids", () => ({
   getBuffGoodsIdMap: vi.fn(async () => new Map([["AK-47 | Redline (Field-Tested)", 42]])),
 }));
 
+vi.mock("@/lib/portfolio/history", () => ({
+  loadPortfolioHistory: vi.fn(async () => [
+    {
+      id: "s1",
+      currency: "USD",
+      itemCount: 1,
+      totalBuff: 8,
+      totalSteam: 10,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    },
+  ]),
+}));
+
 import { GET } from "@/app/api/profiles/[id]/route";
 import { prisma } from "@/lib/db";
 

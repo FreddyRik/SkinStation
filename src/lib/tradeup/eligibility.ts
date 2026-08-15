@@ -12,6 +12,7 @@ import type {
 } from "@/lib/tradeup/types";
 import {
   buildWeightedOutcomes,
+  groupHasOutcomePool,
   groupKeyForInput,
   type TradeUpPoolContext,
 } from "@/lib/tradeup/outcomes";
@@ -78,8 +79,12 @@ export function validateTradeUpContract(
     if (input.marketHashName) {
       const detected = detectMarketVariant(input.marketHashName).variant;
       if (detected === "souvenir") {
-        slotVariant = "normal"; // souvenir attribute stripped
-      } else if (detected === "stattrak") {
+        return {
+          ok: false,
+          error: "Souvenir items cannot be used in trade-up contracts.",
+        };
+      }
+      if (detected === "stattrak") {
         slotVariant = "stattrak";
       }
     }
@@ -93,6 +98,12 @@ export function validateTradeUpContract(
     }
 
     if (lockedVariant == null) lockedVariant = slotVariant;
+    else if (input.marketHashName && slotVariant !== lockedVariant) {
+      return {
+        ok: false,
+        error: "StatTrak and normal skins cannot be mixed in one contract.",
+      };
+    }
     // When marketHashName is absent (sandbox), trust the first locked variant
     // passed via consistent costs — caller should set marketHashName or we
     // infer from a contract-level variant. Re-check below after loop using
@@ -114,6 +125,18 @@ export function validateTradeUpContract(
 
   if (!lockedTier || !lockedVariant) {
     return { ok: false, error: "Could not determine contract rarity." };
+  }
+
+  for (const row of resolved) {
+    if (!groupHasOutcomePool(lockedTier, lockedVariant, row.groupKey, ctx)) {
+      return {
+        ok: false,
+        error:
+          lockedTier === "covert"
+            ? `“${row.skin.name}” has no knife/glove outcomes for this contract.`
+            : `“${row.skin.name}” has no higher-tier skins in its collection.`,
+      };
+    }
   }
 
   // Re-evaluate variants when market hashes are missing: treat as normal

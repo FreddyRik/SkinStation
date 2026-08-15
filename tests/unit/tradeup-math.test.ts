@@ -4,6 +4,7 @@ import {
   clampFloat,
   financialSummary,
   normalizeInputFloat,
+  normalizeProbabilities,
   outputFloatFromNormalized,
   pickPrice,
   wearBandForFloat,
@@ -30,6 +31,7 @@ describe("float math", () => {
   it("averages normalized inputs", () => {
     expect(averageNormalized([])).toBe(0);
     expect(averageNormalized([0.2, 0.4, 0.6])).toBeCloseTo(0.4);
+    expect(averageNormalized([0.1, 0.2])).toBeCloseTo(0.15);
   });
 
   it("maps average normalized float back to an output range", () => {
@@ -82,6 +84,27 @@ describe("financialSummary", () => {
     expect(summary.expectedValue).toBe(0);
     expect(summary.profit).toBe(0);
     expect(summary.roi).toBeNull();
+  });
+
+  it("avoids 0.1 + 0.2 floating-point drift in EV", () => {
+    const summary = financialSummary(
+      [
+        { probability: 0.1, price: 10 },
+        { probability: 0.2, price: 10 },
+        { probability: 0.7, price: 10 },
+      ],
+      10,
+    );
+    expect(summary.expectedValue).toBe(10);
+    expect(summary.profit).toBe(0);
+  });
+});
+
+describe("normalizeProbabilities", () => {
+  it("forces bins to sum to 1", () => {
+    const out = normalizeProbabilities([0.1, 0.2, 0.7]);
+    const sum = out.reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(1, 9);
   });
 });
 

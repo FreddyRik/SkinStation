@@ -4,7 +4,7 @@
  * Not a public CORS proxy — Bearer secret required; no ACAO: *.
  */
 
-const STEAM_ID64_RE = /^7656119\d{10}$/;
+const STEAM_ID64_RE = /^\d{17}$/;
 const VANITY_RE = /^[a-zA-Z0-9_-]{2,64}$/;
 const APP_ID = "730";
 const CONTEXT_ID = "2";
@@ -20,6 +20,25 @@ type Env = {
 const rateHits = new Map<string, { count: number; resetAt: number }>();
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_PER_KEY = 30;
+
+function isSteamId64(value: string): boolean {
+  if (!STEAM_ID64_RE.test(value)) return false;
+  try {
+    const n = BigInt(value);
+    const universe = n >> 56n;
+    const accountType = (n >> 52n) & 0xfn;
+    const instance = (n >> 32n) & 0xfffffn;
+    return (
+      universe === 1n &&
+      accountType === 1n &&
+      (instance === 0n || instance === 1n) &&
+      n >= 76561197960265728n &&
+      n <= 76561202255233023n
+    );
+  } catch {
+    return false;
+  }
+}
 
 function jsonError(
   status: number,
@@ -180,7 +199,7 @@ async function handleInventory(
   if (rl) return rl;
 
   const steamId = url.searchParams.get("steamId")?.trim() ?? "";
-  if (!STEAM_ID64_RE.test(steamId)) {
+  if (!isSteamId64(steamId)) {
     return jsonError(400, "bad_request", "Invalid or missing steamId.");
   }
 
@@ -236,7 +255,7 @@ async function handleProfile(
   if (rl) return rl;
 
   const steamId = url.searchParams.get("steamId")?.trim() ?? "";
-  if (!STEAM_ID64_RE.test(steamId)) {
+  if (!isSteamId64(steamId)) {
     return jsonError(400, "bad_request", "Invalid or missing steamId.");
   }
 

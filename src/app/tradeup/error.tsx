@@ -1,7 +1,6 @@
 "use client";
 
 export default function TradeUpError({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -13,9 +12,6 @@ export default function TradeUpError({
       <p className="mt-2 text-sm text-[var(--danger)]">
         Something went wrong computing this trade-up.
       </p>
-      {error.message ? (
-        <p className="mt-2 text-xs text-[var(--text-muted)]">{error.message}</p>
-      ) : null}
       <button
         type="button"
         onClick={reset}

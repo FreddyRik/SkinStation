@@ -5,7 +5,7 @@
  */
 
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { getRedis, hasUpstashEnv } from "@/lib/cache/redis";
 
 type Bucket = {
   tokens: number;
@@ -23,16 +23,7 @@ export type RateLimitResult = {
   retryAfterSec: number;
 };
 
-function getRedis(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
-  if (!url || !token) return null;
-  return new Redis({ url, token, keepAlive: true });
-}
-
-function hasUpstashEnv(): boolean {
-  return Boolean(getRedis());
-}
+export { getRedis, hasUpstashEnv };
 
 function getUpstashLimiter(
   name: string,

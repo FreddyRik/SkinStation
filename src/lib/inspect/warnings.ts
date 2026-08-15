@@ -1,10 +1,12 @@
 /** Soft float-provider warnings (sync still succeeded). */
 
 import { isSteamwebapiLimitMessage } from "@/lib/steamwebapi/errors";
-import {
-  INSPECT_API_LIMIT_MESSAGE,
-  INSPECT_API_MISSING_MESSAGE,
-} from "@/lib/inspect/remote";
+
+export const INSPECT_API_LIMIT_MESSAGE =
+  "Inspect API rate-limited or unavailable — float/pattern data may be incomplete.";
+
+export const INSPECT_API_MISSING_MESSAGE =
+  "Float/pattern data may be incomplete for some items. Masked inspect links still decode locally.";
 
 export function isFloatProviderSoftWarning(
   message: string | null | undefined,

@@ -64,6 +64,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const steamLimit = await rateLimit(
+      `sync:steamid:${exists.steamId}`,
+      PROFILE_SYNC_LIMIT,
+    );
+    if (!steamLimit.ok && !force) {
+      return jsonErrorWithRetryAfter(
+        "Too many syncs for this SteamID. Please wait and try again.",
+        steamLimit.retryAfterSec,
+      );
+    }
+
     const result = await syncInventory(profileId, {
       force,
       currency,

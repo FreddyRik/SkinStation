@@ -16,15 +16,29 @@
 
 import {
   isRemoteInspectableLink,
+  isWellFormedInspectLink,
   resolveInspectLinkForEnrichment,
 } from "@/lib/inspect/links";
+import { isCircuitOpen, recordCircuitFailure, recordCircuitSuccess } from "@/lib/net/circuit-breaker";
+import { backoffDelayMs, fetchWithBackoff, sleep, UPSTREAM_STEP_TIMEOUT_MS } from "@/lib/net/resilient-fetch";
+import {
+  assertSafeOutboundUrl,
+  inspectApiAllowedHosts,
+  UnsafeOutboundUrlError,
+} from "@/lib/net/ssrf";
 import { SITE_USER_AGENT } from "@/lib/site";
+import {
+  INSPECT_API_LIMIT_MESSAGE,
+  INSPECT_API_MISSING_MESSAGE,
+} from "@/lib/inspect/warnings";
 import {
   jsonObject,
   jsonObjectField,
   parseJsonObject,
   type JsonObject,
 } from "@/types/json";
+
+export { INSPECT_API_LIMIT_MESSAGE, INSPECT_API_MISSING_MESSAGE };
 
 export type RemoteFloat = {
   floatValue: number | null;
@@ -47,24 +61,29 @@ export type RemoteFloatEnrichResult = {
   providerConfigured: boolean;
 };
 
-export const INSPECT_API_LIMIT_MESSAGE =
-  "Inspect API rate-limited or unavailable — float/pattern data may be incomplete.";
-
-export const INSPECT_API_MISSING_MESSAGE =
-  "Float/pattern data may be incomplete for some items. Masked inspect links still decode locally.";
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const INSPECT_CIRCUIT = "inspect-api";
 
 export function getInspectApiBaseUrl(): string | null {
   const raw = process.env.INSPECT_API_URL?.trim();
   if (!raw) return null;
   const cleaned = raw.replace(/\/+$/, "");
   try {
-    // Validate once so a typo does not burn the per-sync fetch budget.
-    new URL(cleaned);
-    return cleaned;
+    const parsed = new URL(cleaned);
+    const host = parsed.hostname.toLowerCase();
+    const loopback =
+      host === "127.0.0.1" || host === "localhost" || host === "[::1]";
+    if (parsed.protocol === "https:") {
+      return cleaned;
+    }
+    if (
+      parsed.protocol === "http:" &&
+      loopback &&
+      process.env.NODE_ENV !== "production"
+    ) {
+      return cleaned;
+    }
+    console.warn("INSPECT_API_URL must be HTTPS (or http://localhost in development); ignoring.");
+    return null;
   } catch {
     console.warn("INSPECT_API_URL is not a valid URL; ignoring.");
     return null;
@@ -178,11 +197,31 @@ async function fetchFloatFromInspectApi(
   inspectLink: string,
   apiKey: string | null,
 ): Promise<RemoteFloat | null> {
-  const url = new URL(baseUrl.includes("?") ? baseUrl : `${baseUrl}/`);
-  // CSGOFloat-compatible: GET /?url=...
+  if (!isWellFormedInspectLink(inspectLink) && !isRemoteInspectableLink(inspectLink)) {
+    return null;
+  }
+
+  const allowedHosts = inspectApiAllowedHosts(baseUrl);
+  let safeBase: URL;
+  try {
+    safeBase = await assertSafeOutboundUrl(baseUrl, { allowedHosts });
+  } catch (err) {
+    if (
+      process.env.NODE_ENV !== "production" &&
+      /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])/i.test(baseUrl)
+    ) {
+      safeBase = new URL(baseUrl);
+    } else {
+      throw err;
+    }
+  }
+  const url = new URL(safeBase.toString());
   url.searchParams.set("url", inspectLink);
   if (apiKey && !url.searchParams.has("key")) {
     url.searchParams.set("key", apiKey);
+  }
+  if (url.hostname !== safeBase.hostname) {
+    throw new UnsafeOutboundUrlError("Inspect API host drifted off the allowlist.");
   }
 
   const headers: Record<string, string> = {
@@ -193,18 +232,25 @@ async function fetchFloatFromInspectApi(
     headers.Authorization = `Bearer ${apiKey}`;
   }
 
-  const res = await fetch(url.toString(), {
-    headers,
-    next: { revalidate: 0 },
-    signal: AbortSignal.timeout(20_000),
-  });
+  const res = await fetchWithBackoff(
+    url.toString(),
+    {
+      headers,
+      redirect: "manual",
+      cache: "no-store",
+    },
+    { timeoutMs: UPSTREAM_STEP_TIMEOUT_MS, retries: 1 },
+  );
+
+  if (res.status >= 300 && res.status < 400) {
+    throw new UnsafeOutboundUrlError("Inspect API redirects are not followed.");
+  }
 
   const body = await res.text();
   if (res.status === 429 || res.status === 402) {
     throw new InspectApiLimitError(body.slice(0, 160));
   }
   if (!res.ok) {
-    // Some providers return 500 with a JSON error about rate limits.
     try {
       parseRemoteFloatResponse(body);
     } catch (err) {
@@ -260,6 +306,14 @@ export async function enrichFloatsViaInspectApi(
     };
   }
 
+  if (await isCircuitOpen(INSPECT_CIRCUIT)) {
+    return {
+      floats,
+      warning: INSPECT_API_LIMIT_MESSAGE,
+      providerConfigured: true,
+    };
+  }
+
   const apiKey = getInspectApiKey();
   const maxFetchesRaw = Number.parseInt(
     process.env.INSPECT_API_MAX_FETCHES ?? "120",
@@ -291,14 +345,25 @@ export async function enrichFloatsViaInspectApi(
     try {
       const value = await fetchFloatFromInspectApi(baseUrl, link, apiKey);
       fetched += 1;
+      await recordCircuitSuccess(INSPECT_CIRCUIT);
       if (value) floats.set(target.assetId, value);
     } catch (err) {
       fetched += 1;
       if (err instanceof InspectApiLimitError) {
+        await recordCircuitFailure(INSPECT_CIRCUIT);
         warning = err.message;
         break;
       }
+      if (err instanceof UnsafeOutboundUrlError) {
+        await recordCircuitFailure(INSPECT_CIRCUIT);
+        warning = INSPECT_API_LIMIT_MESSAGE;
+        console.warn("Inspect API URL rejected:", err.message);
+        break;
+      }
+      await recordCircuitFailure(INSPECT_CIRCUIT);
       console.warn("Inspect API float failed:", target.assetId, err);
+      await sleep(backoffDelayMs(fetched, delayMs, 8_000));
+      continue;
     }
 
     await sleep(delayMs);

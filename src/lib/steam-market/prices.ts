@@ -4,14 +4,14 @@ import {
   DEFAULT_CURRENCY,
   STEAM_CURRENCY_CODES,
 } from "@/lib/currency";
+import { isCircuitOpen, recordCircuitFailure, recordCircuitSuccess } from "@/lib/net/circuit-breaker";
+import { backoffDelayMs, sleep } from "@/lib/net/resilient-fetch";
 import { fetchSteamPriceOverview } from "@/lib/steam/steam-proxy";
 import { parseJsonObject } from "@/types/json";
 
 const STEAM_PRICE_TTL_MS = 60 * 60 * 1000;
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const STEAM_PRICE_STALE_MS = 24 * 60 * 60 * 1000;
+const STEAM_PRICE_CIRCUIT = "steam-priceoverview";
 
 /** Parse Steam price strings for USD ($1.23 / $1,234.56) and EUR (1,23€ / 1.234,56€). */
 export function parseSteamPrice(raw?: string): number | null {
@@ -55,8 +55,8 @@ async function fetchSteamPriceOnce(
     });
 
     if (res.status === 429) {
-      if (attempt >= 4) return null;
-      await sleep(4000 * (attempt + 1));
+      if (attempt >= 2) return null;
+      await sleep(backoffDelayMs(attempt, 1000, 8_000));
       return fetchSteamPriceOnce(marketHashName, currency, attempt + 1);
     }
 
@@ -114,7 +114,13 @@ export async function resolveSteamPrices(
       result.set(name, row.steamPrice);
     } else {
       needsFetch.push(name);
-      if (row?.steamPrice != null) {
+      if (
+        row?.steamPrice != null &&
+        row.steamFetchedAt &&
+        now - row.steamFetchedAt.getTime() < STEAM_PRICE_STALE_MS
+      ) {
+        result.set(name, row.steamPrice);
+      } else if (row?.steamPrice != null) {
         result.set(name, row.steamPrice);
       }
     }
@@ -131,6 +137,10 @@ export async function resolveSteamPrices(
   let fetched = 0;
   let consecutiveFails = 0;
 
+  if (await isCircuitOpen(STEAM_PRICE_CIRCUIT)) {
+    return result;
+  }
+
   for (const name of needsFetch) {
     if (fetched >= maxFetches) break;
 
@@ -140,6 +150,7 @@ export async function resolveSteamPrices(
     if (price != null) {
       result.set(name, price);
       consecutiveFails = 0;
+      await recordCircuitSuccess(STEAM_PRICE_CIRCUIT);
     } else {
       consecutiveFails += 1;
     }
@@ -164,6 +175,7 @@ export async function resolveSteamPrices(
     await sleep(pause);
 
     if (consecutiveFails >= 8) {
+      await recordCircuitFailure(STEAM_PRICE_CIRCUIT);
       break;
     }
   }

@@ -2,13 +2,12 @@ import {
   fetchSteamProfileXml,
   fetchSteamVanityXml,
 } from "@/lib/steam/steam-proxy";
+import { isSteamId64 } from "@/lib/steam/steamid";
 
 export type ParsedSteamInput = {
   kind: "steamid64" | "vanity" | "profile_url";
   value: string;
 };
-
-const STEAM_ID64_RE = /^7656119\d{10}$/;
 
 /** Parse SteamID64, vanity name, or profile URL. */
 export function parseSteamInput(raw: string): ParsedSteamInput {
@@ -17,8 +16,11 @@ export function parseSteamInput(raw: string): ParsedSteamInput {
     throw new Error("Enter a Steam profile URL or SteamID64.");
   }
 
-  if (STEAM_ID64_RE.test(input)) {
+  if (isSteamId64(input)) {
     return { kind: "steamid64", value: input };
+  }
+  if (/^\d{17}$/.test(input)) {
+    throw new Error("Could not parse Steam profile URL or SteamID64.");
   }
 
   try {
@@ -32,7 +34,7 @@ export function parseSteamInput(raw: string): ParsedSteamInput {
     }
 
     const parts = url.pathname.split("/").filter(Boolean);
-    if (parts[0] === "profiles" && parts[1] && STEAM_ID64_RE.test(parts[1])) {
+    if (parts[0] === "profiles" && parts[1] && isSteamId64(parts[1])) {
       return { kind: "steamid64", value: parts[1] };
     }
     if (
@@ -71,7 +73,7 @@ export async function resolveSteamId64(raw: string): Promise<string> {
 
   const xml = await res.text();
   const match = xml.match(/<steamID64>(\d+)<\/steamID64>/);
-  if (!match?.[1] || !STEAM_ID64_RE.test(match[1])) {
+  if (!match?.[1] || !isSteamId64(match[1])) {
     throw new Error(
       `Could not resolve vanity name "${vanity}". Check the profile URL.`,
     );

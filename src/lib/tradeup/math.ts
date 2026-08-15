@@ -2,6 +2,31 @@ import { WEAR_BANDS, type WearBand } from "@/lib/cs-catalog/wears";
 import type { TradeUpOutcome, TradeUpPriceEntry, TradeUpVariant } from "@/lib/tradeup/types";
 import { skinMarketHashName } from "@/lib/cs-catalog/wears";
 
+const FLOAT_SCALE = BigInt(1_000_000_000);
+const ZERO = BigInt(0);
+const TWO = BigInt(2);
+
+function toScaled(value: number): bigint {
+  if (!Number.isFinite(value)) return ZERO;
+  return BigInt(Math.round(value * 1e9));
+}
+
+function fromScaled(value: bigint): number {
+  return Number(value) / 1e9;
+}
+
+/** Round a CS2 float to 9 decimal places (uint32 wear precision). */
+export function roundFloat(value: number, decimals = 9): number {
+  if (!Number.isFinite(value)) return 0;
+  const f = 10 ** decimals;
+  return Math.round(value * f) / f;
+}
+
+export function roundMoney(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 /** CS exterior for a float value (standard half-open bands; BS includes 1). */
 export function wearBandForFloat(floatValue: number): WearBand {
   if (!Number.isFinite(floatValue)) return WEAR_BANDS[0]!;
@@ -32,12 +57,20 @@ export function normalizeInputFloat(
   const hi = maxFloat;
   if (!(hi > lo)) return 0;
   const clamped = clampFloat(floatValue, lo, hi);
-  return (clamped - lo) / (hi - lo);
+  const scaled = toScaled(clamped) - toScaled(lo);
+  const span = toScaled(hi) - toScaled(lo);
+  if (span <= ZERO) return 0;
+  return fromScaled((scaled * FLOAT_SCALE) / span);
 }
 
 export function averageNormalized(normalized: number[]): number {
   if (normalized.length === 0) return 0;
-  return normalized.reduce((a, b) => a + b, 0) / normalized.length;
+  let sum = ZERO;
+  for (const n of normalized) {
+    sum += toScaled(clampFloat(n, 0, 1));
+  }
+  const len = BigInt(normalized.length);
+  return fromScaled((sum + len / TWO) / len);
 }
 
 export function outputFloatFromNormalized(
@@ -46,8 +79,10 @@ export function outputFloatFromNormalized(
   outMax: number,
 ): number {
   const n = clampFloat(avgNormalized, 0, 1);
-  if (!(outMax > outMin)) return outMin;
-  return outMin + n * (outMax - outMin);
+  if (!(outMax > outMin)) return roundFloat(outMin);
+  const span = toScaled(outMax) - toScaled(outMin);
+  const offset = (toScaled(n) * span) / FLOAT_SCALE;
+  return roundFloat(fromScaled(toScaled(outMin) + offset));
 }
 
 export function pickPrice(
@@ -80,12 +115,35 @@ export function financialSummary(
   outcomes: Pick<TradeUpOutcome, "probability" | "price">[],
   totalCost: number,
 ): { expectedValue: number; profit: number; roi: number | null } {
-  const expectedValue = outcomes.reduce((sum, o) => {
+  let evScaled = ZERO;
+  for (const o of outcomes) {
     const p = o.price;
-    if (p == null || !Number.isFinite(p)) return sum;
-    return sum + o.probability * p;
-  }, 0);
-  const profit = expectedValue - totalCost;
-  const roi = totalCost > 0 ? profit / totalCost : null;
+    if (p == null || !Number.isFinite(p) || !Number.isFinite(o.probability)) continue;
+    evScaled += toScaled(o.probability) * toScaled(p) / FLOAT_SCALE;
+  }
+  const expectedValue = roundMoney(fromScaled(evScaled));
+  const cost = roundMoney(Number.isFinite(totalCost) ? totalCost : 0);
+  const profit = roundMoney(expectedValue - cost);
+  const roi = cost > 0 ? profit / cost : null;
   return { expectedValue, profit, roi };
+}
+
+/** Force probabilities to sum to 1 using integer millionths, adjusting the largest bin. */
+export function normalizeProbabilities(probabilities: number[]): number[] {
+  if (probabilities.length === 0) return probabilities;
+  const scaled = probabilities.map((p) => {
+    if (!Number.isFinite(p) || p <= 0) return ZERO;
+    return toScaled(p);
+  });
+  const sum = scaled.reduce((a, b) => a + b, ZERO);
+  if (sum === ZERO) return probabilities.map(() => 0);
+  const normalized = scaled.map((s) => (s * FLOAT_SCALE) / sum);
+  const normSum = normalized.reduce((a, b) => a + b, ZERO);
+  const drift = FLOAT_SCALE - normSum;
+  let maxI = 0;
+  for (let i = 1; i < normalized.length; i++) {
+    if (normalized[i]! > normalized[maxI]!) maxI = i;
+  }
+  normalized[maxI] = (normalized[maxI] ?? ZERO) + drift;
+  return normalized.map((s) => fromScaled(s));
 }

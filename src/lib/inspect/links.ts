@@ -8,8 +8,13 @@
  * `@vlydev/cs2-masked-inspect` (primary) / `@csfloat/cs2-inspect-serializer`.
  */
 
+import { isSteamAssetId, isSteamId64 } from "@/lib/steam/steamid";
+
 const CLASSIC_PREVIEW_PREFIX =
   "steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20";
+
+const INSPECT_SCHEME_RE =
+  /^steam:\/\/(?:rungame\/730\/\d+\/|run\/730\/\/)\+csgo_econ_action_preview(?:%20|\+| )/i;
 
 /** Build a classic inventory inspect link (D=0 when the real D is unknown). */
 export function buildClassicInspectLink(
@@ -17,7 +22,8 @@ export function buildClassicInspectLink(
   assetId: string,
   dParam = "0",
 ): string {
-  return `${CLASSIC_PREVIEW_PREFIX}S${steamId}A${assetId}D${dParam}`;
+  const did = /^\d{1,20}$/.test(dParam) ? dParam : "0";
+  return `${CLASSIC_PREVIEW_PREFIX}S${steamId}A${assetId}D${did}`;
 }
 
 export function extractInspectPayload(inspectLink: string): string | null {
@@ -80,9 +86,17 @@ export function isLocallyDecodableInspectLink(
 }
 
 /**
- * Link is usable by a remote GC inspect provider (classic, hybrid, or masked).
- * PropId placeholders are not.
+ * Strict CS2 inspect URI: steam://rungame/730/... or steam://run/730//...
+ * plus a classic / hybrid / masked payload. Rejects javascript: and http URLs.
  */
+export function isWellFormedInspectLink(inspectLink: string): boolean {
+  const trimmed = inspectLink.trim();
+  if (!trimmed || trimmed.length > 4096) return false;
+  if (/%propid:\d+%/i.test(trimmed)) return false;
+  if (!INSPECT_SCHEME_RE.test(trimmed)) return false;
+  return isRemoteInspectableLink(trimmed) || isLocallyDecodableInspectLink(trimmed);
+}
+
 export function isRemoteInspectableLink(inspectLink: string | null): boolean {
   if (!inspectLink || isPropIdInspectLink(inspectLink)) return false;
   const payload = extractInspectPayload(inspectLink);
@@ -104,6 +118,9 @@ export function resolveInspectLinkForEnrichment(options: {
   inspectLink: string | null;
 }): string | null {
   const { steamId, assetId, inspectLink } = options;
+  if (!isSteamId64(steamId) || !isSteamAssetId(assetId)) {
+    return inspectLink && isWellFormedInspectLink(inspectLink) ? inspectLink : null;
+  }
   if (inspectLink && isRemoteInspectableLink(inspectLink)) {
     return inspectLink;
   }

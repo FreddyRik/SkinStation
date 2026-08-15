@@ -1,5 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { convertMoney, convertMoneyOrZero, getUsdToEurRate } from "@/lib/fx";
+
+vi.mock("@/lib/cache/two-tier", () => ({
+  cacheGetJson: vi.fn(async () => null),
+  cacheSetJson: vi.fn(async () => undefined),
+}));
+
+vi.mock("@/lib/net/circuit-breaker", () => ({
+  isCircuitOpen: vi.fn(async () => false),
+  recordCircuitFailure: vi.fn(async () => ({
+    state: "closed",
+    failures: 1,
+    openedAt: 0,
+    lastFailureAt: Date.now(),
+  })),
+  recordCircuitSuccess: vi.fn(async () => undefined),
+}));
+
+import { convertMoney, convertMoneyOrZero } from "@/lib/fx";
+import { getUsdToEurRate } from "@/lib/fx-live";
 
 describe("convertMoney", () => {
   it("returns null for missing values", () => {

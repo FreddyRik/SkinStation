@@ -6,6 +6,12 @@
  * Steam while the proxy is configured (avoids reintroducing Vercel egress).
  */
 
+import { isCircuitOpen, recordCircuitFailure, recordCircuitSuccess } from "@/lib/net/circuit-breaker";
+import { UPSTREAM_STEP_TIMEOUT_MS } from "@/lib/net/resilient-fetch";
+import { parseHttpsUrl } from "@/lib/net/ssrf";
+import { isSteamAssetId, isSteamId64 } from "@/lib/steam/steamid";
+import { jsonObject } from "@/types/json";
+
 export const STEAM_BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -31,6 +37,8 @@ export class SteamProxyError extends Error {
   }
 }
 
+const STEAM_PROXY_CIRCUIT = "steam-proxy";
+
 export function isSteamProxyConfigured(): boolean {
   return Boolean(
     process.env.STEAM_PROXY_URL?.trim() &&
@@ -46,7 +54,15 @@ function proxyBaseUrl(): string {
       "misconfigured",
     );
   }
-  return base.replace(/\/+$/, "");
+  const cleaned = base.replace(/\/+$/, "");
+  const parsed = parseHttpsUrl(cleaned);
+  if (!parsed) {
+    throw new SteamProxyError(
+      "Steam proxy is misconfigured (STEAM_PROXY_URL must be public HTTPS).",
+      "misconfigured",
+    );
+  }
+  return cleaned;
 }
 
 function proxySecret(): string {
@@ -103,18 +119,12 @@ async function readProxyErrorBody(res: Response): Promise<{
   const fallbackCode = res.headers.get("X-Steam-Proxy-Error") ?? "upstream";
   try {
     const data: unknown = await res.json();
-    if (
-      data &&
-      typeof data === "object" &&
-      "error" in data &&
-      typeof (data as { error: unknown }).error === "string"
-    ) {
-      const code =
-        "code" in data && typeof (data as { code: unknown }).code === "string"
-          ? (data as { code: string }).code
-          : fallbackCode;
-      return { code, message: (data as { error: string }).error };
-    }
+    const payload = jsonObject(data);
+    const error =
+      payload && typeof payload.error === "string" ? payload.error : null;
+    const code =
+      payload && typeof payload.code === "string" ? payload.code : fallbackCode;
+    if (error) return { code, message: error };
   } catch {
     // ignore
   }
@@ -129,7 +139,21 @@ async function fetchViaProxy(
   pathWithQuery: string,
   timeoutMs: number,
 ): Promise<Response> {
+  if (await isCircuitOpen(STEAM_PROXY_CIRCUIT)) {
+    throw new SteamProxyError(
+      "Steam proxy is temporarily unavailable. Try again shortly.",
+      "upstream",
+    );
+  }
+
   const url = `${proxyBaseUrl()}${pathWithQuery.startsWith("/") ? "" : "/"}${pathWithQuery}`;
+  const parsed = parseHttpsUrl(url.split("?")[0] ?? url);
+  if (!parsed) {
+    throw new SteamProxyError(
+      "Steam proxy is misconfigured (STEAM_PROXY_URL must be public HTTPS).",
+      "misconfigured",
+    );
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -185,15 +209,28 @@ async function fetchViaProxy(
       );
     }
 
+    await recordCircuitSuccess(STEAM_PROXY_CIRCUIT);
     return res;
   } catch (err) {
-    if (err instanceof SteamProxyError) throw err;
+    if (err instanceof SteamProxyError) {
+      if (
+        err.code === "timeout" ||
+        err.code === "network" ||
+        err.code === "upstream" ||
+        err.code === "proxy_rate_limited"
+      ) {
+        await recordCircuitFailure(STEAM_PROXY_CIRCUIT);
+      }
+      throw err;
+    }
     if (abortErrorMessage(err)) {
+      await recordCircuitFailure(STEAM_PROXY_CIRCUIT);
       throw new SteamProxyError(
         "Steam proxy timed out waiting for Steam Community.",
         "timeout",
       );
     }
+    await recordCircuitFailure(STEAM_PROXY_CIRCUIT);
     throw new SteamProxyError(
       "Could not reach Steam proxy. Try again shortly.",
       "network",
@@ -249,6 +286,13 @@ export async function fetchSteamInventoryPage(
 ): Promise<Response> {
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const retryOn429 = options?.retryOn429 ?? true;
+
+  if (!isSteamId64(params.steamId)) {
+    throw new SteamProxyError("Invalid steamId.", "bad_request");
+  }
+  if (params.startAssetId && !isSteamAssetId(params.startAssetId)) {
+    throw new SteamProxyError("Invalid start_assetid.", "bad_request");
+  }
 
   const run = async (): Promise<Response> => {
     if (isSteamProxyConfigured()) {
@@ -312,6 +356,9 @@ export async function fetchSteamProfileXml(
   steamId: string,
   options?: { timeoutMs?: number },
 ): Promise<Response> {
+  if (!isSteamId64(steamId)) {
+    throw new SteamProxyError("Invalid steamId.", "bad_request");
+  }
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   if (isSteamProxyConfigured()) {
     const q = new URLSearchParams({ steamId });
@@ -335,7 +382,7 @@ export async function fetchSteamPriceOverview(
   },
   options?: { timeoutMs?: number },
 ): Promise<Response> {
-  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMs = options?.timeoutMs ?? UPSTREAM_STEP_TIMEOUT_MS;
   const appId = params.appId ?? "730";
 
   if (isSteamProxyConfigured()) {

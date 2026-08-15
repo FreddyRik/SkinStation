@@ -6,6 +6,7 @@ import {
   isLocallyDecodableInspectLink,
   isMaskedInspectPayload,
 } from "@/lib/inspect/links";
+import { jsonObject, jsonUnknownArray } from "@/types/json";
 
 export type DecodedSticker = {
   slot: number;
@@ -85,20 +86,9 @@ function decodeWithVlydev(inspectLink: string): InspectResult | null {
 
 function decodeWithCsfloat(inspectLink: string): InspectResult | null {
   try {
-    const decoded = decodeLink(inspectLink) as {
-      paintwear?: number;
-      floatvalue?: number;
-      paintseed?: number;
-      paintindex?: number;
-      stickers?: Array<{
-        slot?: number;
-        stickerId?: number;
-        stickerid?: number;
-        wear?: number;
-        name?: string;
-      }>;
-      customname?: string | null;
-    };
+    const decodedUnknown: unknown = decodeLink(inspectLink);
+    const decoded = jsonObject(decodedUnknown);
+    if (!decoded) return null;
 
     const floatValue =
       finiteOrNull(decoded.paintwear) ?? finiteOrNull(decoded.floatvalue);
@@ -109,17 +99,22 @@ function decodeWithCsfloat(inspectLink: string): InspectResult | null {
       paintIndex,
     );
 
+    const stickers = jsonUnknownArray(decoded.stickers).map((raw, idx) => {
+      const s = jsonObject(raw) ?? {};
+      return {
+        slot: finiteOrNull(s.slot) ?? idx,
+        stickerId: finiteOrNull(s.stickerId) ?? finiteOrNull(s.stickerid) ?? 0,
+        wear: finiteOrNull(s.wear) ?? undefined,
+        name: typeof s.name === "string" ? s.name : undefined,
+      };
+    });
+
     return {
       floatValue,
       paintSeed,
       paintIndex: paintIndex != null ? Math.trunc(paintIndex) : null,
-      stickers: (decoded.stickers ?? []).map((s, idx) => ({
-        slot: s.slot ?? idx,
-        stickerId: s.stickerId ?? s.stickerid ?? 0,
-        wear: s.wear,
-        name: s.name,
-      })),
-      customName: decoded.customname ?? null,
+      stickers,
+      customName: typeof decoded.customname === "string" ? decoded.customname : null,
       source: "local",
     };
   } catch {

@@ -105,3 +105,11 @@ model CatalogMeta {
   fetchedAt DateTime
   itemCount Int      @default(0)
 }
+
+/** Generic JSON blob cache (FX rates, etc.) for stale-while-revalidate. */
+model KvCache {
+  key       String   @id
+  value     String
+  fetchedAt DateTime
+  updatedAt DateTime @updatedAt
+}
