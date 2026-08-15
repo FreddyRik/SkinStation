@@ -36,30 +36,53 @@ function jsonError(
   });
 }
 
+function secretsEqual(left: string, right: string): boolean {
+  const encoder = new TextEncoder();
+  const a = encoder.encode(left);
+  const b = encoder.encode(right);
+  const len = Math.max(a.byteLength, b.byteLength, 1);
+  const xa = new Uint8Array(len);
+  const xb = new Uint8Array(len);
+  xa.set(a);
+  xb.set(b);
+  let mismatch = a.byteLength === b.byteLength ? 0 : 1;
+  for (let i = 0; i < len; i++) {
+    mismatch |= xa[i] ^ xb[i];
+  }
+  return mismatch === 0;
+}
+
 function checkAuth(req: Request, env: Env): Response | null {
   const secret = env.STEAM_PROXY_SECRET?.trim();
   if (!secret) {
     return jsonError(
       503,
       "misconfigured",
-      "Worker STEAM_PROXY_SECRET is not set.",
+      "Steam proxy is not configured.",
     );
   }
   const header = req.headers.get("Authorization") ?? "";
   const match = /^Bearer\s+(.+)$/i.exec(header);
   const token = match?.[1]?.trim() ?? "";
-  if (!token || token !== secret) {
+  if (!token || !secretsEqual(token, secret)) {
     return jsonError(401, "unauthorized", "Unauthorized.");
   }
   return null;
 }
 
 function clientKey(req: Request): string {
-  return (
-    req.headers.get("CF-Connecting-IP") ??
-    req.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ??
-    "unknown"
-  );
+  const cf = req.headers.get("CF-Connecting-IP")?.trim();
+  if (cf) return cf;
+  const forwarded = req.headers.get("X-Forwarded-For");
+  if (forwarded) {
+    const hops = forwarded
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const last = hops[hops.length - 1];
+    if (last) return last;
+  }
+  return "unknown";
 }
 
 function rateLimit(key: string): Response | null {

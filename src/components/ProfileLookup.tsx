@@ -16,6 +16,14 @@ import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 import {
+  jsonBooleanField,
+  jsonErrorMessage,
+  jsonNumberField,
+  jsonRecord,
+  jsonStringField,
+  readResponseJson,
+} from "@/lib/api/client";
+import {
   readRecentProfiles,
   rememberRecentProfile,
   type RecentProfileEntry,
@@ -131,22 +139,27 @@ export function ProfileLookup({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input }),
       });
-      const createData = (await createRes.json()) as {
-        error?: string;
-        profile?: Record<string, unknown>;
-      };
-      if (!createRes.ok || !createData.profile) {
+      const createData = await readResponseJson(createRes);
+      const createProfile = jsonRecord(jsonRecord(createData)?.profile);
+      if (!createRes.ok || !createProfile) {
+        const createError = jsonErrorMessage(
+          createData,
+          "Failed to resolve profile",
+        );
         if (
           createRes.status === 429 ||
-          looksLikeSteamRateLimitMessage(createData.error)
+          looksLikeSteamRateLimitMessage(createError)
         ) {
           markSteamBackoff();
         }
-        throw new Error(createData.error ?? "Failed to resolve profile");
+        throw new Error(createError);
       }
 
-      const profileId = createData.profile.id as string;
-      const remembered = entryFromApiProfile(createData.profile);
+      const remembered = entryFromApiProfile(createProfile);
+      const profileId = remembered?.id ?? jsonStringField(createProfile, "id");
+      if (!profileId) {
+        throw new Error("Failed to resolve profile");
+      }
       if (remembered) {
         setRecentProfiles(rememberRecentProfile(remembered));
       }
@@ -162,28 +175,26 @@ export function ProfileLookup({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profileId, currency: storageCurrency }),
       });
-      const syncData = (await syncRes.json().catch(() => null)) as {
-        error?: string;
-        itemCount?: number;
-        warning?: string;
-        usedCachedInventory?: boolean;
-        skippedCooldown?: boolean;
-      } | null;
+      const syncData = await readResponseJson(syncRes);
+      const syncError = jsonErrorMessage(syncData, "Failed to sync inventory");
+      const syncWarning = jsonStringField(syncData, "warning");
+      const usedCached = jsonBooleanField(syncData, "usedCachedInventory");
+      const itemCount = jsonNumberField(syncData, "itemCount");
 
       if (
         syncRes.status === 429 ||
-        looksLikeSteamRateLimitMessage(syncData?.error) ||
-        looksLikeSteamRateLimitMessage(syncData?.warning) ||
-        syncData?.usedCachedInventory
+        looksLikeSteamRateLimitMessage(syncError) ||
+        looksLikeSteamRateLimitMessage(syncWarning) ||
+        usedCached
       ) {
         markSteamBackoff();
       }
 
-      if (remembered && typeof syncData?.itemCount === "number") {
+      if (remembered && itemCount != null) {
         setRecentProfiles(
           rememberRecentProfile({
             ...remembered,
-            itemCount: syncData.itemCount,
+            itemCount,
             lastSyncedAt: new Date().toISOString(),
           }),
         );
@@ -193,7 +204,7 @@ export function ProfileLookup({
         // Prefer opening inventory when Steam fails — cached items may still be there.
         if (
           syncRes.status === 429 ||
-          looksLikeSteamRateLimitMessage(syncData?.error)
+          looksLikeSteamRateLimitMessage(syncError)
         ) {
           setSyncNote(
             "Steam rate-limited this sync. Opening inventory — cached items will show if we have any.",
@@ -204,11 +215,9 @@ export function ProfileLookup({
         return;
       }
 
-      if (syncData?.usedCachedInventory || syncData?.warning) {
+      if (usedCached || syncWarning) {
         setSyncNote(
-          typeof syncData.warning === "string" && syncData.warning
-            ? syncData.warning
-            : "Opened cached inventory (Steam was unavailable).",
+          syncWarning ?? "Opened cached inventory (Steam was unavailable).",
         );
       }
 

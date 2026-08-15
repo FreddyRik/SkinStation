@@ -71,7 +71,7 @@ export async function resolveSteamId64(raw: string): Promise<string> {
 
   const xml = await res.text();
   const match = xml.match(/<steamID64>(\d+)<\/steamID64>/);
-  if (!match?.[1]) {
+  if (!match?.[1] || !STEAM_ID64_RE.test(match[1])) {
     throw new Error(
       `Could not resolve vanity name "${vanity}". Check the profile URL.`,
     );

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import type { Currency } from "@/lib/currency";
 import { DEFAULT_CURRENCY, parseCurrency } from "@/lib/currency";
+import { sanitizePublicErrorMessage } from "@/lib/api/errors";
+import { steamInputSchema } from "@/lib/api/schemas";
 import {
   decodeInspectLocally,
   enrichItemsLocally,
@@ -177,7 +179,11 @@ async function syncResultFromCachedItems(
 }
 
 export async function ensureProfileFromInput(rawInput: string) {
-  const steamId = await resolveSteamId64(rawInput);
+  const parsed = steamInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    throw new Error("Could not parse Steam profile URL or SteamID64.");
+  }
+  const steamId = await resolveSteamId64(parsed.data);
   const meta = await fetchSteamProfileMeta(steamId);
 
   const profile = await prisma.profile.upsert({
@@ -587,20 +593,20 @@ export async function syncInventory(
           floatProviderWarning = INSPECT_API_MISSING_MESSAGE;
         } else if (steamwebapiLimitHit) {
           floatProviderWarning =
-            "Float provider quota hit — many skins still have no float. Try Force again later, or set INSPECT_API_URL to a self-hosted inspect service.";
+            "Float provider quota hit — many skins still have no float. Try Force again later.";
         } else if (
           getSteamwebapiKey() &&
           webapiInventory.size === 0 &&
           !getInspectApiBaseUrl()
         ) {
           floatProviderWarning =
-            "Steamwebapi inventory returned no items for float enrichment. Check the API key/plan, or set INSPECT_API_URL to a self-hosted inspect service.";
+            "Float enrichment returned no items for this inventory. Try Force again later.";
         } else if (missingCount >= 5) {
           floatProviderWarning =
             `${missingCount} skins still have no float after sync. ` +
             (getInspectApiBaseUrl()
               ? "Inspect API may be rate-limited — try Force again shortly."
-              : "Steam no longer exposes certificate floats on public inventory. Steamwebapi had gaps — Force sync again later, or set INSPECT_API_URL for a self-hosted GC bot.");
+              : "Steam no longer exposes certificate floats on public inventory. Try Force again later.");
         }
       }
     }
@@ -814,7 +820,9 @@ export async function syncInventory(
           lastSyncedAt: now,
           syncing: false,
           syncLockToken: null,
-          lastError: softWarning,
+          lastError: softWarning
+            ? sanitizePublicErrorMessage(softWarning)
+            : null,
           currency,
         },
       });
@@ -834,7 +842,7 @@ export async function syncInventory(
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown sync error";
-    await releaseLock(message);
+    await releaseLock(sanitizePublicErrorMessage(message));
     throw err;
   }
 }

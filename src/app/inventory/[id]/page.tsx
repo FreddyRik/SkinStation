@@ -10,6 +10,7 @@ import { portfolioTotalFromItems } from "@/lib/price-source";
 import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
 import { buildPageMetadata } from "@/lib/site";
+import { sanitizePublicErrorMessage } from "@/lib/api/errors";
 import {
   applyReputationToProfile,
   getSyncCooldownMs,
@@ -131,7 +132,9 @@ export default async function InventoryPage({ params }: PageProps) {
         leetifyRating: profile.leetifyRating,
         leetifyFound: profile.leetifyFound,
         lastSyncedAt: profile.lastSyncedAt?.toISOString() ?? null,
-        lastError: profile.lastError,
+        lastError: profile.lastError
+          ? sanitizePublicErrorMessage(profile.lastError)
+          : null,
         syncing: profile.syncing,
       }}
       items={items}

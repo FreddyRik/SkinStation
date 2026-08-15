@@ -3,10 +3,10 @@ import type { NextRequest } from "next/server";
 import { clientIpFromRequest, rateLimit } from "@/lib/api/rate-limit";
 
 const RATE_LIMITED_POST = new Set(["/api/sync", "/api/profiles"]);
-const RATE_LIMITED_GET = new Set(["/api/image-proxy"]);
 
 const POST_LIMIT = { limit: 10, windowMs: 60_000, name: "post" };
 const IMAGE_PROXY_LIMIT = { limit: 60, windowMs: 60_000, name: "image-proxy" };
+const GET_API_LIMIT = { limit: 120, windowMs: 60_000, name: "get-api" };
 
 function applySecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set("X-Content-Type-Options", "nosniff");
@@ -16,6 +16,8 @@ function applySecurityHeaders(res: NextResponse): NextResponse {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()",
   );
+  res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  res.headers.set("X-DNS-Prefetch-Control", "off");
   return res;
 }
 
@@ -35,15 +37,27 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  if (req.method === "GET" && RATE_LIMITED_GET.has(path)) {
-    const result = await rateLimit(`${path}:${ip}`, IMAGE_PROXY_LIMIT);
-    if (!result.ok) {
+  if (req.method === "GET" && path.startsWith("/api/")) {
+    // Bucket by IP, not full path — otherwise /api/profiles/:id enumerates around limits.
+    const global = await rateLimit(`get-api:${ip}`, GET_API_LIMIT);
+    if (!global.ok) {
       const res = NextResponse.json(
         { error: "Too many requests. Please wait and try again." },
         { status: 429 },
       );
-      res.headers.set("Retry-After", String(result.retryAfterSec));
+      res.headers.set("Retry-After", String(global.retryAfterSec));
       return applySecurityHeaders(res);
+    }
+    if (path === "/api/image-proxy") {
+      const img = await rateLimit(`image-proxy:${ip}`, IMAGE_PROXY_LIMIT);
+      if (!img.ok) {
+        const res = NextResponse.json(
+          { error: "Too many requests. Please wait and try again." },
+          { status: 429 },
+        );
+        res.headers.set("Retry-After", String(img.retryAfterSec));
+        return applySecurityHeaders(res);
+      }
     }
   }
 

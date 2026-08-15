@@ -45,7 +45,7 @@ export const INSPECT_API_LIMIT_MESSAGE =
   "Inspect API rate-limited or unavailable — float/pattern data may be incomplete.";
 
 export const INSPECT_API_MISSING_MESSAGE =
-  "No remote float provider configured. Masked inspect links still decode locally; for the rest set INSPECT_API_URL to a self-hosted CSGOFloat-compatible inspect service (optional STEAMWEBAPI_KEY remains a last-resort fallback).";
+  "Float/pattern data may be incomplete for some items. Masked inspect links still decode locally.";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -4,13 +4,16 @@ import {
   isForceSyncAuthorized,
   sanitizeSyncClientError,
 } from "@/lib/api/errors";
+import { ApiParseError, jsonErrorResponse, parseJsonSchema } from "@/lib/api/parse";
 import { clientIpFromRequest, rateLimit } from "@/lib/api/rate-limit";
+import { syncRequestSchema } from "@/lib/api/schemas";
 import {
   ensureProfileFromInput,
   getSyncCooldownMs,
   syncInventory,
 } from "@/lib/sync/inventory-sync";
 import { prisma } from "@/lib/db";
+import { z } from "zod";
 
 export const maxDuration = 300;
 
@@ -22,12 +25,7 @@ const PROFILE_SYNC_LIMIT = {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as {
-      profileId?: string;
-      input?: string;
-      force?: boolean;
-      currency?: string;
-    };
+    const body = await parseJsonSchema(req, syncRequestSchema);
 
     let profileId = body.profileId;
     const currency = body.currency ? parseCurrency(body.currency) : undefined;
@@ -82,6 +80,10 @@ export async function POST(req: NextRequest) {
       cooldownMs: getSyncCooldownMs(),
     });
   } catch (err) {
+    if (err instanceof ApiParseError || err instanceof z.ZodError) {
+      const { status, error } = jsonErrorResponse(err);
+      return NextResponse.json({ error }, { status });
+    }
     console.error("Sync failed:", err);
     const { status, error } = sanitizeSyncClientError(err);
     return NextResponse.json({ error }, { status });
