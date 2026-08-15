@@ -1,20 +1,12 @@
 import { prisma } from "@/lib/db";
 import { SITE_USER_AGENT } from "@/lib/site";
+import { jsonObject, jsonObjectField } from "@/types/json";
 
 const GOODS_ID_URL =
   "https://raw.githubusercontent.com/ModestSerhat/cs2-marketplace-ids/main/cs2_marketplaceids.json";
 const META_ID = "buff163-goods-ids";
 /** ID maps change slowly; keep warm for a day. */
 const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
-
-type MarketplaceIdsFile = {
-  items?: Record<
-    string,
-    {
-      buff163_goods_id?: number | null;
-    }
-  >;
-};
 
 type GoodsIdCache = {
   fetchedAt: number;
@@ -24,10 +16,11 @@ type GoodsIdCache = {
 let memoryCatalog: GoodsIdCache | null = null;
 let inflight: Promise<Map<string, number>> | null = null;
 
-function parseGoodsIdMap(data: MarketplaceIdsFile): Map<string, number> {
+function parseGoodsIdMap(data: unknown): Map<string, number> {
   const byName = new Map<string, number>();
-  const items = data.items ?? {};
-  for (const [name, row] of Object.entries(items)) {
+  const items = jsonObjectField(jsonObject(data) ?? {}, "items") ?? {};
+  for (const [name, rowValue] of Object.entries(items)) {
+    const row = jsonObject(rowValue);
     const id = row?.buff163_goods_id;
     if (typeof id === "number" && Number.isFinite(id) && id > 0) {
       byName.set(name, id);
@@ -47,7 +40,7 @@ async function fetchGoodsIdMap(): Promise<Map<string, number>> {
   if (!res.ok) {
     throw new Error(`Buff goods id map failed (HTTP ${res.status}).`);
   }
-  const data = (await res.json()) as MarketplaceIdsFile;
+  const data: unknown = await res.json();
   const byName = parseGoodsIdMap(data);
 
   memoryCatalog = { fetchedAt: Date.now(), byName };
@@ -113,15 +106,4 @@ export function buffGoodsIdFor(
   marketHashName: string,
 ): number | null {
   return catalog.get(marketHashName) ?? null;
-}
-
-export async function resolveBuffGoodsId(
-  marketHashName: string,
-): Promise<number | null> {
-  try {
-    const map = await getBuffGoodsIdMap();
-    return buffGoodsIdFor(map, marketHashName);
-  } catch {
-    return null;
-  }
 }

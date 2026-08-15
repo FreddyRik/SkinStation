@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import type { InventoryItemView } from "@/components/InventoryDashboard";
+import type { InventoryItemView } from "@/types/inventory";
 import {
   downloadTextFile,
   inventoryExportFilename,

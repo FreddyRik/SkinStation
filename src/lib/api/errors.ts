@@ -2,6 +2,7 @@
  * Shared helpers for mapping internal errors to safe API responses.
  */
 
+import { NextResponse } from "next/server";
 import { secretsEqual } from "@/lib/api/secrets";
 
 const SECRET_LEAK_RE =
@@ -137,6 +138,24 @@ export function sanitizeProfileCreateError(err: unknown): {
   }
 
   return { status: 500, error: "Failed to create profile. Please try again." };
+}
+
+/** Structured `{ error }` JSON response used by every API route. */
+export function jsonError(
+  error: string,
+  status: number,
+  init?: { headers?: HeadersInit },
+): NextResponse {
+  return NextResponse.json({ error }, { status, headers: init?.headers });
+}
+
+export function jsonErrorWithRetryAfter(
+  error: string,
+  retryAfterSec: number,
+): NextResponse {
+  return jsonError(error, 429, {
+    headers: { "Retry-After": String(retryAfterSec) },
+  });
 }
 
 /** Allow force sync only when SYNC_FORCE_SECRET is set and header matches. */

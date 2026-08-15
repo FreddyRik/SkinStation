@@ -1,5 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+
+vi.mock("node:dns/promises", () => {
+  const lookup = vi.fn(
+    async (_hostname: string, options?: { all?: boolean }) => {
+      const row = { address: "8.8.8.8", family: 4 as const };
+      return options?.all ? [row] : row;
+    },
+  );
+  return { lookup, default: { lookup } };
+});
+
 import { GET } from "@/app/api/image-proxy/route";
 
 function requestFor(url?: string): NextRequest {
@@ -29,7 +40,7 @@ describe("GET /api/image-proxy", () => {
     const res = await GET(
       requestFor("http://community.cloudflare.steamstatic.com/economy/image/abc"),
     );
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(400);
   });
 
   it("rejects hosts outside the Steam CDN allow-list", async () => {

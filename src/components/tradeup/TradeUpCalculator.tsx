@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TradeUpContractSlots, type SlotDraft } from "@/components/tradeup/TradeUpContractSlots";
 import { TradeUpResultsPanel } from "@/components/tradeup/TradeUpResultsPanel";
@@ -14,14 +14,8 @@ import {
   inventoryCost,
   inventoryFloatForTradeUp,
   inventoryItemEligibility,
-  type InventoryItemRow,
 } from "@/components/tradeup/helpers";
-import {
-  CURRENCY_CHANGE_EVENT,
-  DEFAULT_CURRENCY,
-  readStoredCurrency,
-  type Currency,
-} from "@/lib/currency";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { toFiniteNumber } from "@/lib/format";
 import {
   jsonArrayField,
@@ -60,6 +54,8 @@ import type {
   TradeUpVariant,
 } from "@/lib/tradeup/types";
 import { PriceSourceToggle } from "@/components/PriceSourceToggle";
+import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
+import type { InventoryItemRow } from "@/types/inventory";
 
 type Mode = "inventory" | "sandbox";
 
@@ -164,7 +160,7 @@ export function TradeUpCalculator() {
   const [mode, setMode] = useState<Mode>(
     initialProfileId ? "inventory" : "sandbox",
   );
-  const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const currency = useDisplayCurrency();
   const [priceSource, setPriceSource] =
     useState<PriceSource>(DEFAULT_PRICE_SOURCE);
 
@@ -198,14 +194,7 @@ export function TradeUpCalculator() {
   }, [searchParams]);
 
   useEffect(() => {
-    setCurrency(readStoredCurrency());
     setPriceSource(readStoredPriceSource());
-    function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
-      if (next) setCurrency(next);
-    }
-    window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-    return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
   }, []);
 
   useEffect(() => {
@@ -427,7 +416,7 @@ export function TradeUpCalculator() {
     setSlots((prev) => resizeSlots(prev, slotCount));
   }, [slotCount]);
 
-  const filled = slots.filter(Boolean) as TradeUpInput[];
+  const filled = slots.filter((slot): slot is TradeUpInput => slot != null);
   const filledCount = filled.length;
   const remainingSlots = slotCount - filledCount;
 
@@ -470,18 +459,22 @@ export function TradeUpCalculator() {
     priceSource,
   ]);
 
-  function clearContract() {
+  const clearContract = useCallback(() => {
     setSlots(emptySlots(slotCount));
     setLockedTier(null);
     setLockedVariant(null);
-  }
+  }, [slotCount]);
 
-  function lockFromFirst(tier: TradeUpTier, variant: TradeUpVariant) {
-    setLockedTier(tier);
-    setLockedVariant(variant);
-  }
+  const lockFromFirst = useCallback(
+    (tier: TradeUpTier, variant: TradeUpVariant) => {
+      setLockedTier(tier);
+      setLockedVariant(variant);
+    },
+    [],
+  );
 
-  function addSandboxSkin(skin: TradeUpCatalogSkin, variant: TradeUpVariant) {
+  const addSandboxSkin = useCallback(
+    (skin: TradeUpCatalogSkin, variant: TradeUpVariant) => {
     if (!catalog) return;
     if (lockedTier && skin.rarityTier !== lockedTier) return;
     if (lockedVariant && variant !== lockedVariant) return;
@@ -521,9 +514,19 @@ export function TradeUpCalculator() {
     });
     setActiveSlotIndex(null);
     if (remainingSlots <= 1) setPickerOpen(false);
-  }
+  }, [
+    catalog,
+    lockedTier,
+    lockedVariant,
+    lockFromFirst,
+    remainingSlots,
+    slotCount,
+    activeSlotIndex,
+    priceSource,
+  ]);
 
-  function toggleInventoryItem(item: InventoryItemRow) {
+  const toggleInventoryItem = useCallback(
+    (item: InventoryItemRow) => {
     if (!helpers || !catalog) return;
     const el = inventoryItemEligibility(
       item,
@@ -568,7 +571,16 @@ export function TradeUpCalculator() {
       return next;
     });
     setActiveSlotIndex(null);
-  }
+  }, [
+    helpers,
+    catalog,
+    selectedInventoryKeys,
+    lockedTier,
+    lockedVariant,
+    lockFromFirst,
+    activeSlotIndex,
+    priceSource,
+  ]);
 
   async function loadProfileFromInput() {
     const input = profileInput.trim();

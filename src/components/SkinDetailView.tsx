@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { BuyFromOffers } from "@/components/BuyFromOffers";
 import {
   WEAR_BANDS,
@@ -16,12 +16,7 @@ import {
   type SkinVariant,
   type SkinWearPriceRow,
 } from "@/lib/cs-catalog";
-import {
-  CURRENCY_CHANGE_EVENT,
-  DEFAULT_CURRENCY,
-  readStoredCurrency,
-  type Currency,
-} from "@/lib/currency";
+import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney, formatSaleDate } from "@/lib/format";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
@@ -42,22 +37,12 @@ export function SkinDetailView({
   buffGoodsByHash: Record<string, number>;
   phaseSiblings?: PhaseSibling[];
 }) {
-  const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const currency = useDisplayCurrency();
   const usdToEur = useUsdToEurRate();
   const [variant, setVariant] = useState<SkinVariant>(() => {
     if (item.souvenir && !item.stattrak) return "souvenir";
     return "normal";
   });
-
-  useEffect(() => {
-    setCurrency(readStoredCurrency());
-    function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
-      if (next) setCurrency(next);
-    }
-    window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-    return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-  }, []);
 
   const rows = prices[variant] ?? [];
   const weaponHref = useMemo(() => {

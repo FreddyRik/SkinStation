@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { InventoryItemView } from "@/components/InventoryDashboard";
+import type { InventoryItemView } from "@/types/inventory";
 import {
   buildInventoryExportDocument,
   formatExportFloat,

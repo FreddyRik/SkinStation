@@ -6,12 +6,10 @@ import { useEffect, useState } from "react";
 import { CurrencyToggle } from "@/components/CurrencyToggle";
 import { PageThemeDropdown } from "@/components/PageThemeDropdown";
 import {
-  CURRENCY_CHANGE_EVENT,
-  DEFAULT_CURRENCY,
   INVENTORY_SYNCING_EVENT,
-  readStoredCurrency,
-  type Currency,
 } from "@/lib/currency";
+import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
+import { customEventDetail } from "@/types/events";
 import {
   applyPageTheme,
   DEFAULT_PAGE_THEME,
@@ -98,36 +96,29 @@ function NavLink({
 
 export function SiteHeader() {
   const pathname = usePathname() ?? "/";
-  const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const currency = useDisplayCurrency();
   const [pageTheme, setPageTheme] = useState<PageTheme>(DEFAULT_PAGE_THEME);
   const [syncing, setSyncing] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    setCurrency(readStoredCurrency());
     const storedTheme = readStoredPageTheme();
     setPageTheme(storedTheme);
     applyPageTheme(storedTheme);
 
-    function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
-      if (next) setCurrency(next);
-    }
     function onPageTheme(e: Event) {
-      const next = (e as CustomEvent<PageTheme>).detail;
+      const next = customEventDetail<PageTheme>(e);
       if (next) {
         setPageTheme(next);
         applyPageTheme(next);
       }
     }
     function onSyncing(e: Event) {
-      setSyncing(Boolean((e as CustomEvent<boolean>).detail));
+      setSyncing(Boolean(customEventDetail<boolean>(e)));
     }
-    window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
     window.addEventListener(PAGE_THEME_CHANGE_EVENT, onPageTheme);
     window.addEventListener(INVENTORY_SYNCING_EVENT, onSyncing);
     return () => {
-      window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
       window.removeEventListener(PAGE_THEME_CHANGE_EVENT, onPageTheme);
       window.removeEventListener(INVENTORY_SYNCING_EVENT, onSyncing);
     };
@@ -154,11 +145,7 @@ export function SiteHeader() {
 
           <div className="hidden items-center gap-3 lg:flex lg:gap-4">
             <PageThemeDropdown value={pageTheme} onChange={setPageTheme} />
-            <CurrencyToggle
-              value={currency}
-              onChange={setCurrency}
-              disabled={syncing}
-            />
+            <CurrencyToggle value={currency} disabled={syncing} />
             <nav className="flex items-center gap-x-3 text-sm">
               {NAV_LINKS.map((link) => (
                 <NavLink
@@ -210,11 +197,7 @@ export function SiteHeader() {
                 <span className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-muted)]">
                   Currency
                 </span>
-                <CurrencyToggle
-                  value={currency}
-                  onChange={setCurrency}
-                  disabled={syncing}
-                />
+                <CurrencyToggle value={currency} disabled={syncing} />
               </div>
             </div>
           </div>

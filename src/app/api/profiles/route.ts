@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { sanitizeProfileCreateError } from "@/lib/api/errors";
+import { jsonError, sanitizeProfileCreateError } from "@/lib/api/errors";
 import {
   ApiParseError,
   jsonErrorResponse,
@@ -71,10 +71,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error("Failed to load profiles:", err);
-    return NextResponse.json(
-      { error: "Failed to load profiles." },
-      { status: 500 },
-    );
+    return jsonError("Failed to load profiles.", 500);
   }
 }
 
@@ -86,10 +83,10 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof ApiParseError || err instanceof z.ZodError) {
       const { status, error } = jsonErrorResponse(err);
-      return NextResponse.json({ error }, { status });
+      return jsonError(error, status);
     }
     console.error("Failed to create profile:", err);
     const { status, error } = sanitizeProfileCreateError(err);
-    return NextResponse.json({ error }, { status });
+    return jsonError(error, status);
   }
 }

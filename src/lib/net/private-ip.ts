@@ -123,5 +123,7 @@ export function isPrivateIp(address: string): boolean {
   const host = address.trim().toLowerCase().replace(/^\[|\]$/g, "");
   if (!host) return true;
   if (host.includes(":")) return isPrivateIPv6(host);
+  // Hostnames (including four-label Steam CDN names) are not IP literals.
+  if (ipv4ToInt(host) == null) return false;
   return isPrivateIPv4(host);
 }

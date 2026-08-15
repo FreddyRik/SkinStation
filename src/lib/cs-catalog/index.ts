@@ -10,10 +10,7 @@ export type {
   CatalogCollectionDetail,
 } from "@/lib/cs-catalog/types";
 
-export {
-  CATALOG_KIND_LABELS,
-  CATALOG_KIND_ORDER,
-} from "@/lib/cs-catalog/types";
+export { CATALOG_KIND_LABELS } from "@/lib/cs-catalog/types";
 
 export {
   getCatalogItems,
@@ -48,6 +45,7 @@ export {
   weaponCases,
   navFilterLabel,
   navFilterForWeapon,
+  isOtherNavKey,
 } from "@/lib/cs-catalog/nav";
 
 export type {

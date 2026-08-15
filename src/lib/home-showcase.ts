@@ -1,4 +1,5 @@
 import { getCatalogItems } from "@/lib/cs-catalog/catalog";
+import type { SlimCatalogItem } from "@/lib/cs-catalog/types";
 
 export type HomeShowcaseImage = {
   id: string;
@@ -27,13 +28,10 @@ function takeUnique(
   return out;
 }
 
-type SkinRow = {
-  id: string;
-  name: string;
-  image: string | null;
-  weaponName: string | null;
-  rarity: { id: string; name: string } | null;
-};
+type SkinRow = Pick<
+  SlimCatalogItem,
+  "id" | "name" | "image" | "weaponName" | "rarity"
+>;
 
 const RARITY_RANK: Record<string, number> = {
   rarity_ancient_weapon: 6,
@@ -219,25 +217,19 @@ export async function getHomeShowcase(): Promise<HomeShowcase> {
         s.rarity?.id === "rarity_legendary_weapon",
     );
 
-    const allForPicks = skins as SkinRow[];
-    const knifeRows = knives as SkinRow[];
-    const gloveRows = gloves as SkinRow[];
-    const covertRows = coverts as SkinRow[];
-    const classifiedRows = classified as SkinRow[];
-
-    const databasePreviews = databaseWeaponPreviews(covertRows, classifiedRows);
+    const databasePreviews = databaseWeaponPreviews(coverts, classified);
     const tradeupPreviews = tradeupShowcasePreviews(
-      knifeRows,
-      gloveRows,
-      covertRows,
+      knives,
+      gloves,
+      coverts,
     );
 
     return {
       constellation: constellationShowcase(
-        allForPicks,
-        knifeRows,
-        covertRows,
-        classifiedRows,
+        skins,
+        knives,
+        coverts,
+        classified,
       ),
       databasePreviews:
         databasePreviews.length >= 4

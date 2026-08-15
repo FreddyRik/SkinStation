@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonError } from "@/lib/api/errors";
 import { parseCurrency } from "@/lib/currency";
 import { buildTradeUpCatalogPayload } from "@/lib/tradeup/catalog";
 
@@ -19,9 +20,6 @@ export async function GET(req: Request) {
     });
   } catch (err) {
     console.error("Trade-up catalog API failed:", err);
-    return NextResponse.json(
-      { error: "Failed to load trade-up catalog." },
-      { status: 502 },
-    );
+    return jsonError("Failed to load trade-up catalog.", 502);
   }
 }

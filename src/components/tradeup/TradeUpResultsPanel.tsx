@@ -15,6 +15,18 @@ type OutcomeSort =
   | "highest_probability"
   | "lowest_probability";
 
+const OUTCOME_SORTS: readonly OutcomeSort[] = [
+  "by_collection",
+  "best_profit",
+  "biggest_loss",
+  "highest_probability",
+  "lowest_probability",
+];
+
+function isOutcomeSort(value: string): value is OutcomeSort {
+  return (OUTCOME_SORTS as readonly string[]).includes(value);
+}
+
 type OutcomeView = "list" | "grid";
 
 const OUTCOME_VIEW_STORAGE_KEY = "inventory-tracker-tradeup-outcome-view";
@@ -303,7 +315,9 @@ export function TradeUpResultsPanel({
             Sort
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value as OutcomeSort)}
+              onChange={(e) => {
+                if (isOutcomeSort(e.target.value)) setSort(e.target.value);
+              }}
               className="et-field px-2.5 py-1.5 text-xs text-[var(--text)]"
             >
               {SORT_OPTIONS.map((opt) => (

@@ -1,31 +1,18 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
 import { SteamBrandIcon } from "@/components/BrandIcons";
-import {
-  CURRENCY_CHANGE_EVENT,
-  DEFAULT_CURRENCY,
-  readStoredCurrency,
-  type Currency,
-} from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
+import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 import {
   buffMarketListingUrl,
   steamMarketListingUrl,
 } from "@/lib/steam-market/listing";
+import type { BuyFromBuffOffer, BuyFromSteamOffer } from "@/types/market";
 
-export type BuyFromSteamOffer = {
-  priceUsd: number;
-  marketHashName: string;
-};
-
-export type BuyFromBuffOffer = {
-  priceUsd: number;
-  goodsId: number;
-};
+export type { BuyFromBuffOffer, BuyFromSteamOffer };
 
 /** Marketplace “Buy from” rows (Buff + Steam) with currency conversion. */
 export function BuyFromOffers({
@@ -37,18 +24,8 @@ export function BuyFromOffers({
   buff: BuyFromBuffOffer | null;
   title?: string;
 }) {
-  const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const currency = useDisplayCurrency();
   const usdToEur = useUsdToEurRate();
-
-  useEffect(() => {
-    setCurrency(readStoredCurrency());
-    function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
-      if (next) setCurrency(next);
-    }
-    window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-    return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-  }, []);
 
   if (!steam && !buff) return null;
 

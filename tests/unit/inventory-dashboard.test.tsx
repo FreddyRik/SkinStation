@@ -1,11 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import {
-  InventoryDashboard,
-  type InventoryItemView,
-  type ProfileView,
-} from "@/components/InventoryDashboard";
+import { InventoryDashboard } from "@/components/InventoryDashboard";
+import type { InventoryItemView, ProfileView } from "@/types/inventory";
 
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children?: unknown }) => (

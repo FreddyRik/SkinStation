@@ -19,6 +19,14 @@ import {
 } from "@/lib/inspect/links";
 import { isSteamwebapiLimitResponse } from "@/lib/steamwebapi/errors";
 import { SITE_USER_AGENT } from "@/lib/site";
+import {
+  jsonObject,
+  jsonObjectField,
+  jsonRowsFromUnknown,
+  parseJsonObject,
+  parseJsonUnknownSafe,
+  type JsonObject,
+} from "@/types/json";
 
 export type SteamwebapiFloat = {
   floatValue: number | null;
@@ -60,20 +68,16 @@ function asInt(value: unknown): number | null {
   return n == null ? null : Math.trunc(n);
 }
 
-function pickItemBlock(data: Record<string, unknown>): Record<string, unknown> {
-  if (data.iteminfo && typeof data.iteminfo === "object") {
-    return data.iteminfo as Record<string, unknown>;
-  }
-  if (data.item && typeof data.item === "object") {
-    return data.item as Record<string, unknown>;
-  }
-  if (data.float && typeof data.float === "object") {
-    return data.float as Record<string, unknown>;
-  }
-  return data;
+function pickItemBlock(data: JsonObject): JsonObject {
+  return (
+    jsonObjectField(data, "iteminfo") ??
+    jsonObjectField(data, "item") ??
+    jsonObjectField(data, "float") ??
+    data
+  );
 }
 
-function parseFloatPayload(data: Record<string, unknown>): SteamwebapiFloat | null {
+function parseFloatPayload(data: JsonObject): SteamwebapiFloat | null {
   const block = pickItemBlock(data);
   const floatValue =
     asNumber(block.floatvalue) ??
@@ -145,42 +149,22 @@ async function fetchFloatFromAssetDb(
     }
     if (!res.ok) return { ok: true, value: null };
 
-    let data: unknown;
-    try {
-      data = JSON.parse(body) as unknown;
-    } catch {
-      return { ok: true, value: null };
-    }
+    const data = parseJsonUnknownSafe(body);
+    if (data == null) return { ok: true, value: null };
 
-    if (
-      data &&
-      typeof data === "object" &&
-      !Array.isArray(data) &&
-      ("error" in data || "message" in data)
-    ) {
-      const msg = String(
-        (data as { error?: unknown; message?: unknown }).error ??
-          (data as { message?: unknown }).message ??
-          "",
-      );
+    const payload = jsonObject(data);
+    if (payload && ("error" in payload || "message" in payload)) {
+      const msg = String(payload.error ?? payload.message ?? "");
       if (isSteamwebapiLimitResponse(200, msg)) {
         return { ok: false, limitHit: true };
       }
     }
 
-    const rows = Array.isArray(data)
-      ? data
-      : Array.isArray((data as { assets?: unknown[] }).assets)
-        ? (data as { assets: unknown[] }).assets
-        : Array.isArray((data as { data?: unknown[] }).data)
-          ? (data as { data: unknown[] }).data
-          : Array.isArray((data as { items?: unknown[] }).items)
-            ? (data as { items: unknown[] }).items
-            : [];
+    const rows = jsonRowsFromUnknown(data, ["assets", "data", "items"]);
 
     for (const raw of rows) {
-      if (!raw || typeof raw !== "object") continue;
-      const row = raw as Record<string, unknown>;
+      const row = jsonObject(raw);
+      if (!row) continue;
       const rowAsset = String(row.assetid ?? row.asset_id ?? row.assetId ?? "");
       if (rowAsset && rowAsset !== String(assetId)) continue;
       const parsed = parseFloatPayload(row);
@@ -230,12 +214,8 @@ async function fetchFloatFromCertificate(
     // 406 = legacy/unsupported link format — treat as miss, not quota.
     if (res.status === 406 || !res.ok) return { ok: true, value: null };
 
-    let data: Record<string, unknown>;
-    try {
-      data = JSON.parse(body) as Record<string, unknown>;
-    } catch {
-      return { ok: true, value: null };
-    }
+    const data = parseJsonObject(body);
+    if (!data) return { ok: true, value: null };
 
     const errText = String(data.error ?? data.message ?? "");
     if (errText && isSteamwebapiLimitResponse(200, errText)) {

@@ -15,6 +15,7 @@ import {
   buildLatestReleaseCards,
   formatPhaseShort,
   groupPhasedSkins,
+  isOtherNavKey,
   itemMatchesNavFilter,
   navFilterForWeapon,
   navFilterLabel,
@@ -25,20 +26,14 @@ import {
   type LatestReleaseCard,
   type NavFilter,
   type NavSection,
-  type OtherNavKey,
   type SlimCatalogItem,
   type SlimCollection,
 } from "@/lib/cs-catalog";
 
-import {
-  CURRENCY_CHANGE_EVENT,
-  DEFAULT_CURRENCY,
-  readStoredCurrency,
-  type Currency,
-} from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
 import { jsonArrayField, jsonErrorMessage, readResponseJson } from "@/lib/api/client";
+import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 
 const PAGE_SIZE = 96;
@@ -591,20 +586,10 @@ export function ItemDatabaseBrowser() {
   const [openSection, setOpenSection] = useState<NavSection | null>(null);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [urlHydrated, setUrlHydrated] = useState(false);
-  const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const currency = useDisplayCurrency();
   const usdToEur = useUsdToEurRate();
 
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
-
-  useEffect(() => {
-    setCurrency(readStoredCurrency());
-    function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
-      if (next) setCurrency(next);
-    }
-    window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-    return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-  }, []);
 
   function formatUsdRange(min: number | null, max: number | null): string | null {
     if (min == null && max == null) return null;
@@ -621,7 +606,8 @@ export function ItemDatabaseBrowser() {
     if (urlHydrated) return;
     const section = searchParams.get("section");
     const weapon = searchParams.get("weapon");
-    const other = searchParams.get("other") as OtherNavKey | null;
+    const otherRaw = searchParams.get("other");
+    const other = isOtherNavKey(otherRaw) ? otherRaw : null;
     const crateId = searchParams.get("crate");
 
     if (

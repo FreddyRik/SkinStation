@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseCurrency } from "@/lib/currency";
 import {
   isForceSyncAuthorized,
+  jsonError,
+  jsonErrorWithRetryAfter,
   sanitizeSyncClientError,
 } from "@/lib/api/errors";
 import { ApiParseError, jsonErrorResponse, parseJsonSchema } from "@/lib/api/parse";
@@ -33,10 +35,7 @@ export async function POST(req: NextRequest) {
     const force = isForceSyncAuthorized(req, wantsForce);
 
     if (wantsForce && !force) {
-      return NextResponse.json(
-        { error: "Force sync is not authorized." },
-        { status: 403 },
-      );
+      return jsonError("Force sync is not authorized.", 403);
     }
 
     if (!profileId && body.input) {
@@ -45,15 +44,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!profileId) {
-      return NextResponse.json(
-        { error: "profileId or input is required." },
-        { status: 400 },
-      );
+      return jsonError("profileId or input is required.", 400);
     }
 
     const exists = await prisma.profile.findUnique({ where: { id: profileId } });
     if (!exists) {
-      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+      return jsonError("Profile not found.", 404);
     }
 
     const ip = clientIpFromRequest(req);
@@ -62,12 +58,10 @@ export async function POST(req: NextRequest) {
       PROFILE_SYNC_LIMIT,
     );
     if (!profileLimit.ok && !force) {
-      const res = NextResponse.json(
-        { error: "Too many syncs for this profile. Please wait and try again." },
-        { status: 429 },
+      return jsonErrorWithRetryAfter(
+        "Too many syncs for this profile. Please wait and try again.",
+        profileLimit.retryAfterSec,
       );
-      res.headers.set("Retry-After", String(profileLimit.retryAfterSec));
-      return res;
     }
 
     const result = await syncInventory(profileId, {
@@ -82,10 +76,10 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof ApiParseError || err instanceof z.ZodError) {
       const { status, error } = jsonErrorResponse(err);
-      return NextResponse.json({ error }, { status });
+      return jsonError(error, status);
     }
     console.error("Sync failed:", err);
     const { status, error } = sanitizeSyncClientError(err);
-    return NextResponse.json({ error }, { status });
+    return jsonError(error, status);
   }
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   isForceSyncAuthorized,
+  jsonError,
+  jsonErrorWithRetryAfter,
   publicApiError,
   sanitizeProfileCreateError,
   sanitizeSyncClientError,
@@ -69,6 +71,19 @@ describe("publicApiError", () => {
   });
 });
 
+describe("jsonError", () => {
+  it("returns a structured { error } JSON body", async () => {
+    const res = jsonError("Nope.", 400);
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Nope." });
+  });
+
+  it("sets Retry-After on rate-limit responses", () => {
+    const res = jsonErrorWithRetryAfter("Slow down.", 12);
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("12");
+  });
+});
 describe("isForceSyncAuthorized", () => {
   it("requires an explicit force flag and matching secret", () => {
     const prev = process.env.SYNC_FORCE_SECRET;
