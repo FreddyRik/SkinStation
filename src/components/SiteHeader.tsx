@@ -86,7 +86,7 @@ function NavLink({
       onClick={onNavigate}
       className={`transition ${className} ${
         active
-          ? "text-[var(--text)]"
+          ? "text-[var(--accent)]"
           : "text-[var(--text-muted)] hover:text-[var(--text)]"
       }`}
       aria-current={active ? "page" : undefined}
@@ -145,7 +145,7 @@ export function SiteHeader() {
   }, [mobileOpen]);
 
   return (
-    <header className="relative z-40 border-b border-[var(--border)]/80 bg-[var(--bg-elevated)]/70 backdrop-blur-md">
+    <header className="relative z-40 bg-[var(--bg-elevated)]/80 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center justify-between gap-3">
           <Link href="/" className="group min-w-0 shrink">
@@ -173,7 +173,7 @@ export function SiteHeader() {
 
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg)] p-2 text-[var(--text)] transition hover:border-[var(--accent)]/40 lg:hidden"
+            className="et-card inline-flex items-center justify-center p-2 text-[var(--text)] lg:hidden"
             aria-expanded={mobileOpen}
             aria-controls="site-mobile-nav"
             onClick={() => setMobileOpen((open) => !open)}
@@ -186,7 +186,7 @@ export function SiteHeader() {
         {mobileOpen ? (
           <div
             id="site-mobile-nav"
-            className="mt-3 space-y-4 border-t border-[var(--border)]/80 pt-4 lg:hidden"
+            className="mt-3 space-y-4 pt-4 shadow-[inset_0_1px_0_rgba(200,121,65,0.12)] lg:hidden"
           >
             <nav className="flex flex-col gap-1">
               {NAV_LINKS.map((link) => (
@@ -200,7 +200,7 @@ export function SiteHeader() {
                 />
               ))}
             </nav>
-            <div className="space-y-4 border-t border-[var(--border)]/60 pt-4">
+            <div className="space-y-4 pt-4 shadow-[inset_0_1px_0_rgba(200,121,65,0.12)]">
               <PageThemeDropdown
                 value={pageTheme}
                 onChange={setPageTheme}

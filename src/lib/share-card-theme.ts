@@ -39,24 +39,24 @@ export const SHARE_CARD_THEME_STYLES: Record<
 > = {
   classic: {
     background:
-      "radial-gradient(ellipse 120% 80% at 0% 0%, rgba(94,234,212,0.22), transparent 55%), radial-gradient(ellipse 90% 70% at 100% 10%, rgba(255,107,53,0.18), transparent 50%), linear-gradient(165deg, #14201b 0%, #0c1210 48%, #101816 100%)",
+      "radial-gradient(ellipse 120% 80% at 0% 0%, rgba(200,121,65,0.22), transparent 55%), radial-gradient(ellipse 90% 70% at 100% 10%, rgba(74,98,168,0.18), transparent 50%), linear-gradient(165deg, #131a2a 0%, #0a0f1d 48%, #101624 100%)",
     boxShadow:
-      "0 0 0 1px rgba(94,234,212,0.18), 0 28px 60px rgba(0,0,0,0.45)",
+      "0 10px 30px -10px rgba(0,0,0,0.5), 0 28px 60px rgba(0,0,0,0.45)",
     gridOverlay:
-      "linear-gradient(rgba(232,240,235,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(232,240,235,0.04) 1px, transparent 1px)",
-    avatarRing: "0 0 0 2px rgba(94,234,212,0.35)",
-    panelBg: "rgba(0,0,0,0.25)",
-    panelBorder: "rgba(255,255,255,0.1)",
-    rowBg: "rgba(255,255,255,0.04)",
-    rowBorder: "rgba(255,255,255,0.08)",
-    iconBg: "rgba(0,0,0,0.4)",
-    badgeText: "#0c1210",
+      "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
+    avatarRing: "0 0 0 2px rgba(200,121,65,0.4)",
+    panelBg: "rgba(10,15,29,0.45)",
+    panelBorder: "transparent",
+    rowBg: "rgba(19,26,42,0.85)",
+    rowBorder: "transparent",
+    iconBg: "rgba(6,9,16,0.7)",
+    badgeText: "#0a0f1d",
     vars: {
-      "--share-text": "#e8f0eb",
-      "--share-text-muted": "#8fa399",
-      "--share-accent": "#5eead4",
-      "--share-accent-dim": "#2dd4bf",
-      "--share-border": "#24332c",
+      "--share-text": "#ffffff",
+      "--share-text-muted": "#8b95a5",
+      "--share-accent": "#c87941",
+      "--share-accent-dim": "#e09a62",
+      "--share-border": "rgba(200,121,65,0.14)",
     },
   },
   dark: {

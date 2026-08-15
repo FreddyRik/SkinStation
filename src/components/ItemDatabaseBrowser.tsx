@@ -84,17 +84,12 @@ function KnifeBadge() {
   );
 }
 
-function rarityBadgeStyle(color: string | null | undefined): {
-  backgroundColor: string;
-  color: string;
-  borderColor: string;
-} {
-  const bg = color?.trim() || "var(--accent)";
-  return {
-    backgroundColor: bg,
-    color: "#0b1220",
-    borderColor: "rgba(0,0,0,0.35)",
-  };
+function rarityStripe(color: string | null | undefined): {
+  borderLeft: string;
+} | undefined {
+  const bg = color?.trim();
+  if (!bg) return undefined;
+  return { borderLeft: `2px solid ${bg}` };
 }
 
 function CatalogCard({
@@ -158,7 +153,10 @@ function CatalogCard({
 
   return (
     <li>
-      <article className="flex h-full flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]/45 px-3 pb-3 pt-4 text-center transition hover:border-[var(--accent)]/40 hover:bg-[var(--bg-panel)]/85">
+      <article
+        className="et-card et-card-hover flex h-full flex-col items-center px-3 pb-3 pt-4 text-center"
+        style={rarityStripe(item.rarity?.color)}
+      >
         <div className="flex w-full flex-col items-center gap-1 px-1">
           {eyebrow ? (
             weaponFilter && onWeaponClick ? (
@@ -212,34 +210,18 @@ function CatalogCard({
 
         <Link href={href} className="mt-2 flex w-full flex-col items-center gap-1.5">
           {rarityLabel ? (
-            <span
-              className="inline-flex max-w-full truncate rounded-full border px-3 py-1 text-[11px] font-semibold leading-none sm:text-xs"
-              style={rarityBadgeStyle(item.rarity?.color)}
-            >
+            <span className="max-w-full truncate text-[11px] font-medium leading-none text-[var(--text-muted)] sm:text-xs">
               {rarityLabel}
             </span>
           ) : null}
 
           {showFlags ? (
-            <div className="inline-flex overflow-hidden rounded-full border border-black/40 text-[11px] font-semibold leading-none sm:text-xs">
+            <div className="flex gap-2 font-data text-[11px] font-semibold leading-none sm:text-xs">
               {item.stattrak ? (
-                <span
-                  className="px-2.5 py-1"
-                  style={{ backgroundColor: "var(--buff)", color: "#0b1220" }}
-                >
-                  StatTrak
-                </span>
-              ) : null}
-              {item.stattrak && item.souvenir ? (
-                <span className="w-px bg-black/40" aria-hidden />
+                <span style={{ color: "var(--buff)" }}>StatTrak</span>
               ) : null}
               {item.souvenir ? (
-                <span
-                  className="px-2.5 py-1"
-                  style={{ backgroundColor: "var(--warn)", color: "#0b1220" }}
-                >
-                  Souvenir
-                </span>
+                <span style={{ color: "var(--warn)" }}>Souvenir</span>
               ) : null}
             </div>
           ) : null}
@@ -265,12 +247,12 @@ function CatalogCard({
         {normalRange || stRange ? (
           <Link href={href} className="mb-2 flex w-full flex-col items-center gap-0.5">
             {normalRange ? (
-              <p className="text-sm font-semibold tabular-nums text-[var(--steam)]">
+              <p className="font-data text-sm font-semibold text-[var(--steam)]">
                 {normalRange}
               </p>
             ) : null}
             {stRange ? (
-              <p className="text-sm font-semibold tabular-nums text-[var(--buff)]">
+              <p className="font-data text-sm font-semibold text-[var(--buff)]">
                 {stRange}
               </p>
             ) : null}
@@ -280,7 +262,7 @@ function CatalogCard({
         {item.sourceName && sourceHref ? (
           <Link
             href={sourceHref}
-            className="mt-auto flex w-full items-center justify-center gap-2 border-t border-[var(--border)]/70 pt-2.5 transition hover:text-[var(--accent)]"
+            className="mt-auto flex w-full items-center justify-center gap-2 pt-2.5 shadow-[inset_0_1px_0_rgba(200,121,65,0.12)] transition hover:text-[var(--accent)]"
             title={sourceTitle}
           >
             {item.sourceImage ? (
@@ -298,7 +280,7 @@ function CatalogCard({
           </Link>
         ) : item.sourceName ? (
           <div
-            className="mt-auto flex w-full items-center justify-center gap-2 border-t border-[var(--border)]/70 pt-2.5"
+            className="mt-auto flex w-full items-center justify-center gap-2 pt-2.5 shadow-[inset_0_1px_0_rgba(200,121,65,0.12)]"
             title={sourceTitle}
           >
             {item.sourceImage ? (
@@ -337,7 +319,7 @@ function CollectionCard({
     <li>
       <Link
         href={collectionHref(id)}
-        className="flex h-full flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]/45 px-3 pb-3 pt-4 text-center transition hover:border-[var(--accent)]/40 hover:bg-[var(--bg-panel)]/85"
+        className="et-card et-card-hover flex h-full flex-col items-center px-3 pb-3 pt-4 text-center"
       >
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--text-muted)]">
           Collection
@@ -358,7 +340,7 @@ function CollectionCard({
             <span className="text-xs text-[var(--text-muted)]">No image</span>
           )}
         </div>
-        <p className="mt-auto text-[11px] text-[var(--text-muted)] sm:text-xs">
+        <p className="mt-auto font-data text-[11px] text-[var(--text-muted)] sm:text-xs">
           {itemCount.toLocaleString("en-US")} items
         </p>
       </Link>
@@ -552,7 +534,7 @@ function NavDropdown({
           <div
             ref={menuRef}
             role="menu"
-            className="fixed z-[100] min-w-[13rem] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] py-1.5 shadow-lg"
+            className="et-card fixed z-[100] min-w-[13rem] overflow-y-auto py-1.5"
             style={{
               top: menuPos.top,
               left: menuPos.left,
@@ -912,7 +894,7 @@ export function ItemDatabaseBrowser() {
       </div>
 
       <nav
-        className="relative z-30 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/70"
+        className="et-card relative z-30"
         aria-label="Catalog categories"
       >
         <div className="overflow-x-auto overscroll-x-contain">
@@ -1105,7 +1087,7 @@ export function ItemDatabaseBrowser() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name, weapon, pattern…"
-          className="w-full flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] outline-none ring-[var(--accent)] placeholder:text-[var(--text-muted)] focus:ring-2"
+          className="et-field w-full flex-1 px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]"
           aria-label="Search catalog"
         />
         <p className="shrink-0 text-xs text-[var(--text-muted)] sm:text-sm">
@@ -1113,20 +1095,24 @@ export function ItemDatabaseBrowser() {
             ? "Loading…"
             : showHomeLanding
               ? "Latest releases"
-              : `${navFilterLabel(filter, caseNameById)} · ${combinedCount.toLocaleString("en-US")} result${
-                  combinedCount === 1 ? "" : "s"
-                }`}
+              : `${navFilterLabel(filter, caseNameById)} · `}
+          {!loading && !showHomeLanding ? (
+            <span className="font-data">
+              {combinedCount.toLocaleString("en-US")} result
+              {combinedCount === 1 ? "" : "s"}
+            </span>
+          ) : null}
         </p>
       </div>
 
       {error ? (
-        <p className="rounded-xl border border-[var(--warn)]/40 bg-[var(--warn)]/10 px-4 py-3 text-sm text-[var(--warn)]">
+        <p className="et-card px-4 py-3 text-sm text-[var(--warn)]">
           {error}
         </p>
       ) : null}
 
       {loading ? (
-        <p className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-[var(--text-muted)]">
+        <p className="et-slot p-8 text-center text-[var(--text-muted)]">
           Loading catalog…
         </p>
       ) : showHomeLanding ? (
@@ -1135,7 +1121,7 @@ export function ItemDatabaseBrowser() {
           onActivate={onReleaseActivate}
         />
       ) : pageRows.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-[var(--text-muted)]">
+        <p className="et-slot p-8 text-center text-[var(--text-muted)]">
           No items match your search.
         </p>
       ) : (
@@ -1175,7 +1161,7 @@ export function ItemDatabaseBrowser() {
               <button
                 type="button"
                 onClick={() => setVisible((n) => n + PAGE_SIZE)}
-                className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-2 text-sm text-[var(--text)] transition hover:border-[var(--accent)]/40"
+                className="et-card et-card-hover px-4 py-2 text-sm text-[var(--text)]"
               >
                 Show more
               </button>
@@ -1196,7 +1182,7 @@ function LatestReleasesSection({
 }) {
   if (cards.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-[var(--text-muted)]">
+      <p className="et-slot p-8 text-center text-[var(--text-muted)]">
         No featured releases yet — pick a category above to browse.
       </p>
     );
@@ -1204,7 +1190,7 @@ function LatestReleasesSection({
 
   return (
     <section className="space-y-4">
-      <h2 className="inline-block rounded-md bg-[var(--accent)]/20 px-3 py-1.5 text-sm font-semibold tracking-wide text-[var(--text)] [font-family:var(--font-share-body),system-ui,sans-serif] sm:text-base">
+      <h2 className="inline-block rounded-[4px] bg-[var(--accent)]/20 px-3 py-1.5 text-sm font-semibold tracking-wide text-[var(--text)] sm:text-base">
         <span className="mr-2 text-[var(--accent)]" aria-hidden>
           ◆
         </span>
@@ -1239,7 +1225,7 @@ function LatestReleasesSection({
           );
 
           const className =
-            "flex h-full flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/50 p-4 transition hover:border-[var(--accent)]/40 hover:bg-[var(--bg-panel)]/80";
+            "et-card et-card-hover flex h-full flex-col gap-3 p-4";
 
           return (
             <li key={card.id}>

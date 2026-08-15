@@ -122,7 +122,7 @@ function BuyFromRow({
 }) {
   return (
     <li>
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 px-4 py-3 sm:flex-nowrap">
+      <div className="et-card flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center">
             {icon}
@@ -137,7 +137,7 @@ function BuyFromRow({
               from
             </p>
             <p
-              className={`text-base font-semibold tabular-nums ${
+              className={`font-data text-base font-semibold ${
                 accent === "buff" ? "text-[var(--buff)]" : "text-[var(--steam)]"
               }`}
             >

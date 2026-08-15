@@ -15,7 +15,7 @@ export default function TradeUpPage() {
   return (
     <Suspense
       fallback={
-        <p className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-[var(--text-muted)]">
+        <p className="et-slot p-8 text-center text-[var(--text-muted)]">
           Loading trade-up calculator…
         </p>
       }

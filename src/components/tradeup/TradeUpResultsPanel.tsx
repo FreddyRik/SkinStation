@@ -208,7 +208,7 @@ export function TradeUpResultsPanel({
 
   if (!result) {
     return (
-      <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--text-muted)]">
+      <div className="et-slot p-6 text-center text-sm text-[var(--text-muted)]">
         Select {slotCount} skins to calculate odds and expected value.
         {filledCount > 0 ? (
           <span className="mt-1 block">
@@ -221,7 +221,7 @@ export function TradeUpResultsPanel({
 
   if (!result.ok) {
     return (
-      <div className="rounded-xl border border-[var(--warn)]/40 bg-[var(--warn)]/5 p-4 text-sm text-[var(--warn)]">
+      <div className="et-card p-4 text-sm text-[var(--warn)]">
         {result.error}
       </div>
     );
@@ -237,7 +237,7 @@ export function TradeUpResultsPanel({
           <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
             Average normalized float
           </p>
-          <p className="font-mono text-lg text-[var(--text)]">
+          <p className="font-data text-lg text-[var(--text)]">
             {result.avgNormalized.toFixed(6)}
           </p>
         </div>
@@ -273,7 +273,7 @@ export function TradeUpResultsPanel({
         <p className="text-xs font-medium text-[var(--text)]">Possible outcomes</p>
         <div className="flex flex-wrap items-center gap-2">
           <div
-            className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg)] p-0.5"
+            className="et-seg"
             role="group"
             aria-label="Outcome layout"
           >
@@ -304,7 +304,7 @@ export function TradeUpResultsPanel({
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as OutcomeSort)}
-              className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-2.5 py-1.5 text-xs text-[var(--text)]"
+              className="et-field px-2.5 py-1.5 text-xs text-[var(--text)]"
             >
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -319,7 +319,7 @@ export function TradeUpResultsPanel({
       </div>
 
       {view === "list" ? (
-        <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+        <div className="et-card overflow-x-auto">
           <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--bg-elevated)]/80 text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
@@ -408,7 +408,7 @@ function OutcomeGrid({
         const goodsId = goodsIds[o.marketHashName] ?? null;
         return (
           <li key={o.skinId}>
-            <article className="flex h-full flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/40 p-3">
+            <article className="et-card flex h-full flex-col gap-2 p-3">
               <div className="flex h-24 items-center justify-center rounded-lg bg-[var(--bg)]">
                 {o.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -442,27 +442,27 @@ function OutcomeGrid({
                 >
                   {o.wearAbbr}
                 </span>
-                <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                <span className="font-data text-[10px] text-[var(--text-muted)]">
                   {formatFloat(o.outputFloat)}
                 </span>
               </div>
-              <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)]/60 pt-2">
+              <div className="mt-auto flex flex-col gap-0.5 pt-2 shadow-[inset_0_1px_0_rgba(200,121,65,0.12)]">
                 <div className="flex items-center justify-between gap-2 text-[11px]">
                   <span className="text-[var(--text-muted)]">Odds</span>
-                  <span className="font-mono text-[var(--text)]">
+                  <span className="font-data text-[var(--text)]">
                     {(o.probability * 100).toFixed(2)}%
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-[11px]">
                   <span className="text-[var(--text-muted)]">Price</span>
-                  <span className="font-mono text-[var(--text)]">
+                  <span className="font-data text-[var(--text)]">
                     {formatMoney(o.price, currency)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-[11px]">
                   <span className="text-[var(--text-muted)]">P/L</span>
                   <span
-                    className="font-mono"
+                    className="font-data"
                     style={{
                       color:
                         delta == null
@@ -569,7 +569,7 @@ function OutcomeRow({
           </div>
         </div>
       </td>
-      <td className="px-3 py-2 font-mono text-xs text-[var(--text-muted)]">
+      <td className="px-3 py-2 font-data text-xs text-[var(--text-muted)]">
         {formatFloat(o.outputFloat)}
       </td>
       <td className="px-3 py-2">
@@ -583,14 +583,14 @@ function OutcomeRow({
           {o.wearAbbr}
         </span>
       </td>
-      <td className="px-3 py-2 font-mono text-xs">
+      <td className="px-3 py-2 font-data text-xs">
         {(o.probability * 100).toFixed(2)}%
       </td>
-      <td className="px-3 py-2 text-right font-mono text-xs">
+      <td className="px-3 py-2 text-right font-data text-xs">
         {formatMoney(o.price, currency)}
       </td>
       <td
-        className="px-3 py-2 text-right font-mono text-xs"
+        className="px-3 py-2 text-right font-data text-xs"
         style={{
           color:
             delta == null
@@ -624,12 +624,12 @@ function SummaryStat({
   accent?: string;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/70 px-4 py-3">
+    <div className="et-card px-4 py-3">
       <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
         {label}
       </p>
       <p
-        className="mt-1 font-mono text-lg font-semibold text-[var(--text)]"
+        className="mt-1 font-data text-lg font-semibold text-[var(--text)]"
         style={accent ? { color: accent } : undefined}
       >
         {value}

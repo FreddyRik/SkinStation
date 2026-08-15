@@ -101,12 +101,12 @@ export function TradeUpInventoryPicker({
   ]);
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+    <div className="et-card flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3
             className="text-lg text-[var(--text)]"
-            style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
+            style={{ fontFamily: "var(--font-ui), Inter, system-ui, sans-serif" }}
           >
             Inventory picker
           </h3>
@@ -119,7 +119,7 @@ export function TradeUpInventoryPicker({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:text-[var(--text)]"
+          className="et-card px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
         >
           Close
         </button>
@@ -130,7 +130,7 @@ export function TradeUpInventoryPicker({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search inventory or collections…"
-        className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]"
+        className="et-field px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]"
       />
 
       <ul className="grid max-h-[28rem] gap-2 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
@@ -144,10 +144,10 @@ export function TradeUpInventoryPicker({
                 type="button"
                 disabled={disabled}
                 onClick={() => onToggle(item)}
-                className={`flex w-full items-center gap-2 rounded-lg border px-2 py-2 text-left transition ${
+                className={`et-card flex w-full items-center gap-2 px-2 py-2 text-left ${
                   selected
-                    ? "border-[var(--accent)] bg-[var(--accent)]/10"
-                    : "border-[var(--border)] bg-[var(--bg-elevated)]/60 hover:border-[var(--accent)]/40 disabled:opacity-40"
+                    ? "bg-[var(--accent)]/12 ring-1 ring-[var(--accent)]/50"
+                    : "hover:bg-[var(--bg-panel)] disabled:opacity-40"
                 }`}
               >
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-[var(--bg)]">
@@ -168,7 +168,7 @@ export function TradeUpInventoryPicker({
                   <p className="truncate text-xs font-medium text-[var(--text)]">
                     {item.marketHashName}
                   </p>
-                  <p className="text-[10px] text-[var(--text-muted)]">
+                  <p className="font-data text-[10px] text-[var(--text-muted)]">
                     {TIER_LABELS[tier]}
                     {variant === "stattrak" ? " · ST" : ""} ·{" "}
                     {formatMoney(cost || null, currency)}

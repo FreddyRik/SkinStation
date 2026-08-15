@@ -702,7 +702,7 @@ export function TradeUpCalculator() {
         <div>
           <h1
             className="text-3xl tracking-tight text-[var(--text)] sm:text-4xl"
-            style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
+            style={{ fontFamily: "var(--font-ui), Inter, system-ui, sans-serif" }}
           >
             Trade-up{" "}
             <span className="text-[var(--accent)]">Calculator</span>
@@ -718,7 +718,7 @@ export function TradeUpCalculator() {
       </header>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <div className="flex rounded-lg border border-[var(--border)] p-0.5">
+        <div className="et-seg">
           <button
             type="button"
             onClick={() => onModeChange("inventory")}
@@ -747,7 +747,7 @@ export function TradeUpCalculator() {
           <button
             type="button"
             onClick={clearContract}
-            className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:text-[var(--danger)] sm:ml-auto"
+            className="et-card px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--danger)] sm:ml-auto"
           >
             Clear contract
           </button>
@@ -755,7 +755,7 @@ export function TradeUpCalculator() {
       </div>
 
       {mode === "inventory" ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/50 p-4">
+        <div className="et-card flex flex-col gap-3 p-4">
           <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
             Profile
           </label>
@@ -769,7 +769,7 @@ export function TradeUpCalculator() {
                 if (id) router.replace(`/tradeup?profileId=${id}`);
                 else router.replace("/tradeup");
               }}
-              className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] sm:min-w-[14rem]"
+              className="et-field w-full min-w-0 flex-1 px-3 py-2 text-sm text-[var(--text)] sm:min-w-[14rem]"
             >
               <option value="">Select a synced profile…</option>
               {profiles.map((p) => (
@@ -778,31 +778,31 @@ export function TradeUpCalculator() {
                 </option>
               ))}
             </select>
-            <input
-              type="text"
-              value={profileInput}
-              onChange={(e) => setProfileInput(e.target.value)}
-              placeholder="Or Steam URL / SteamID64"
-              className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] sm:min-w-[12rem]"
-            />
-            <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void loadProfileFromInput()}
-              disabled={inventoryLoading || !profileInput.trim()}
-              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] disabled:opacity-50"
-            >
-              Load
-            </button>
+            <div className="et-command min-w-0 flex-1 sm:min-w-[12rem]">
+              <input
+                type="text"
+                value={profileInput}
+                onChange={(e) => setProfileInput(e.target.value)}
+                placeholder="Or Steam URL / SteamID64"
+                className="et-command-input"
+              />
+              <button
+                type="button"
+                onClick={() => void loadProfileFromInput()}
+                disabled={inventoryLoading || !profileInput.trim()}
+                className="et-command-submit"
+              >
+                Load
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => void onSyncClick()}
               disabled={!profileId || inventoryLoading}
-              className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-50"
+              className="et-card px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50"
             >
               Sync
             </button>
-            </div>
           </div>
           {inventoryLoading || syncNote ? (
             <p className="text-sm text-[var(--steam)]">
@@ -833,11 +833,11 @@ export function TradeUpCalculator() {
       ) : null}
 
       {catalogLoading ? (
-        <p className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-[var(--text-muted)]">
+        <p className="et-slot p-8 text-center text-[var(--text-muted)]">
           Loading trade-up catalog…
         </p>
       ) : catalogError ? (
-        <p className="rounded-xl border border-[var(--danger)]/40 p-4 text-[var(--danger)]">
+        <p className="et-card p-4 text-[var(--danger)]">
           {catalogError}
         </p>
       ) : (
@@ -858,7 +858,7 @@ export function TradeUpCalculator() {
                   (mode === "inventory" && !profileId) ||
                   !catalog
                 }
-                className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--accent)] transition hover:border-[var(--accent)]/40 disabled:opacity-40"
+                className="et-card px-3 py-1.5 text-xs text-[var(--accent)] disabled:opacity-40"
               >
                 Browse skins
               </button>

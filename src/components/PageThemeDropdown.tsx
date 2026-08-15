@@ -164,10 +164,10 @@ export function PageThemeDropdown({
                 disabled={disabled}
                 aria-pressed={active}
                 onClick={() => selectTheme(theme)}
-                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold tracking-wide transition disabled:opacity-50 ${
+                className={`inline-flex items-center gap-2 rounded-[4px] px-3 py-2 text-xs font-semibold tracking-wide disabled:opacity-50 ${
                   active
-                    ? "border-[var(--accent)]/50 bg-[var(--accent)]/15 text-[var(--accent)]"
-                    : "border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                    ? "bg-[var(--accent)] text-[var(--accent-fg)]"
+                    : "et-card text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >
                 <span
@@ -192,7 +192,7 @@ export function PageThemeDropdown({
             id={menuId}
             role="menu"
             aria-labelledby={buttonId}
-            className="fixed z-[120] min-w-[10.5rem] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] py-1 shadow-xl shadow-black/40"
+            className="et-card fixed z-[120] min-w-[10.5rem] overflow-hidden py-1"
             style={{ top: menuPos.top, left: menuPos.left }}
           >
             {PAGE_THEMES.map((theme) => {
@@ -239,7 +239,7 @@ export function PageThemeDropdown({
         aria-controls={menuId}
         title={`Theme: ${PAGE_THEME_LABELS[value]}`}
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs font-semibold tracking-wide text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-50"
+        className="et-card inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold tracking-wide text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50"
       >
         <span
           className="h-2.5 w-2.5 shrink-0 rounded-full"

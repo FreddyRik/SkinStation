@@ -87,7 +87,12 @@ export function CatalogContainsGrid({
           <li key={item.id}>
             <Link
               href={`/database/${encodeURIComponent(item.id)}`}
-              className="flex h-full flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/40 p-3 transition hover:border-[var(--accent)]/35 hover:bg-[var(--bg-panel)]/80"
+              className="et-card et-card-hover flex h-full flex-col gap-2 p-3"
+              style={
+                item.rarity
+                  ? { borderLeft: `2px solid ${item.rarity.color}` }
+                  : undefined
+              }
             >
               <div className="flex h-24 items-center justify-center rounded-lg bg-[var(--bg)]">
                 {item.image ? (
@@ -124,10 +129,7 @@ export function CatalogContainsGrid({
                 </div>
               </div>
               {item.rarity ? (
-                <p
-                  className="truncate text-[11px]"
-                  style={{ color: item.rarity.color }}
-                >
+                <p className="truncate text-[11px] text-[var(--text-muted)]">
                   {item.rarity.name}
                 </p>
               ) : null}
@@ -157,7 +159,7 @@ export function CatalogNamedRefList({
         <li key={ref.id}>
           <Link
             href={hrefFor(ref.id)}
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/50 px-2.5 py-1.5 text-xs text-[var(--text)] transition hover:border-[var(--accent)]/40"
+            className="et-card et-card-hover inline-flex items-center gap-2 px-2.5 py-1.5 text-xs text-[var(--text)]"
           >
             {ref.image ? (
               // eslint-disable-next-line @next/next/no-img-element

@@ -103,13 +103,12 @@ export default async function SharePage({ params, searchParams }: PageProps) {
           Shareable inventory card
         </p>
         <h1
-          className="break-words text-2xl font-semibold tracking-tight sm:text-4xl"
-          style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
+          className="text-2xl font-semibold tracking-tight sm:text-4xl"
         >
           {profile.personaName ?? profile.steamId}
           <span className="text-[var(--text-muted)]"> · Wrapped</span>
         </h1>
-        <p className="text-sm text-[var(--text-muted)] sm:text-base">
+        <p className="font-data text-sm text-[var(--text-muted)] sm:text-base">
           {stats.itemCount} items · {PRICE_SOURCE_LABELS[priceSource]}{" "}
           <span
             style={{
@@ -140,13 +139,13 @@ export default async function SharePage({ params, searchParams }: PageProps) {
       <div className="flex w-full flex-wrap items-center justify-center gap-3 text-sm">
         <Link
           href={`/inventory/${profile.id}`}
-          className="rounded-xl bg-[var(--accent)] px-4 py-2.5 font-semibold text-[#042f2e] hover:bg-[var(--accent-dim)]"
+          className="rounded-[4px] bg-[var(--accent)] px-4 py-2.5 font-semibold text-[var(--accent-fg)] hover:bg-[var(--accent-dim)]"
         >
           Open full inventory
         </Link>
         <Link
           href="/"
-          className="rounded-xl border border-[var(--border)] px-4 py-2.5 text-[var(--text-muted)] hover:text-[var(--text)]"
+          className="et-card px-4 py-2.5 text-[var(--text-muted)] hover:text-[var(--text)]"
         >
           Track your own
         </Link>

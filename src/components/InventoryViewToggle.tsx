@@ -18,7 +18,7 @@ export function InventoryViewToggle({
 }) {
   return (
     <div
-      className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg)] p-0.5"
+      className="et-seg"
       role="group"
       aria-label="Inventory layout"
     >

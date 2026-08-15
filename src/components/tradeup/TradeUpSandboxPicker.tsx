@@ -84,12 +84,12 @@ export function TradeUpSandboxPicker({
   const visible = eligible.slice(0, 80);
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+    <div className="et-card flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3
             className="text-lg text-[var(--text)]"
-            style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
+            style={{ fontFamily: "var(--font-ui), Inter, system-ui, sans-serif" }}
           >
             Sandbox picker
           </h3>
@@ -101,7 +101,7 @@ export function TradeUpSandboxPicker({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:text-[var(--text)]"
+          className="et-card px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
         >
           Close
         </button>
@@ -113,9 +113,9 @@ export function TradeUpSandboxPicker({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search skins or collections…"
-          className="min-w-[12rem] flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]"
+          className="et-field min-w-[12rem] flex-1 px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]"
         />
-        <div className="flex rounded-lg border border-[var(--border)] p-0.5">
+        <div className="et-seg">
           {(["normal", "stattrak"] as const).map((v) => (
             <button
               key={v}
@@ -142,7 +142,7 @@ export function TradeUpSandboxPicker({
               <button
                 type="button"
                 onClick={() => onPick(skin, variant)}
-                className="flex w-full items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)]/60 px-2 py-2 text-left transition hover:border-[var(--accent)]/40"
+                className="et-card et-card-hover flex w-full items-center gap-2 px-2 py-2 text-left"
               >
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-[var(--bg)]">
                   {skin.image ? (

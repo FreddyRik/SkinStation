@@ -180,8 +180,8 @@ export function ShareCardDialog({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[min(94vh,94dvh)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl">
-        <div className="flex shrink-0 flex-col gap-4 border-b border-[var(--border)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div className="et-card flex max-h-[min(94vh,94dvh)] w-full max-w-3xl flex-col overflow-hidden">
+        <div className="flex shrink-0 flex-col gap-4 px-4 py-4 shadow-[inset_0_-1px_0_rgba(200,121,65,0.12)] sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="min-w-0">
             <h2
               id="share-card-title"
@@ -196,7 +196,7 @@ export function ShareCardDialog({
           <button
             type="button"
             onClick={onClose}
-            className="self-start rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)] sm:self-auto"
+            className="et-card self-start px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)] sm:self-auto"
           >
             Close
           </button>
@@ -235,14 +235,14 @@ export function ShareCardDialog({
                   type="button"
                   disabled={busy || items.length === 0}
                   onClick={() => void downloadPng()}
-                  className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[#042f2e] hover:bg-[var(--accent-dim)] disabled:opacity-50"
+                  className="rounded-[4px] bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-fg)] hover:bg-[var(--accent-dim)] disabled:opacity-50"
                 >
                   {busy ? "Generating…" : "Download PNG"}
                 </button>
                 <button
                   type="button"
                   onClick={() => void copyLink()}
-                  className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-medium hover:border-[var(--accent)]/40"
+                  className="et-card px-4 py-3 text-sm font-medium hover:bg-[var(--bg-panel)]"
                 >
                   Copy share link
                 </button>
@@ -250,7 +250,7 @@ export function ShareCardDialog({
                   href={sharePath}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-xl border border-[var(--border)] px-4 py-3 text-center text-sm font-medium hover:border-[var(--steam)]/50"
+                  className="et-card px-4 py-3 text-center text-sm font-medium hover:bg-[var(--bg-panel)]"
                 >
                   Open share page
                 </a>
@@ -272,7 +272,7 @@ export function ShareCardDialog({
                 readOnly
                 value={shareUrl}
                 onFocus={(e) => e.currentTarget.select()}
-                className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--text)] outline-none ring-[var(--accent)] focus:ring-2"
+                className="et-field w-full px-3 py-2.5 text-sm text-[var(--text)]"
               />
             </label>
 

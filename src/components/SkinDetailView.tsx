@@ -145,7 +145,7 @@ export function SkinDetailView({
         </p>
       </header>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5 sm:p-6">
+      <section className="et-card p-5 sm:p-6">
         <div className="flex justify-center">
           {item.image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -185,7 +185,7 @@ export function SkinDetailView({
       </section>
 
       {phaseSiblings.length > 1 ? (
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5">
+        <section className="et-card p-5">
           <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">
             Phases
           </h2>
@@ -198,10 +198,10 @@ export function SkinDetailView({
                 <li key={sib.id}>
                   <Link
                     href={`/database/${encodeURIComponent(sib.id)}`}
-                    className={`flex flex-col overflow-hidden rounded-xl border transition ${
+                    className={`et-card flex flex-col overflow-hidden ${
                       active
-                        ? "border-[var(--accent)] bg-[var(--bg-elevated)]/80 ring-1 ring-[var(--accent)]/40"
-                        : "border-[var(--border)] bg-[var(--bg-elevated)]/40 hover:border-[var(--accent)]/35"
+                        ? "ring-1 ring-[var(--accent)]/50"
+                        : "et-card-hover"
                     }`}
                     aria-current={active ? "page" : undefined}
                   >
@@ -240,8 +240,8 @@ export function SkinDetailView({
       <BuyFromSection rows={rows} buffGoodsByHash={buffGoodsByHash} />
 
       {rows.length > 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70">
-          <h2 className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">
+        <section className="et-card overflow-hidden">
+          <h2 className="px-4 py-3 text-sm font-semibold text-[var(--text)] shadow-[inset_0_-1px_0_rgba(200,121,65,0.12)]">
             Market prices
           </h2>
           <ul className="divide-y divide-[var(--border)]">
@@ -266,10 +266,10 @@ export function SkinDetailView({
                   </p>
                 </div>
                 <div className="flex w-full flex-col items-end gap-0.5 sm:w-auto">
-                  <p className="text-sm font-semibold text-[var(--steam)]">
+                  <p className="font-data text-sm font-semibold text-[var(--steam)]">
                     Steam {money(row.steamUsd)}
                   </p>
-                  <p className="text-xs font-medium text-[var(--buff)]">
+                  <p className="font-data text-xs font-medium text-[var(--buff)]">
                     Buff {money(row.buffUsd)}
                   </p>
                 </div>
@@ -280,7 +280,7 @@ export function SkinDetailView({
       ) : null}
 
       {cleanDescription ? (
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5">
+        <section className="et-card p-5">
           <h2 className="mb-2 text-sm font-semibold text-[var(--text)]">
             Description
           </h2>
@@ -290,7 +290,7 @@ export function SkinDetailView({
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5">
+      <section className="et-card p-5">
         <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">Summary</h2>
         <dl className="divide-y divide-[var(--border)]">
           <SummaryRow label="Category" value="Skin" />
@@ -342,25 +342,19 @@ export function SkinDetailView({
 
       <section className="grid gap-3 sm:grid-cols-2">
         {item.rarity ? (
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-4">
+          <div
+            className="et-card p-4"
+            style={{ borderLeft: `2px solid ${item.rarity.color}` }}
+          >
             <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
               Rarity
             </p>
-            <div className="mt-2 flex items-center gap-2">
-              <span
-                className="h-8 w-1.5 rounded-full"
-                style={{ backgroundColor: item.rarity.color }}
-              />
-              <p
-                className="text-lg font-semibold"
-                style={{ color: item.rarity.color }}
-              >
-                {item.rarity.name}
-              </p>
-            </div>
+            <p className="mt-2 text-lg font-semibold text-[var(--text)]">
+              {item.rarity.name}
+            </p>
           </div>
         ) : null}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-4">
+        <div className="et-card p-4">
           <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
             Quality
           </p>
@@ -374,11 +368,11 @@ export function SkinDetailView({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5">
+      <section className="et-card p-5">
         <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
           Wear Range
           <span
-            className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[var(--border)] text-[10px] font-medium text-[var(--text-muted)]"
+            className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-[10px] font-medium text-[var(--text-muted)]"
             title="Possible float values this skin can roll (0.00–1.00). Colored stripes mark wear tiers."
             aria-label="About wear range"
           >
@@ -398,7 +392,7 @@ export function SkinDetailView({
               <li key={col.id}>
                 <Link
                   href={`/collections/${encodeURIComponent(col.id)}`}
-                  className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-3 transition hover:border-[var(--accent)]/40"
+                  className="et-card et-card-hover flex items-center gap-3 p-3"
                 >
                   {col.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -433,7 +427,7 @@ export function SkinDetailView({
               <li key={crate.id}>
                 <Link
                   href={`/database/${encodeURIComponent(crate.id)}`}
-                  className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-3 transition hover:border-[var(--accent)]/40"
+                  className="et-card et-card-hover flex items-center gap-3 p-3"
                 >
                   {crate.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -520,10 +514,10 @@ function VariantChip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+      className={`rounded-[4px] px-4 py-1.5 text-sm font-semibold ${
         active
           ? activeClass
-          : "border border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)]"
+          : "bg-[var(--bg-elevated)] text-[var(--text-muted)] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] hover:text-[var(--text)]"
       }`}
     >
       {label}
@@ -577,7 +571,7 @@ function FloatRangeBar({ min, max }: { min: number; max: number }) {
           transform: leftPct < 3 ? "none" : "translateX(-50%)",
         }}
       >
-        <span className="rounded-md bg-[#1c2420] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--text)]">
+        <span className="rounded-[4px] bg-[var(--bg-recessed)] px-2 py-0.5 font-data text-[11px] font-semibold text-[var(--text)]">
           {formatFloatShort(lo)}
         </span>
         <span
@@ -592,7 +586,7 @@ function FloatRangeBar({ min, max }: { min: number; max: number }) {
           transform: endLabelLeft > 94 ? "translateX(-100%)" : "translateX(-50%)",
         }}
       >
-        <span className="rounded-md bg-[#1c2420] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--text)]">
+        <span className="rounded-[4px] bg-[var(--bg-recessed)] px-2 py-0.5 font-data text-[11px] font-semibold text-[var(--text)]">
           {formatFloatShort(hi)}
         </span>
         <span

@@ -43,7 +43,7 @@ export function TradeUpContractSlots({
         return (
           <li key={slot?.key ?? `empty-${index}`}>
             {slot ? (
-              <div className="flex h-full flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/80 p-2.5">
+              <div className="et-card flex h-full flex-col gap-2 p-2.5">
                 <div className="flex items-start gap-2">
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-elevated)]">
                     {slot.image ? (
@@ -92,7 +92,7 @@ export function TradeUpContractSlots({
                       const v = Number(e.target.value);
                       if (Number.isFinite(v)) onFloatChange(index, v);
                     }}
-                    className="rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-1 font-mono text-xs text-[var(--text)]"
+                    className="et-field px-2 py-1 font-data text-xs text-[var(--text)]"
                   />
                   <input
                     type="range"
@@ -105,7 +105,7 @@ export function TradeUpContractSlots({
                     }
                     className="w-full accent-[var(--accent)]"
                   />
-                  <span className="font-mono text-[var(--text-muted)]">
+                  <span className="font-data text-[var(--text-muted)]">
                     {formatFloat(slot.floatValue)}
                   </span>
                 </label>
@@ -121,9 +121,9 @@ export function TradeUpContractSlots({
                       if (Number.isFinite(v))
                         onCostChange(index, Math.max(0, v));
                     }}
-                    className="rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-1 font-mono text-xs text-[var(--text)]"
+                    className="et-field px-2 py-1 font-data text-xs text-[var(--text)]"
                   />
-                  <span className="text-[var(--text-muted)]">
+                  <span className="font-data text-[var(--text-muted)]">
                     {formatMoney(slot.cost, currency)}
                   </span>
                 </label>
@@ -132,7 +132,7 @@ export function TradeUpContractSlots({
               <button
                 type="button"
                 onClick={() => onPickSlot(index)}
-                className="flex h-full min-h-[10.5rem] w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-elevated)]/40 px-3 py-4 text-center transition hover:border-[var(--accent)]/50 hover:bg-[var(--bg-panel)]/60"
+                className="et-slot flex h-full min-h-[10.5rem] w-full flex-col items-center justify-center gap-1 px-3 py-4 text-center hover:bg-[var(--bg-elevated)]"
               >
                 <span className="text-xs font-medium text-[var(--text-muted)]">
                   Slot {index + 1}

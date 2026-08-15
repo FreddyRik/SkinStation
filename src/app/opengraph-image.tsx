@@ -17,9 +17,9 @@ export default function OpenGraphImage() {
           justifyContent: "center",
           padding: "72px",
           background:
-            "linear-gradient(145deg, #0e1613 0%, #0c1210 45%, #0a0f0d 100%)",
-          color: "#e8f0eb",
-          fontFamily: "Georgia, serif",
+            "linear-gradient(145deg, #0d1424 0%, #0a0f1d 45%, #080c18 100%)",
+          color: "#ffffff",
+          fontFamily: "Inter, system-ui, sans-serif",
         }}
       >
         <div
@@ -30,7 +30,7 @@ export default function OpenGraphImage() {
             width: "100%",
             height: "100%",
             background:
-              "radial-gradient(ellipse 70% 50% at 10% 0%, rgba(94, 234, 212, 0.18), transparent 55%), radial-gradient(ellipse 60% 40% at 90% 10%, rgba(255, 107, 53, 0.12), transparent 50%)",
+              "radial-gradient(ellipse 70% 50% at 10% 0%, rgba(200, 121, 65, 0.22), transparent 55%), radial-gradient(ellipse 60% 40% at 90% 10%, rgba(74, 98, 168, 0.16), transparent 50%)",
           }}
         />
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -40,7 +40,7 @@ export default function OpenGraphImage() {
               fontSize: 28,
               letterSpacing: "0.28em",
               textTransform: "uppercase",
-              color: "#2dd4bf",
+              color: "#c87941",
             }}
           >
             Counter-Strike 2
@@ -61,8 +61,8 @@ export default function OpenGraphImage() {
               maxWidth: 900,
               fontSize: 34,
               lineHeight: 1.35,
-              color: "#8fa399",
-              fontFamily: "system-ui, sans-serif",
+              color: "#8b95a5",
+              fontFamily: "Inter, system-ui, sans-serif",
             }}
           >
             {SITE_DESCRIPTION}

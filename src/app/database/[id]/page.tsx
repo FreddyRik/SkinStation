@@ -208,7 +208,14 @@ function GenericCatalogItemView({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr]">
-        <div className="flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-6">
+        <div
+          className="et-card flex items-center justify-center p-6"
+          style={
+            item.rarity
+              ? { borderLeft: `2px solid ${item.rarity.color}` }
+              : undefined
+          }
+        >
           {item.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -221,7 +228,7 @@ function GenericCatalogItemView({
           )}
         </div>
 
-        <div className="space-y-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5 sm:p-6">
+        <div className="et-card space-y-5 p-5 sm:p-6">
           {item.description ? (
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-muted)]">
               {item.description.replace(/\\n/g, "\n").replace(/<\/?i>/g, "")}
