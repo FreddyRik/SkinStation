@@ -9,6 +9,7 @@ import {
 } from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
+import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 
 /** Compact Steam-colored price / range for catalog cards & contains grids. */
 export function CatalogPriceText({
@@ -21,7 +22,7 @@ export function CatalogPriceText({
   className?: string;
 }) {
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
-  const [usdToEur, setUsdToEur] = useState(0.92);
+  const usdToEur = useUsdToEurRate();
 
   useEffect(() => {
     setCurrency(readStoredCurrency());
@@ -31,25 +32,6 @@ export function CatalogPriceText({
     }
     window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
     return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/fx");
-        if (!res.ok) return;
-        const data = (await res.json()) as { usdToEur?: number };
-        if (!cancelled && typeof data.usdToEur === "number") {
-          setUsdToEur(data.usdToEur);
-        }
-      } catch {
-        /* keep default */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   if (minUsd == null && maxUsd == null) return null;

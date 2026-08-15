@@ -17,10 +17,17 @@ export async function GET() {
     } catch (err) {
       console.warn("CS catalog price enrich failed:", err);
     }
-    return NextResponse.json({
-      items,
-      collections: payload.collections,
-    });
+    return NextResponse.json(
+      {
+        items,
+        collections: payload.collections,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=30, s-maxage=120",
+        },
+      },
+    );
   } catch (err) {
     console.error("CS catalog API failed:", err);
     return NextResponse.json(

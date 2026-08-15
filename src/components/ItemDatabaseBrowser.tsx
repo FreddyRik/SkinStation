@@ -38,6 +38,8 @@ import {
 } from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
+import { jsonArrayField, jsonErrorMessage, readResponseJson } from "@/lib/api/client";
+import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 
 const PAGE_SIZE = 96;
 
@@ -590,7 +592,7 @@ export function ItemDatabaseBrowser() {
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [urlHydrated, setUrlHydrated] = useState(false);
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
-  const [usdToEur, setUsdToEur] = useState(0.92);
+  const usdToEur = useUsdToEurRate();
 
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
@@ -602,25 +604,6 @@ export function ItemDatabaseBrowser() {
     }
     window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
     return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/fx");
-        if (!res.ok) return;
-        const data = (await res.json()) as { usdToEur?: number };
-        if (!cancelled && typeof data.usdToEur === "number") {
-          setUsdToEur(data.usdToEur);
-        }
-      } catch {
-        /* keep default */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   function formatUsdRange(min: number | null, max: number | null): string | null {
@@ -713,17 +696,25 @@ export function ItemDatabaseBrowser() {
       setError(null);
       try {
         const res = await fetch("/api/cs-catalog");
-        const data = (await res.json()) as {
-          items?: SlimCatalogItem[];
-          collections?: SlimCollection[];
-          error?: string;
-        };
+        const data = await readResponseJson(res);
         if (!res.ok) {
-          throw new Error(data.error || "Failed to load catalog.");
+          throw new Error(jsonErrorMessage(data, "Failed to load catalog."));
         }
         if (cancelled) return;
-        setItems(Array.isArray(data.items) ? data.items : []);
-        setCollections(Array.isArray(data.collections) ? data.collections : []);
+        const nextItems = jsonArrayField(data, "items").filter(
+          (row): row is SlimCatalogItem => {
+            if (!row || typeof row !== "object") return false;
+            return "id" in row && "name" in row;
+          },
+        );
+        const nextCollections = jsonArrayField(data, "collections").filter(
+          (row): row is SlimCollection => {
+            if (!row || typeof row !== "object") return false;
+            return "id" in row && "name" in row;
+          },
+        );
+        setItems(nextItems);
+        setCollections(nextCollections);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Failed to load catalog.");

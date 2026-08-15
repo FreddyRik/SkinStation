@@ -121,13 +121,34 @@ export async function rateLimit(
   return memoryRateLimit(key, opts);
 }
 
+function firstHeaderValue(req: Request, name: string): string | null {
+  const raw = req.headers.get(name)?.trim();
+  if (!raw) return null;
+  const first = raw.split(",")[0]?.trim();
+  return first || null;
+}
+
+/**
+ * Client IP for rate limiting. Prefer platform-assigned headers that callers
+ * cannot spoof (`cf-connecting-ip`, `x-vercel-forwarded-for`, `x-real-ip`).
+ * `x-forwarded-for` is last-hop only — the left-most value is client-controlled
+ * when a request already includes that header.
+ */
 export function clientIpFromRequest(req: Request): string {
+  const trusted =
+    firstHeaderValue(req, "cf-connecting-ip") ??
+    firstHeaderValue(req, "x-vercel-forwarded-for") ??
+    firstHeaderValue(req, "x-real-ip");
+  if (trusted) return trusted;
+
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+    const hops = forwarded
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const last = hops[hops.length - 1];
+    if (last) return last;
   }
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
   return "unknown";
 }

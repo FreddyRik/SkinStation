@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parseCurrency, type Currency } from "@/lib/currency";
+import { parseCurrency } from "@/lib/currency";
 import { buildTradeUpCatalogPayload } from "@/lib/tradeup/catalog";
 
 export const dynamic = "force-dynamic";
@@ -10,9 +10,13 @@ export async function GET(req: Request) {
     const currency = parseCurrency(
       url.searchParams.get("currency"),
       "USD",
-    ) as Currency;
+    );
     const payload = await buildTradeUpCatalogPayload(currency);
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, {
+      headers: {
+        "Cache-Control": "public, max-age=30, s-maxage=120",
+      },
+    });
   } catch (err) {
     console.error("Trade-up catalog API failed:", err);
     return NextResponse.json(

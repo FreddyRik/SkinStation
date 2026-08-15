@@ -19,7 +19,8 @@ export function isFloatProviderSoftWarning(
     t.includes("still have no float") ||
     t.includes("no float after sync") ||
     t.includes("float provider quota") ||
-    t.includes("steamwebapi inventory returned no items") ||
+    t.includes("float enrichment returned no items") ||
+    t.includes("may be incomplete") ||
     t.includes("certificate floats") ||
     message.startsWith(INSPECT_API_LIMIT_MESSAGE.slice(0, 20)) ||
     message.startsWith(INSPECT_API_MISSING_MESSAGE.slice(0, 20))
@@ -39,12 +40,13 @@ export function floatUnavailableHint(
   if (
     t.includes("no remote float provider") ||
     t.includes("certificate floats") ||
-    t.includes("steamwebapi")
+    t.includes("float enrichment returned no items") ||
+    t.includes("may be incomplete")
   ) {
-    return "Float unavailable — Steam no longer returns certificate floats on public inventory. Use Steamwebapi inventory data or set INSPECT_API_URL.";
+    return "Float unavailable — Steam no longer returns certificate floats on public inventory for every item.";
   }
   if (t.includes("float provider quota") || t.includes("still have no float")) {
-    return "Float unavailable after sync — try Force again later or configure INSPECT_API_URL.";
+    return "Float unavailable after sync — try Force again later.";
   }
   return "Float/pattern not available for this item yet.";
 }

@@ -30,6 +30,13 @@ import {
 } from "@/lib/currency";
 import { convertMoney, convertMoneyOrZero } from "@/lib/fx";
 import { formatDate, formatFloat, formatMoney } from "@/lib/format";
+import {
+  jsonBooleanField,
+  jsonErrorMessage,
+  jsonNumberField,
+  jsonStringField,
+  readResponseJson,
+} from "@/lib/api/client";
 import { resolveRarityColor } from "@/lib/rarity-accent";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 import {
@@ -426,47 +433,46 @@ export function InventoryDashboard({
           currency: storageCurrency,
         }),
       });
-      const data = await res.json();
+      const data = await readResponseJson(res);
       if (!res.ok) {
-        if (res.status === 429 || looksLikeSteamRateLimitMessage(data.error)) {
+        const message = jsonErrorMessage(data, "Refresh failed");
+        if (res.status === 429 || looksLikeSteamRateLimitMessage(message)) {
           markSteamBackoff();
           setBackoffRemainingMs(steamBackoffRemainingMs());
         }
-        throw new Error(data.error ?? "Refresh failed");
+        throw new Error(message);
       }
-      if (
-        typeof data.warning === "string" &&
-        data.warning &&
-        !isHiddenSyncMessage(data.warning)
-      ) {
-        setWarning(data.warning);
-        if (
-          data.usedCachedInventory ||
-          looksLikeSteamRateLimitMessage(data.warning)
-        ) {
+      const warning = jsonStringField(data, "warning");
+      const usedCached = jsonBooleanField(data, "usedCachedInventory");
+      const skippedCooldown = jsonBooleanField(data, "skippedCooldown");
+      const itemCount = jsonNumberField(data, "itemCount");
+      const totalBuff = jsonNumberField(data, "totalBuff");
+      const totalSteam = jsonNumberField(data, "totalSteam");
+      const syncedCurrency = parseCurrency(
+        jsonStringField(data, "currency"),
+        storageCurrency,
+      );
+      if (warning && !isHiddenSyncMessage(warning)) {
+        setWarning(warning);
+        if (usedCached || looksLikeSteamRateLimitMessage(warning)) {
           markSteamBackoff();
           setBackoffRemainingMs(steamBackoffRemainingMs());
         }
       }
-      if (data.skippedCooldown) {
+      if (skippedCooldown) {
         setNote(
-          data.warning && typeof data.warning === "string"
-            ? data.warning
-            : `Cooldown active (${Math.round(cooldownMs / 1000)}s). Showing cached inventory.`,
+          warning ??
+            `Cooldown active (${Math.round(cooldownMs / 1000)}s). Showing cached inventory.`,
         );
-      } else if (data.usedCachedInventory) {
+      } else if (usedCached) {
         setNote(
-          typeof data.warning === "string" && data.warning
-            ? data.warning
-            : "Steam was unavailable — showing your last successful sync.",
+          warning ?? "Steam was unavailable — showing your last successful sync.",
         );
       } else {
         const source = parsePriceSource(priceSource);
-        const total =
-          source === "buff" ? data.totalBuff : data.totalSteam;
-        const syncedCurrency = parseCurrency(data.currency, storageCurrency);
+        const total = source === "buff" ? totalBuff : totalSteam;
         setNote(
-          `Synced ${data.itemCount} items · ${PRICE_SOURCE_LABELS[source]} ${formatMoney(
+          `Synced ${itemCount ?? 0} items · ${PRICE_SOURCE_LABELS[source]} ${formatMoney(
             convertMoney(total, syncedCurrency, currency, usdToEur),
             currency,
           )}`,

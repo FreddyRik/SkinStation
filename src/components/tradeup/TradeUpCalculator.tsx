@@ -19,11 +19,19 @@ import {
 import {
   CURRENCY_CHANGE_EVENT,
   DEFAULT_CURRENCY,
-  parseCurrency,
   readStoredCurrency,
   type Currency,
 } from "@/lib/currency";
 import { toFiniteNumber } from "@/lib/format";
+import {
+  jsonArrayField,
+  jsonBooleanField,
+  jsonErrorMessage,
+  jsonNumberField,
+  jsonRecord,
+  jsonStringField,
+  readResponseJson,
+} from "@/lib/api/client";
 import { isFloatProviderSoftWarning } from "@/lib/inspect/warnings";
 import { isSteamwebapiLimitMessage } from "@/lib/steamwebapi/errors";
 import {
@@ -32,6 +40,7 @@ import {
   type PriceSource,
 } from "@/lib/price-source";
 import {
+  parseRecentProfileEntry,
   readRecentProfiles,
   recentProfileIds,
   rememberRecentProfile,
@@ -61,6 +70,49 @@ type ProfileOption = {
   steamId: string;
   itemCount: number;
 };
+
+function isTradeUpCatalogPayload(data: unknown): data is TradeUpCatalogPayload {
+  const row = jsonRecord(data);
+  if (!row) return false;
+  return (
+    Array.isArray(row.skins) &&
+    Array.isArray(row.collections) &&
+    Array.isArray(row.crates) &&
+    jsonRecord(row.prices) != null &&
+    jsonRecord(row.goodsIds) != null &&
+    typeof row.currency === "string"
+  );
+}
+
+function inventoryRowFromUnknown(value: unknown): InventoryItemRow | null {
+  const row = jsonRecord(value);
+  if (!row) return null;
+  const id = jsonStringField(row, "id");
+  const marketHashName = jsonStringField(row, "marketHashName");
+  const name = jsonStringField(row, "name");
+  const assetIdRaw = row.assetId;
+  const assetId =
+    typeof assetIdRaw === "string" || typeof assetIdRaw === "number"
+      ? String(assetIdRaw)
+      : "";
+  if (!id || !assetId || !marketHashName || !name) return null;
+  const exterior = jsonStringField(row, "exterior");
+  return {
+    id,
+    assetId,
+    marketHashName,
+    name,
+    iconUrl: jsonStringField(row, "iconUrl"),
+    exterior: exterior?.trim() ? exterior.trim() : null,
+    floatValue: toFiniteNumber(row.floatValue),
+    paintIndex: toFiniteNumber(row.paintIndex),
+    steamPrice: toFiniteNumber(row.steamPrice),
+    buffPrice: toFiniteNumber(row.buffPrice),
+    rarity: jsonStringField(row, "rarity"),
+    type: jsonStringField(row, "type"),
+    marketable: row.marketable !== false,
+  };
+}
 
 function emptySlots(n: number): SlotDraft[] {
   return Array.from({ length: n }, () => null);
@@ -162,9 +214,14 @@ export function TradeUpCalculator() {
     setCatalogError(null);
     fetch(`/api/tradeup/catalog?currency=${currency}`)
       .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load catalog");
-        if (!cancelled) setCatalog(data as TradeUpCatalogPayload);
+        const data = await readResponseJson(res);
+        if (!res.ok) {
+          throw new Error(jsonErrorMessage(data, "Failed to load catalog"));
+        }
+        if (!isTradeUpCatalogPayload(data)) {
+          throw new Error("Failed to load catalog");
+        }
+        if (!cancelled) setCatalog(data);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -187,22 +244,13 @@ export function TradeUpCalculator() {
 
   async function fetchInventory(id: string): Promise<InventoryItemRow[]> {
     const res = await fetch(`/api/profiles/${id}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Failed to load inventory");
-    const raw = (data.items ?? []) as InventoryItemRow[];
-    // Coerce float/paint fields — eligibility uses Number.isFinite and rejects strings.
-    return raw.map((item) => ({
-      ...item,
-      assetId: String(item.assetId),
-      exterior:
-        typeof item.exterior === "string" && item.exterior.trim()
-          ? item.exterior.trim()
-          : null,
-      floatValue: toFiniteNumber(item.floatValue),
-      paintIndex: toFiniteNumber(item.paintIndex),
-      steamPrice: toFiniteNumber(item.steamPrice),
-      buffPrice: toFiniteNumber(item.buffPrice),
-    }));
+    const data = await readResponseJson(res);
+    if (!res.ok) {
+      throw new Error(jsonErrorMessage(data, "Failed to load inventory"));
+    }
+    return jsonArrayField(data, "items")
+      .map(inventoryRowFromUnknown)
+      .filter((item): item is InventoryItemRow => item != null);
   }
 
   function profilesFromLocal(): ProfileOption[] {
@@ -226,86 +274,22 @@ export function TradeUpCalculator() {
       const listRes = await fetch(
         `/api/profiles?ids=${ids.map(encodeURIComponent).join(",")}`,
       );
-      const listData = (await listRes.json()) as {
-        profiles?: Array<{
-          id: string;
-          personaName: string | null;
-          avatarUrl: string | null;
-          steamId: string;
-          itemCount: number;
-          currency?: string;
-          faceitUrl?: string | null;
-          faceitLevel?: number | null;
-          faceitElo?: number | null;
-          faceitNickname?: string | null;
-          faceitFound?: boolean;
-          faceitFetchedAt?: string | Date | null;
-          leetifyUrl?: string | null;
-          leetifyName?: string | null;
-          leetifyRating?: number | null;
-          leetifyFound?: boolean;
-          lastSyncedAt?: string | Date | null;
-          latestSnapshot?: {
-            currency?: string;
-            totalSteam?: number;
-            totalBuff?: number;
-          } | null;
-        }>;
-      };
-
-      if (!listRes.ok || !Array.isArray(listData.profiles)) {
+      const listData = await readResponseJson(listRes);
+      if (!listRes.ok) {
         setProfiles(profilesFromLocal());
         return;
       }
 
-      const byId = new Map(listData.profiles.map((p) => [p.id, p]));
+      const byId = new Map<string, RecentProfileEntry>();
+      for (const raw of jsonArrayField(listData, "profiles")) {
+        const entry = parseRecentProfileEntry(raw);
+        if (entry) byId.set(entry.id, entry);
+      }
+
       const refreshed: RecentProfileEntry[] = [];
       for (const id of ids) {
         const p = byId.get(id);
-        if (!p) continue;
-        const faceitFetchedAt =
-          p.faceitFetchedAt instanceof Date
-            ? p.faceitFetchedAt.toISOString()
-            : typeof p.faceitFetchedAt === "string"
-              ? p.faceitFetchedAt
-              : null;
-        const lastSyncedAt =
-          p.lastSyncedAt instanceof Date
-            ? p.lastSyncedAt.toISOString()
-            : typeof p.lastSyncedAt === "string"
-              ? p.lastSyncedAt
-              : null;
-        const currency = parseCurrency(p.currency);
-        const snap = p.latestSnapshot;
-        refreshed.push({
-          id: p.id,
-          steamId: p.steamId,
-          personaName: p.personaName,
-          avatarUrl: p.avatarUrl,
-          currency,
-          faceitUrl: p.faceitUrl ?? null,
-          faceitLevel: p.faceitLevel ?? null,
-          faceitElo: p.faceitElo ?? null,
-          faceitNickname: p.faceitNickname ?? null,
-          faceitFound: Boolean(p.faceitFound),
-          faceitFetchedAt,
-          leetifyUrl: p.leetifyUrl ?? null,
-          leetifyName: p.leetifyName ?? null,
-          leetifyRating: p.leetifyRating ?? null,
-          leetifyFound: Boolean(p.leetifyFound),
-          itemCount: p.itemCount,
-          lastSyncedAt,
-          latestSnapshot:
-            snap &&
-            typeof snap.totalSteam === "number" &&
-            typeof snap.totalBuff === "number"
-              ? {
-                  currency: parseCurrency(snap.currency, currency),
-                  totalSteam: snap.totalSteam,
-                  totalBuff: snap.totalBuff,
-                }
-              : null,
-        });
+        if (p) refreshed.push(p);
       }
 
       writeRecentProfiles(refreshed);
@@ -336,37 +320,28 @@ export function TradeUpCalculator() {
         profileId: id,
       }),
     });
-    const syncData = await syncRes.json().catch(() => ({}));
+    const syncData = await readResponseJson(syncRes);
+    const syncError = jsonErrorMessage(syncData, "Failed to sync inventory");
+    const syncWarning = jsonStringField(syncData, "warning");
     if (!syncRes.ok) {
       if (
         syncRes.status === 429 ||
-        looksLikeSteamRateLimitMessage(
-          typeof syncData.error === "string" ? syncData.error : null,
-        )
+        looksLikeSteamRateLimitMessage(syncError)
       ) {
         markSteamBackoff();
       }
-      throw new Error(
-        typeof syncData.error === "string"
-          ? syncData.error
-          : "Failed to sync inventory",
-      );
+      throw new Error(syncError);
     }
     if (
-      syncData.usedCachedInventory ||
-      looksLikeSteamRateLimitMessage(
-        typeof syncData.warning === "string" ? syncData.warning : null,
-      )
+      jsonBooleanField(syncData, "usedCachedInventory") ||
+      looksLikeSteamRateLimitMessage(syncWarning)
     ) {
       markSteamBackoff();
     }
     return {
-      inspected:
-        typeof syncData.inspected === "number" ? syncData.inspected : 0,
-      itemCount:
-        typeof syncData.itemCount === "number" ? syncData.itemCount : 0,
-      warning:
-        typeof syncData.warning === "string" ? syncData.warning : null,
+      inspected: jsonNumberField(syncData, "inspected") ?? 0,
+      itemCount: jsonNumberField(syncData, "itemCount") ?? 0,
+      warning: syncWarning,
     };
   }
 
@@ -606,39 +581,36 @@ export function TradeUpCalculator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input }),
       });
-      const createData = await createRes.json();
+      const createData = await readResponseJson(createRes);
       if (!createRes.ok) {
-        throw new Error(createData.error ?? "Failed to resolve profile");
+        throw new Error(jsonErrorMessage(createData, "Failed to resolve profile"));
       }
-      const id = createData.profile.id as string;
-      const profile = createData.profile as {
-        id: string;
-        steamId?: string;
-        personaName?: string | null;
-        avatarUrl?: string | null;
-      };
-      if (profile.steamId) {
-        rememberRecentProfile({
-          id: profile.id,
-          steamId: profile.steamId,
-          personaName: profile.personaName ?? null,
-          avatarUrl: profile.avatarUrl ?? null,
-          currency: DEFAULT_CURRENCY,
-          faceitUrl: null,
-          faceitLevel: null,
-          faceitElo: null,
-          faceitNickname: null,
-          faceitFound: false,
-          faceitFetchedAt: null,
-          leetifyUrl: null,
-          leetifyName: null,
-          leetifyRating: null,
-          leetifyFound: false,
-          itemCount: 0,
-          lastSyncedAt: null,
-          latestSnapshot: null,
-        });
+      const profile = jsonRecord(jsonRecord(createData)?.profile);
+      const id = jsonStringField(profile, "id");
+      const steamId = jsonStringField(profile, "steamId");
+      if (!id || !steamId) {
+        throw new Error("Failed to resolve profile");
       }
+      rememberRecentProfile({
+        id,
+        steamId,
+        personaName: jsonStringField(profile, "personaName"),
+        avatarUrl: jsonStringField(profile, "avatarUrl"),
+        currency: DEFAULT_CURRENCY,
+        faceitUrl: null,
+        faceitLevel: null,
+        faceitElo: null,
+        faceitNickname: null,
+        faceitFound: false,
+        faceitFetchedAt: null,
+        leetifyUrl: null,
+        leetifyName: null,
+        leetifyRating: null,
+        leetifyFound: false,
+        itemCount: 0,
+        lastSyncedAt: null,
+        latestSnapshot: null,
+      });
       // Allow the profile effect to auto-sync if this profile has no items yet.
       autoSyncedRef.current.delete(id);
       setMode("inventory");

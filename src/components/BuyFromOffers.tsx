@@ -11,6 +11,7 @@ import {
 } from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
+import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 import {
   buffMarketListingUrl,
   steamMarketListingUrl,
@@ -37,7 +38,7 @@ export function BuyFromOffers({
   title?: string;
 }) {
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
-  const [usdToEur, setUsdToEur] = useState(0.92);
+  const usdToEur = useUsdToEurRate();
 
   useEffect(() => {
     setCurrency(readStoredCurrency());
@@ -47,25 +48,6 @@ export function BuyFromOffers({
     }
     window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
     return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/fx");
-        if (!res.ok) return;
-        const data = (await res.json()) as { usdToEur?: number };
-        if (!cancelled && typeof data.usdToEur === "number") {
-          setUsdToEur(data.usdToEur);
-        }
-      } catch {
-        /* keep default */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   if (!steam && !buff) return null;
