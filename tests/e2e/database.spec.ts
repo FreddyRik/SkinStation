@@ -13,9 +13,11 @@ test.describe("skin database", () => {
     await expect(
       page.getByRole("heading", { name: /skin database/i }),
     ).toBeVisible();
+    await expect(page.getByText(/loading catalog/i)).toHaveCount(0);
 
     await page.getByPlaceholder(/search by name/i).fill("Redline");
-    await expect(page.getByText("AK-47 | Redline")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Redline" })).toBeVisible();
+    await expect(page.getByText(/1 result/)).toBeVisible();
   });
 
   test("surfaces a catalog load failure", async ({ page }) => {
