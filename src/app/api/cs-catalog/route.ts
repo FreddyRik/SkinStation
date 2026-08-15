@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonError } from "@/lib/api/errors";
 import {
   enrichSlimItemsWithPrices,
   getCatalogPayload,
@@ -30,9 +31,6 @@ export async function GET() {
     );
   } catch (err) {
     console.error("CS catalog API failed:", err);
-    return NextResponse.json(
-      { error: "Failed to load CS item catalog." },
-      { status: 502 },
-    );
+    return jsonError("Failed to load CS item catalog.", 502);
   }
 }

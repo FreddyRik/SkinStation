@@ -2,14 +2,21 @@ import { describe, expect, it } from "vitest";
 import { clientIpFromRequest, rateLimit } from "@/lib/api/rate-limit";
 
 describe("clientIpFromRequest", () => {
-  it("prefers the first x-forwarded-for hop", () => {
+  it("prefers platform-assigned IPs over x-forwarded-for", () => {
     const req = new Request("http://localhost", {
       headers: {
         "x-forwarded-for": "1.1.1.1, 2.2.2.2",
         "x-real-ip": "9.9.9.9",
       },
     });
-    expect(clientIpFromRequest(req)).toBe("1.1.1.1");
+    expect(clientIpFromRequest(req)).toBe("9.9.9.9");
+  });
+
+  it("uses the last x-forwarded-for hop when no trusted header is set", () => {
+    const req = new Request("http://localhost", {
+      headers: { "x-forwarded-for": "1.1.1.1, 2.2.2.2" },
+    });
+    expect(clientIpFromRequest(req)).toBe("2.2.2.2");
   });
 
   it("falls back to x-real-ip then unknown", () => {

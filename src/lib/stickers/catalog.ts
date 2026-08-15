@@ -1,5 +1,6 @@
 import { stickerMarketHashName } from "@/lib/steam-market/csgotrader";
 import { SITE_USER_AGENT } from "@/lib/site";
+import { jsonObject, jsonUnknownArray } from "@/types/json";
 import {
   stripStickerPrefix,
   toStickerMarketHashName,
@@ -68,11 +69,23 @@ export async function getStickerIconCatalog(
         console.warn(`Sticker icon catalog failed (HTTP ${res.status}).`);
         return memoryCatalog?.byHash ?? new Map();
       }
-      const data = (await res.json()) as ByMykelSticker[];
-      if (!Array.isArray(data)) {
-        return memoryCatalog?.byHash ?? new Map();
-      }
-      const byHash = indexStickers(data);
+      const data = jsonUnknownArray(await res.json());
+      const byHash = indexStickers(
+        data.flatMap((row) => {
+          const obj = jsonObject(row);
+          if (!obj) return [];
+          return [
+            {
+              name: typeof obj.name === "string" ? obj.name : undefined,
+              market_hash_name:
+                typeof obj.market_hash_name === "string"
+                  ? obj.market_hash_name
+                  : undefined,
+              image: typeof obj.image === "string" ? obj.image : undefined,
+            },
+          ];
+        }),
+      );
       memoryCatalog = { fetchedAt: Date.now(), byHash };
       return byHash;
     } catch (err) {

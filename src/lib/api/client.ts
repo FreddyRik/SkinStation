@@ -1,8 +1,11 @@
 import { apiErrorSchema } from "@/lib/api/schemas";
+import {
+  isJsonObject,
+  jsonObject,
+  type JsonObject,
+} from "@/types/json";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+export type { JsonObject };
 
 /** Parse a fetch Response as JSON without throwing on empty / HTML bodies. */
 export async function readResponseJson(res: Response): Promise<unknown> {
@@ -18,12 +21,12 @@ export async function readResponseJson(res: Response): Promise<unknown> {
 /** Safe client-facing `error` string from an API JSON body. */
 export function jsonErrorMessage(data: unknown, fallback: string): string {
   const parsed = apiErrorSchema.safeParse(data);
-  if (!parsed.success) return fallback;
-  return parsed.data.error;
+  if (parsed.success) return parsed.data.error;
+  return fallback;
 }
 
-export function jsonRecord(data: unknown): Record<string, unknown> | null {
-  return isRecord(data) ? data : null;
+export function jsonRecord(data: unknown): JsonObject | null {
+  return jsonObject(data);
 }
 
 export function jsonStringField(data: unknown, key: string): string | null {
@@ -51,3 +54,5 @@ export function jsonArrayField(data: unknown, key: string): unknown[] {
   const value = row[key];
   return Array.isArray(value) ? value : [];
 }
+
+export { isJsonObject };

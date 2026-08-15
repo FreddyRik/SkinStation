@@ -1,4 +1,5 @@
 import { parseCurrency, type Currency } from "@/lib/currency";
+import { jsonObject } from "@/types/json";
 
 export const RECENT_PROFILES_STORAGE_KEY = "skinstation-recent-profiles";
 export const RECENT_PROFILES_LIMIT = 8;
@@ -46,7 +47,8 @@ function parseSnapshot(
   fallbackCurrency: Currency,
 ): RecentProfileEntry["latestSnapshot"] {
   if (!value || typeof value !== "object") return null;
-  const row = value as Record<string, unknown>;
+  const row = jsonObject(value);
+  if (!row) return null;
   const totalSteam = asNumberOrNull(row.totalSteam);
   const totalBuff = asNumberOrNull(row.totalBuff);
   if (totalSteam == null || totalBuff == null) return null;
@@ -61,7 +63,8 @@ export function parseRecentProfileEntry(
   value: unknown,
 ): RecentProfileEntry | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as Record<string, unknown>;
+  const row = jsonObject(value);
+  if (!row) return null;
   const id = asStringOrNull(row.id);
   const steamId = asStringOrNull(row.steamId);
   if (!id || !steamId) return null;

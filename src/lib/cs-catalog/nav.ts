@@ -141,6 +141,12 @@ export const OTHER_NAV_ITEMS: { key: OtherNavKey; label: string }[] = [
   { key: "pins", label: "Pins" },
 ];
 
+const OTHER_NAV_KEYS = new Set<string>(OTHER_NAV_ITEMS.map((item) => item.key));
+
+export function isOtherNavKey(value: string | null): value is OtherNavKey {
+  return value != null && OTHER_NAV_KEYS.has(value);
+}
+
 const OTHER_KIND: Partial<Record<OtherNavKey, CatalogKind>> = {
   keys: "key",
   keychains: "keychain",

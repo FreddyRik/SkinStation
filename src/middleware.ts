@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jsonErrorWithRetryAfter } from "@/lib/api/errors";
 import { clientIpFromRequest, rateLimit } from "@/lib/api/rate-limit";
 
 const RATE_LIMITED_POST = new Set(["/api/sync", "/api/profiles"]);
@@ -28,12 +29,12 @@ export async function middleware(req: NextRequest) {
   if (req.method === "POST" && RATE_LIMITED_POST.has(path)) {
     const result = await rateLimit(`${path}:${ip}`, POST_LIMIT);
     if (!result.ok) {
-      const res = NextResponse.json(
-        { error: "Too many requests. Please wait and try again." },
-        { status: 429 },
+      return applySecurityHeaders(
+        jsonErrorWithRetryAfter(
+          "Too many requests. Please wait and try again.",
+          result.retryAfterSec,
+        ),
       );
-      res.headers.set("Retry-After", String(result.retryAfterSec));
-      return applySecurityHeaders(res);
     }
   }
 
@@ -41,22 +42,22 @@ export async function middleware(req: NextRequest) {
     // Bucket by IP, not full path — otherwise /api/profiles/:id enumerates around limits.
     const global = await rateLimit(`get-api:${ip}`, GET_API_LIMIT);
     if (!global.ok) {
-      const res = NextResponse.json(
-        { error: "Too many requests. Please wait and try again." },
-        { status: 429 },
+      return applySecurityHeaders(
+        jsonErrorWithRetryAfter(
+          "Too many requests. Please wait and try again.",
+          global.retryAfterSec,
+        ),
       );
-      res.headers.set("Retry-After", String(global.retryAfterSec));
-      return applySecurityHeaders(res);
     }
     if (path === "/api/image-proxy") {
       const img = await rateLimit(`image-proxy:${ip}`, IMAGE_PROXY_LIMIT);
       if (!img.ok) {
-        const res = NextResponse.json(
-          { error: "Too many requests. Please wait and try again." },
-          { status: 429 },
+        return applySecurityHeaders(
+          jsonErrorWithRetryAfter(
+            "Too many requests. Please wait and try again.",
+            img.retryAfterSec,
+          ),
         );
-        res.headers.set("Retry-After", String(img.retryAfterSec));
-        return applySecurityHeaders(res);
       }
     }
   }

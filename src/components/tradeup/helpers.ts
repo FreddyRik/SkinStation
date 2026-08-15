@@ -20,6 +20,9 @@ import type {
   TradeUpCrateRow,
   TradeUpVariant,
 } from "@/lib/tradeup/types";
+import type { InventoryItemRow } from "@/types/inventory";
+
+export type { InventoryItemRow };
 
 export function buildPoolContext(
   payload: TradeUpCatalogPayload,
@@ -124,22 +127,6 @@ export function defaultCostForSkin(
   );
   return pickPrice(prices[hash], priceSource) ?? 0;
 }
-
-export type InventoryItemRow = {
-  id: string;
-  assetId: string;
-  marketHashName: string;
-  name: string;
-  iconUrl: string | null;
-  exterior: string | null;
-  floatValue: number | null;
-  paintIndex: number | null;
-  steamPrice: number | null;
-  buffPrice: number | null;
-  rarity: string | null;
-  type: string | null;
-  marketable: boolean;
-};
 
 export function inventoryItemEligibility(
   item: InventoryItemRow,

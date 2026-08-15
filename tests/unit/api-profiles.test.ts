@@ -25,9 +25,17 @@ function nextRequest(url: string, init?: ConstructorParameters<typeof NextReques
   return new NextRequest(url, init);
 }
 
+function jsonPost(url: string, body: Record<string, unknown>) {
+  return nextRequest(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 function profileRow(overrides?: Record<string, unknown>) {
   return {
-    id: "p1",
+    id: "profile01",
     steamId: "76561198000000000",
     personaName: "Alice",
     avatarUrl: null,
@@ -66,24 +74,28 @@ describe("GET /api/profiles", () => {
 
   it("returns caller-known profiles in requested order", async () => {
     findMany.mockResolvedValue([
-      profileRow({ id: "b", personaName: "Bob" }),
-      profileRow({ id: "a", personaName: "Alice" }),
+      profileRow({ id: "profileb1", personaName: "Bob" }),
+      profileRow({ id: "profilea1", personaName: "Alice" }),
     ]);
 
     const res = await GET(
-      nextRequest("http://localhost/api/profiles?ids=a,b,a,missing"),
+      nextRequest(
+        "http://localhost/api/profiles?ids=profilea1,profileb1,profilea1,missing",
+      ),
     );
     expect(res.status).toBe(200);
     const json = (await res.json()) as {
       profiles: Array<{ id: string; itemCount: number }>;
     };
-    expect(json.profiles.map((p) => p.id)).toEqual(["a", "b"]);
+    expect(json.profiles.map((p) => p.id)).toEqual(["profilea1", "profileb1"]);
     expect(json.profiles[0]?.itemCount).toBe(4);
   });
 
   it("returns 500 when the database throws", async () => {
     findMany.mockRejectedValue(new Error("db down"));
-    const res = await GET(nextRequest("http://localhost/api/profiles?ids=p1"));
+    const res = await GET(
+      nextRequest("http://localhost/api/profiles?ids=profile01"),
+    );
     expect(res.status).toBe(500);
     const json = (await res.json()) as { error: string };
     expect(json.error).toBe("Failed to load profiles.");
@@ -96,12 +108,7 @@ describe("POST /api/profiles", () => {
   });
 
   it("returns 400 when input is missing", async () => {
-    const res = await POST(
-      nextRequest("http://localhost/api/profiles", {
-        method: "POST",
-        body: JSON.stringify({}),
-      }),
-    );
+    const res = await POST(jsonPost("http://localhost/api/profiles", { input: "" }));
     expect(res.status).toBe(400);
     const json = (await res.json()) as { error: string };
     expect(json.error).toMatch(/Steam profile URL or SteamID64 is required/i);
@@ -109,19 +116,16 @@ describe("POST /api/profiles", () => {
 
   it("creates or upserts a profile from Steam input", async () => {
     mockedEnsure.mockResolvedValue(
-      profileRow({ id: "new-id", personaName: "Bob" }) as never,
+      profileRow({ id: "newprofile", personaName: "Bob" }) as never,
     );
     const res = await POST(
-      nextRequest("http://localhost/api/profiles", {
-        method: "POST",
-        body: JSON.stringify({
-          input: "https://steamcommunity.com/id/bob",
-        }),
+      jsonPost("http://localhost/api/profiles", {
+        input: "https://steamcommunity.com/id/bob",
       }),
     );
     expect(res.status).toBe(200);
     const json = (await res.json()) as { profile: { id: string } };
-    expect(json.profile.id).toBe("new-id");
+    expect(json.profile.id).toBe("newprofile");
     expect(mockedEnsure).toHaveBeenCalledWith(
       "https://steamcommunity.com/id/bob",
     );
@@ -132,10 +136,7 @@ describe("POST /api/profiles", () => {
       new Error("Could not resolve that Steam profile"),
     );
     const res = await POST(
-      nextRequest("http://localhost/api/profiles", {
-        method: "POST",
-        body: JSON.stringify({ input: "not-a-profile" }),
-      }),
+      jsonPost("http://localhost/api/profiles", { input: "not-a-profile" }),
     );
     expect(res.status).toBe(400);
   });
@@ -145,10 +146,7 @@ describe("POST /api/profiles", () => {
       new Error("Steam is rate-limited right now"),
     );
     const res = await POST(
-      nextRequest("http://localhost/api/profiles", {
-        method: "POST",
-        body: JSON.stringify({ input: "76561198000000000" }),
-      }),
+      jsonPost("http://localhost/api/profiles", { input: "76561198000000000" }),
     );
     expect(res.status).toBe(429);
   });

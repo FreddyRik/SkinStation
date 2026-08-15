@@ -167,19 +167,3 @@ export const CATALOG_KIND_LABELS: Record<CatalogKind, string> = {
   highlight: "Highlights",
   base_weapon: "Base Weapons",
 };
-
-export const CATALOG_KIND_ORDER: CatalogKind[] = [
-  "skin",
-  "collection",
-  "crate",
-  "key",
-  "keychain",
-  "sticker",
-  "agent",
-  "patch",
-  "graffiti",
-  "music_kit",
-  "collectible",
-  "highlight",
-  "base_weapon",
-];

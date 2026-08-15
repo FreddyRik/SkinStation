@@ -25,15 +25,15 @@ describe("GET /api/profiles/[id]", () => {
 
   it("returns 404 when the profile does not exist", async () => {
     findUnique.mockResolvedValue(null);
-    const res = await GET(new Request("http://localhost/api/profiles/missing"), {
-      params: Promise.resolve({ id: "missing" }),
+    const res = await GET(new Request("http://localhost/api/profiles/missing12"), {
+      params: Promise.resolve({ id: "missing12" }),
     });
     expect(res.status).toBe(404);
   });
 
   it("returns items, snapshots, and portfolio totals", async () => {
     findUnique.mockResolvedValue({
-      id: "p1",
+      id: "profile01",
       steamId: "76561198000000000",
       personaName: "Alice",
       avatarUrl: null,
@@ -66,8 +66,8 @@ describe("GET /api/profiles/[id]", () => {
       snapshots: [{ id: "s1", totalBuff: 8, totalSteam: 10 }],
     });
 
-    const res = await GET(new Request("http://localhost/api/profiles/p1"), {
-      params: Promise.resolve({ id: "p1" }),
+    const res = await GET(new Request("http://localhost/api/profiles/profile01"), {
+      params: Promise.resolve({ id: "profile01" }),
     });
     expect(res.status).toBe(200);
     const json = (await res.json()) as {
@@ -75,7 +75,7 @@ describe("GET /api/profiles/[id]", () => {
       items: Array<{ buffGoodsId: number | null }>;
       totals: { itemCount: number; totalBuff: number; totalSteam: number };
     };
-    expect(json.profile.id).toBe("p1");
+    expect(json.profile.id).toBe("profile01");
     expect(json.totals.itemCount).toBe(1);
     expect(json.totals.totalBuff).toBe(8);
     expect(json.items[0]?.buffGoodsId).toBe(42);
@@ -83,8 +83,8 @@ describe("GET /api/profiles/[id]", () => {
 
   it("returns 500 when the database throws", async () => {
     findUnique.mockRejectedValue(new Error("db down"));
-    const res = await GET(new Request("http://localhost/api/profiles/p1"), {
-      params: Promise.resolve({ id: "p1" }),
+    const res = await GET(new Request("http://localhost/api/profiles/profile01"), {
+      params: Promise.resolve({ id: "profile01" }),
     });
     expect(res.status).toBe(500);
   });

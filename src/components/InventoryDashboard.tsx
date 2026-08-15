@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Area,
@@ -21,13 +21,7 @@ import { ShareCardDialog } from "@/components/ShareCardDialog";
 import { SteamMarketLink } from "@/components/SteamMarketLink";
 import { BuffMarketLink } from "@/components/BuffMarketLink";
 import type { Currency } from "@/lib/currency";
-import {
-  CURRENCY_CHANGE_EVENT,
-  DEFAULT_CURRENCY,
-  INVENTORY_SYNCING_EVENT,
-  parseCurrency,
-  readStoredCurrency,
-} from "@/lib/currency";
+import { INVENTORY_SYNCING_EVENT, parseCurrency } from "@/lib/currency";
 import { convertMoney, convertMoneyOrZero } from "@/lib/fx";
 import { formatDate, formatFloat, formatMoney } from "@/lib/format";
 import {
@@ -38,6 +32,7 @@ import {
   readResponseJson,
 } from "@/lib/api/client";
 import { resolveRarityColor } from "@/lib/rarity-accent";
+import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 import {
   DEFAULT_INVENTORY_VIEW,
@@ -77,72 +72,25 @@ import {
   markSteamBackoff,
   steamBackoffRemainingMs,
 } from "@/lib/steam-backoff";
+import type {
+  InventoryItemView,
+  ProfileView,
+  SnapshotView,
+} from "@/types/inventory";
 
 /** Profile lastError / sync warnings we intentionally do not show in the banner. */
 function isHiddenSyncMessage(message: string | null | undefined): boolean {
   return isSteamwebapiLimitMessage(message);
 }
 
-export type InventoryItemView = {
-  id: string;
-  assetId: string;
-  marketHashName: string;
-  name: string;
-  iconUrl: string | null;
-  exterior: string | null;
-  floatValue: number | null;
-  paintSeed: number | null;
-  paintIndex: number | null;
-  stickers: Array<{
-    slot?: number;
-    name?: string;
-    wear?: number;
-    iconUrl?: string | null;
-    steamPrice?: number | null;
-    buffPrice?: number | null;
-  }>;
-  steamPrice: number | null;
-  buffPrice: number | null;
-  /** Buff163 goods id when resolved from the community ID map. */
-  buffGoodsId?: number | null;
-  rarity: string | null;
-  type: string | null;
-  tradable: boolean;
-  marketable: boolean;
-};
+export type { InventoryItemView, ProfileView, SnapshotView };
 
-export type SnapshotView = {
-  id: string;
-  currency: Currency;
-  itemCount: number;
-  totalSteam: number;
-  totalBuff: number;
-  createdAt: string;
-};
+const SORT_KEYS = ["value", "name", "float"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
 
-export type ProfileView = {
-  id: string;
-  steamId: string;
-  personaName: string | null;
-  avatarUrl: string | null;
-  profileUrl: string | null;
-  currency: Currency;
-  faceitUrl: string | null;
-  faceitLevel: number | null;
-  faceitElo: number | null;
-  faceitNickname: string | null;
-  faceitFound: boolean;
-  faceitFetchedAt: string | null;
-  leetifyUrl: string | null;
-  leetifyName: string | null;
-  leetifyRating: number | null;
-  leetifyFound: boolean;
-  lastSyncedAt: string | null;
-  lastError: string | null;
-  syncing: boolean;
-};
-
-type SortKey = "value" | "name" | "float";
+function isSortKey(value: string): value is SortKey {
+  return (SORT_KEYS as readonly string[]).includes(value);
+}
 
 type ChartRangeKey = "7d" | "30d" | "90d" | "1y" | "all";
 
@@ -190,7 +138,7 @@ export function InventoryDashboard({
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("value");
   const [filters, setFilters] = useState<InventoryFilters>(FILTER_DEFAULTS);
-  const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const currency = useDisplayCurrency();
   const storageCurrency = profile.currency;
   const usdToEur = useUsdToEurRate();
   const [priceSource, setPriceSource] =
@@ -221,7 +169,6 @@ export function InventoryDashboard({
   useEffect(() => {
     setPriceSource(readStoredPriceSource());
     setInventoryView(readStoredInventoryView());
-    setCurrency(readStoredCurrency());
     setBackoffRemainingMs(steamBackoffRemainingMs());
     const id = window.setInterval(() => {
       setBackoffRemainingMs(steamBackoffRemainingMs());
@@ -285,17 +232,6 @@ export function InventoryDashboard({
       if (!profile.lastError) setWarning(null);
     }
   }, [profile.syncing, profile.lastError]);
-
-  useEffect(() => {
-    function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
-      if (!next || next === currency) return;
-      // Display-only FX conversion — no inventory re-sync.
-      setCurrency(next);
-    }
-    window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-    return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-  }, [currency]);
 
   useEffect(() => {
     window.dispatchEvent(
@@ -409,7 +345,7 @@ export function InventoryDashboard({
     });
   }, [snapshots, chartRangeDef, currency, usdToEur]);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     if (isSteamBackoffActive()) {
       const left = steamBackoffRemainingMs();
       setBackoffRemainingMs(left);
@@ -487,21 +423,30 @@ export function InventoryDashboard({
     } finally {
       setSyncing(false);
     }
-  }
+  }, [
+    profile.id,
+    storageCurrency,
+    currency,
+    usdToEur,
+    cooldownMs,
+    priceSource,
+    items.length,
+    router,
+  ]);
 
-  function onPriceSourceChange(next: PriceSource) {
+  const onPriceSourceChange = useCallback((next: PriceSource) => {
     writeStoredPriceSource(next);
     setPriceSource(next);
-  }
+  }, []);
 
-  function onInventoryViewChange(next: InventoryView) {
+  const onInventoryViewChange = useCallback((next: InventoryView) => {
     writeStoredInventoryView(next);
     setInventoryView(next);
-  }
+  }, []);
 
-  function toggleFilter(key: keyof InventoryFilters) {
+  const toggleFilter = useCallback((key: keyof InventoryFilters) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
+  }, []);
 
   const portfolioTotal = portfolioTotalFromItems(displayItems, priceSource);
   const portfolioAccent = priceSourceAccent(priceSource);
@@ -774,7 +719,9 @@ export function InventoryDashboard({
             />
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
+              onChange={(e) => {
+                if (isSortKey(e.target.value)) setSort(e.target.value);
+              }}
               className="et-field px-3 py-2 text-sm"
             >
               <option value="value">Sort by value</option>

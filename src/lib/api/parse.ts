@@ -1,4 +1,5 @@
 import { z, type ZodType } from "zod";
+import { isJsonObject } from "@/types/json";
 
 export const MAX_JSON_BODY_BYTES = 16 * 1024;
 
@@ -10,10 +11,6 @@ export class ApiParseError extends Error {
     this.name = "ApiParseError";
     this.status = status;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function jsonErrorResponse(err: unknown): {
@@ -74,6 +71,4 @@ export async function parseJsonSchema<T>(
   return schema.parse(raw);
 }
 
-export function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return isRecord(value);
-}
+export { isJsonObject };

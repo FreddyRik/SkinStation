@@ -1,12 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  CURRENCY_CHANGE_EVENT,
-  DEFAULT_CURRENCY,
-  readStoredCurrency,
-  type Currency,
-} from "@/lib/currency";
+import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
@@ -21,18 +15,8 @@ export function CatalogPriceText({
   maxUsd?: number | null;
   className?: string;
 }) {
-  const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const currency = useDisplayCurrency();
   const usdToEur = useUsdToEurRate();
-
-  useEffect(() => {
-    setCurrency(readStoredCurrency());
-    function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
-      if (next) setCurrency(next);
-    }
-    window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-    return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-  }, []);
 
   if (minUsd == null && maxUsd == null) return null;
   const lo = convertMoney(minUsd ?? maxUsd, "USD", currency, usdToEur);

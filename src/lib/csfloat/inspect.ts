@@ -31,11 +31,6 @@ export {
   isMaskedInspectPayload,
 };
 
-/** @deprecated Prefer isLocallyDecodableInspectLink — classic S/A/D is not local. */
-export function isUsableInspectLink(inspectLink: string | null): boolean {
-  return isLocallyDecodableInspectLink(inspectLink);
-}
-
 function finiteOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonError } from "@/lib/api/errors";
 import { getUsdToEurRate, parseUsdToEurRate } from "@/lib/fx";
 
 export const dynamic = "force-dynamic";
@@ -8,10 +9,7 @@ export async function GET() {
   try {
     const usdToEur = parseUsdToEurRate(await getUsdToEurRate());
     if (usdToEur == null) {
-      return NextResponse.json(
-        { error: "FX rate unavailable." },
-        { status: 502 },
-      );
+      return jsonError("FX rate unavailable.", 502);
     }
     return NextResponse.json(
       {
@@ -26,9 +24,6 @@ export async function GET() {
     );
   } catch (err) {
     console.error("FX API failed:", err);
-    return NextResponse.json(
-      { error: "FX rate unavailable." },
-      { status: 502 },
-    );
+    return jsonError("FX rate unavailable.", 502);
   }
 }

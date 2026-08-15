@@ -1,19 +1,18 @@
+import type { InventoryStickerView } from "@/types/inventory";
+import { jsonObject } from "@/types/json";
+
 /** Safely parse sticker JSON stored on inventory items. */
-export function parseStickersJson(raw: string | null | undefined): Array<{
-  slot?: number;
-  name?: string;
-  wear?: number;
-  iconUrl?: string | null;
-  steamPrice?: number | null;
-  buffPrice?: number | null;
-}> {
+
+export function parseStickersJson(
+  raw: string | null | undefined,
+): InventoryStickerView[] {
   if (!raw?.trim()) return [];
   try {
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed.map((entry) => {
-      if (!entry || typeof entry !== "object") return {};
-      const s = entry as Record<string, unknown>;
+      const s = jsonObject(entry);
+      if (!s) return {};
       const buffPrice =
         typeof s.buffPrice === "number"
           ? s.buffPrice

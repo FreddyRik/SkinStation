@@ -2,18 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState, type ReactNode } from "react";
+import { FormEvent, useCallback, useEffect, useState, type ReactNode } from "react";
 import { ReputationBadges } from "@/components/ReputationBadges";
-import type { Currency } from "@/lib/currency";
-import {
-  CURRENCY_CHANGE_EVENT,
-  DEFAULT_CURRENCY,
-  parseCurrency,
-  readStoredCurrency,
-  writeStoredCurrency,
-} from "@/lib/currency";
+import { DEFAULT_CURRENCY, parseCurrency, writeStoredCurrency } from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
+import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 import {
   jsonBooleanField,
@@ -100,7 +94,7 @@ export function ProfileLookup({
 }) {
   const router = useRouter();
   const [input, setInput] = useState("");
-  const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const currency = useDisplayCurrency();
   const usdToEur = useUsdToEurRate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,17 +103,10 @@ export function ProfileLookup({
     useState<ProfileSummary[]>(seedProfiles);
 
   useEffect(() => {
-    setCurrency(readStoredCurrency());
     setRecentProfiles(readRecentProfiles());
-    function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
-      if (next) setCurrency(next);
-    }
-    window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-    return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
   }, []);
 
-  async function onSubmit(e: FormEvent) {
+  const onSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setSyncNote(null);
@@ -228,7 +215,7 @@ export function ProfileLookup({
     } finally {
       setLoading(false);
     }
-  }
+  }, [currency, input, router]);
 
   const commandBar = (
     <form

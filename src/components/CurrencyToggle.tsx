@@ -13,7 +13,7 @@ export function CurrencyToggle({
   disabled = false,
 }: {
   value: Currency;
-  onChange: (currency: Currency) => void;
+  onChange?: (currency: Currency) => void;
   disabled?: boolean;
 }) {
   return (
@@ -33,7 +33,7 @@ export function CurrencyToggle({
             title={CURRENCY_LABELS[currency]}
             onClick={() => {
               writeStoredCurrency(currency);
-              onChange(currency);
+              onChange?.(currency);
             }}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wide transition disabled:opacity-50 ${
               active

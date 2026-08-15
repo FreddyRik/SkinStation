@@ -1,4 +1,5 @@
 import { SITE_USER_AGENT } from "@/lib/site";
+import { jsonObject, jsonObjectField } from "@/types/json";
 
 export type ReputationLookup = {
   faceit: {
@@ -15,21 +16,6 @@ export type ReputationLookup = {
     profileUrl: string;
     rating: number | null;
     found: boolean;
-  };
-};
-
-type FaceitGameStats = {
-  skill_level?: number | string;
-  faceit_elo?: number | string;
-};
-
-type FaceitPlayerResponse = {
-  player_id?: string;
-  nickname?: string;
-  faceit_url?: string;
-  games?: {
-    cs2?: FaceitGameStats;
-    csgo?: FaceitGameStats;
   };
 };
 
@@ -62,20 +48,20 @@ function leetifyProfileUrl(leetifyId: string): string {
   return `https://leetify.com/app/profile/${encodeURIComponent(leetifyId)}`;
 }
 
-function parseSkillLevel(value: number | string | null | undefined): number | null {
+function parseSkillLevel(value: unknown): number | null {
   if (value == null) return null;
   const n = typeof value === "number" ? value : Number.parseInt(String(value), 10);
   if (!Number.isFinite(n) || n < 1 || n > 10) return null;
   return n;
 }
 
-function parseElo(value: number | string | null | undefined): number | null {
+function parseElo(value: unknown): number | null {
   if (value == null) return null;
   const n = typeof value === "number" ? value : Number.parseInt(String(value), 10);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-function parseRating(value: number | string | null | undefined): number | null {
+function parseRating(value: unknown): number | null {
   if (value == null) return null;
   const n = typeof value === "number" ? value : Number.parseFloat(String(value));
   return Number.isFinite(n) ? n : null;
@@ -132,14 +118,26 @@ async function fetchOfficialFaceit(
       }
       if (!res.ok) continue;
 
-      const data = (await res.json()) as FaceitPlayerResponse;
-      if (!data.player_id || !data.nickname) continue;
+      const data = jsonObject(await res.json());
+      if (!data) continue;
+      const playerId =
+        typeof data.player_id === "string" ? data.player_id : "";
+      const nickname =
+        typeof data.nickname === "string" ? data.nickname : "";
+      if (!playerId || !nickname) continue;
 
-      const gameStats = data.games?.[game] ?? data.games?.cs2 ?? data.games?.csgo;
+      const games = jsonObjectField(data, "games");
+      const gameStats =
+        jsonObjectField(games ?? {}, game) ??
+        jsonObjectField(games ?? {}, "cs2") ??
+        jsonObjectField(games ?? {}, "csgo");
       return {
-        playerId: data.player_id,
-        nickname: data.nickname,
-        profileUrl: normalizeFaceitUrl(data.faceit_url, data.nickname),
+        playerId,
+        nickname,
+        profileUrl: normalizeFaceitUrl(
+          typeof data.faceit_url === "string" ? data.faceit_url : undefined,
+          nickname,
+        ),
         skillLevel: parseSkillLevel(gameStats?.skill_level),
         elo: parseElo(gameStats?.faceit_elo),
         found: true,
@@ -175,7 +173,30 @@ async function fetchLeetifyProfile(
       return null;
     }
 
-    return (await res.json()) as LeetifyProfileResponse;
+    const row = jsonObject(await res.json());
+    if (!row) return null;
+    const ranks = jsonObjectField(row, "ranks");
+    return {
+      id: typeof row.id === "string" ? row.id : undefined,
+      name: typeof row.name === "string" ? row.name : undefined,
+      steam64_id: typeof row.steam64_id === "string" ? row.steam64_id : undefined,
+      ranks: ranks
+        ? {
+            leetify:
+              typeof ranks.leetify === "number" || ranks.leetify == null
+                ? ranks.leetify
+                : null,
+            faceit:
+              typeof ranks.faceit === "number" || ranks.faceit == null
+                ? ranks.faceit
+                : null,
+            faceit_elo:
+              typeof ranks.faceit_elo === "number" || ranks.faceit_elo == null
+                ? ranks.faceit_elo
+                : null,
+          }
+        : undefined,
+    };
   } catch (err) {
     console.warn("Leetify lookup failed:", err);
     return null;

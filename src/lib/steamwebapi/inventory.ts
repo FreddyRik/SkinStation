@@ -13,6 +13,13 @@ import {
 } from "@/lib/steamwebapi/errors";
 import { isLocallyDecodableInspectLink } from "@/lib/inspect/links";
 import { SITE_USER_AGENT } from "@/lib/site";
+import {
+  jsonObject,
+  jsonObjectField,
+  jsonRowsFromUnknown,
+  parseJsonUnknownSafe,
+  type JsonObject,
+} from "@/types/json";
 
 export type SteamwebapiSticker = {
   slot?: number;
@@ -55,7 +62,7 @@ function asInt(value: unknown): number | null {
 function parseStickers(raw: unknown): SteamwebapiSticker[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((s, idx) => {
-    const row = (s ?? {}) as Record<string, unknown>;
+    const row = jsonObject(s) ?? {};
     const nameRaw =
       (typeof row.name === "string" && row.name) ||
       (typeof row.market_hash_name === "string" && row.market_hash_name) ||
@@ -82,20 +89,8 @@ function parseStickers(raw: unknown): SteamwebapiSticker[] {
   });
 }
 
-function pickFloatBlock(
-  row: Record<string, unknown>,
-): Record<string, unknown> | null {
-  if (row.float && typeof row.float === "object" && !Array.isArray(row.float)) {
-    return row.float as Record<string, unknown>;
-  }
-  if (
-    row.iteminfo &&
-    typeof row.iteminfo === "object" &&
-    !Array.isArray(row.iteminfo)
-  ) {
-    return row.iteminfo as Record<string, unknown>;
-  }
-  return null;
+function pickFloatBlock(row: JsonObject): JsonObject | null {
+  return jsonObjectField(row, "float") ?? jsonObjectField(row, "iteminfo");
 }
 
 function certificateToInspectLink(certificate: string): string {
@@ -105,8 +100,8 @@ function certificateToInspectLink(certificate: string): string {
 }
 
 function pickInspectLink(
-  row: Record<string, unknown>,
-  floatBlock: Record<string, unknown> | null,
+  row: JsonObject,
+  floatBlock: JsonObject | null,
 ): string | null {
   const candidates = [
     row.inspect,
@@ -175,41 +170,25 @@ export async function fetchSteamwebapiInventory(
     );
   }
 
-  let data: unknown;
-  try {
-    data = JSON.parse(body) as unknown;
-  } catch {
+  const data = parseJsonUnknownSafe(body);
+  if (data == null) {
     throw new Error("Steamwebapi inventory returned invalid JSON.");
   }
 
   // Some plans return 200 with an error payload when credits are gone.
-  if (
-    data &&
-    typeof data === "object" &&
-    !Array.isArray(data) &&
-    ("error" in data || "message" in data)
-  ) {
-    const msg = String(
-      (data as { error?: unknown; message?: unknown }).error ??
-        (data as { message?: unknown }).message ??
-        "",
-    );
+  const payload = jsonObject(data);
+  if (payload && ("error" in payload || "message" in payload)) {
+    const msg = String(payload.error ?? payload.message ?? "");
     if (isSteamwebapiLimitResponse(200, msg)) {
       throw new SteamwebapiLimitError(200, msg);
     }
   }
 
-  const rows = Array.isArray(data)
-    ? data
-    : Array.isArray((data as { items?: unknown[] }).items)
-      ? (data as { items: unknown[] }).items
-      : Array.isArray((data as { data?: unknown[] }).data)
-        ? (data as { data: unknown[] }).data
-        : [];
+  const rows = jsonRowsFromUnknown(data, ["items", "data"]);
 
   for (const raw of rows) {
-    if (!raw || typeof raw !== "object") continue;
-    const row = raw as Record<string, unknown>;
+    const row = jsonObject(raw);
+    if (!row) continue;
     const assetId = String(row.assetid ?? row.assetId ?? row.id ?? "");
     if (!assetId) continue;
 

@@ -38,6 +38,8 @@ const mockedSync = vi.mocked(syncInventory);
 const mockedEnsure = vi.mocked(ensureProfileFromInput);
 const mockedRateLimit = vi.mocked(rateLimit);
 
+const PROFILE_ID = "profile01";
+
 function post(body: Record<string, unknown>, headers?: HeadersInit): NextRequest {
   return new NextRequest("http://localhost/api/sync", {
     method: "POST",
@@ -65,35 +67,35 @@ describe("POST /api/sync", () => {
   });
 
   it("returns 403 when force sync is requested without a secret", async () => {
-    const res = await POST(post({ profileId: "p1", force: true }));
+    const res = await POST(post({ profileId: PROFILE_ID, force: true }));
     expect(res.status).toBe(403);
     expect(mockedSync).not.toHaveBeenCalled();
   });
 
   it("resolves input to a profileId then 404s when the row is gone", async () => {
-    mockedEnsure.mockResolvedValue({ id: "p1" } as never);
+    mockedEnsure.mockResolvedValue({ id: PROFILE_ID } as never);
     findUnique.mockResolvedValue(null);
     const res = await POST(post({ input: "76561198000000000" }));
     expect(res.status).toBe(404);
   });
 
   it("returns 429 when the per-profile rate limit is exceeded", async () => {
-    findUnique.mockResolvedValue({ id: "p1" });
+    findUnique.mockResolvedValue({ id: PROFILE_ID });
     mockedRateLimit.mockResolvedValue({
       ok: false,
       remaining: 0,
       retryAfterSec: 30,
     });
-    const res = await POST(post({ profileId: "p1" }));
+    const res = await POST(post({ profileId: PROFILE_ID }));
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe("30");
     expect(mockedSync).not.toHaveBeenCalled();
   });
 
   it("runs syncInventory and includes cooldownMs", async () => {
-    findUnique.mockResolvedValue({ id: "p1" });
+    findUnique.mockResolvedValue({ id: PROFILE_ID });
     mockedSync.mockResolvedValue({
-      profileId: "p1",
+      profileId: PROFILE_ID,
       steamId: "76561198000000000",
       currency: "USD",
       itemCount: 3,
@@ -104,9 +106,9 @@ describe("POST /api/sync", () => {
     });
     vi.mocked(getSyncCooldownMs).mockReturnValue(900000);
 
-    const res = await POST(post({ profileId: "p1", currency: "USD" }));
+    const res = await POST(post({ profileId: PROFILE_ID, currency: "USD" }));
     expect(res.status).toBe(200);
-    expect(mockedSync).toHaveBeenCalledWith("p1", {
+    expect(mockedSync).toHaveBeenCalledWith(PROFILE_ID, {
       force: false,
       currency: "USD",
     });
@@ -119,16 +121,16 @@ describe("POST /api/sync", () => {
   });
 
   it("maps private-inventory failures to 403", async () => {
-    findUnique.mockResolvedValue({ id: "p1" });
+    findUnique.mockResolvedValue({ id: PROFILE_ID });
     mockedSync.mockRejectedValue(new Error("Steam inventory is private"));
-    const res = await POST(post({ profileId: "p1" }));
+    const res = await POST(post({ profileId: PROFILE_ID }));
     expect(res.status).toBe(403);
   });
 
   it("maps an in-progress sync to 409", async () => {
-    findUnique.mockResolvedValue({ id: "p1" });
+    findUnique.mockResolvedValue({ id: PROFILE_ID });
     mockedSync.mockRejectedValue(new Error("already in progress"));
-    const res = await POST(post({ profileId: "p1" }));
+    const res = await POST(post({ profileId: PROFILE_ID }));
     expect(res.status).toBe(409);
   });
 });
