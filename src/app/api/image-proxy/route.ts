@@ -1,10 +1,26 @@
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { NextRequest, NextResponse } from "next/server";
+import { imageProxyUrlSchema } from "@/lib/api/schemas";
+import { jsonError } from "@/lib/api/errors";
+import { isPrivateIp } from "@/lib/net/private-ip";
 import { isAllowedImageHost } from "@/lib/share-card";
 import { SITE_USER_AGENT } from "@/lib/site";
+
+export const runtime = "nodejs";
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/gif",
+  "image/webp",
+  "image/bmp",
+  "image/avif",
+]);
 
 class ProxyHttpError extends Error {
   status: number;
@@ -14,23 +30,44 @@ class ProxyHttpError extends Error {
   }
 }
 
+function corsOriginFor(req: NextRequest): string | null {
+  const requestOrigin = req.nextUrl.origin;
+  const origin = req.headers.get("origin");
+  if (!origin || origin === requestOrigin) return requestOrigin;
+  return null;
+}
+
 function forbiddenHost(hostname: string): boolean {
+  const host = hostname.trim().toLowerCase().replace(/^\[|\]$/g, "");
   return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "0.0.0.0" ||
-    hostname === "::1" ||
-    hostname.endsWith(".local") ||
-    hostname.endsWith(".internal")
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    host.endsWith(".arpa") ||
+    isPrivateIp(host)
   );
 }
 
 function isSafeImageUrl(target: URL): boolean {
-  return (
-    target.protocol === "https:" &&
-    isAllowedImageHost(target.hostname) &&
-    !forbiddenHost(target.hostname)
-  );
+  if (target.protocol !== "https:") return false;
+  if (target.username || target.password) return false;
+  if (target.port && target.port !== "443") return false;
+  if (!isAllowedImageHost(target.hostname)) return false;
+  if (forbiddenHost(target.hostname)) return false;
+  if (isIP(target.hostname)) return false;
+  return true;
+}
+
+async function hostnameIsPublic(hostname: string): Promise<boolean> {
+  if (isIP(hostname)) return !isPrivateIp(hostname);
+  try {
+    const records = await lookup(hostname, { all: true });
+    if (records.length === 0) return false;
+    return records.every((row) => !isPrivateIp(row.address));
+  } catch {
+    return false;
+  }
 }
 
 async function fetchAllowlistedImage(startUrl: URL): Promise<Response> {
@@ -40,11 +77,14 @@ async function fetchAllowlistedImage(startUrl: URL): Promise<Response> {
     if (!isSafeImageUrl(current)) {
       throw new ProxyHttpError(403, "Host not allowed.");
     }
+    if (!(await hostnameIsPublic(current.hostname))) {
+      throw new ProxyHttpError(403, "Host not allowed.");
+    }
 
     const upstream = await fetch(current.toString(), {
       headers: {
         "User-Agent": SITE_USER_AGENT,
-        Accept: "image/*,*/*;q=0.8",
+        Accept: "image/png,image/jpeg,image/webp,image/gif,image/avif,*/*;q=0.1",
       },
       redirect: "manual",
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -68,54 +108,44 @@ async function fetchAllowlistedImage(startUrl: URL): Promise<Response> {
 
 export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("url");
-  if (!raw) {
-    return NextResponse.json({ error: "url is required." }, { status: 400 });
+  const parsedUrl = imageProxyUrlSchema.safeParse(raw);
+  if (!parsedUrl.success) {
+    return jsonError("Invalid url.", 400);
   }
 
   let target: URL;
   try {
-    target = new URL(raw);
+    target = new URL(parsedUrl.data);
   } catch {
-    return NextResponse.json({ error: "Invalid url." }, { status: 400 });
+    return jsonError("Invalid url.", 400);
   }
 
   if (!isSafeImageUrl(target)) {
-    return NextResponse.json({ error: "Host not allowed." }, { status: 403 });
+    return jsonError("Host not allowed.", 403);
   }
 
   try {
     const upstream = await fetchAllowlistedImage(target);
 
     if (!upstream.ok) {
-      return NextResponse.json(
-        { error: `Upstream failed (${upstream.status}).` },
-        { status: 502 },
-      );
+      return jsonError(`Upstream failed (${upstream.status}).`, 502);
     }
 
-    const contentType =
+    const contentTypeRaw =
       upstream.headers.get("content-type") ?? "application/octet-stream";
-    if (!contentType.startsWith("image/")) {
-      return NextResponse.json(
-        { error: "Upstream did not return an image." },
-        { status: 502 },
-      );
+    const contentType = contentTypeRaw.split(";")[0]?.trim().toLowerCase() ?? "";
+    if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
+      return jsonError("Upstream did not return an image.", 502);
     }
 
     const contentLength = upstream.headers.get("content-length");
     if (contentLength && Number(contentLength) > MAX_IMAGE_BYTES) {
-      return NextResponse.json(
-        { error: "Image exceeds size limit." },
-        { status: 502 },
-      );
+      return jsonError("Image exceeds size limit.", 502);
     }
 
     const reader = upstream.body?.getReader();
     if (!reader) {
-      return NextResponse.json(
-        { error: "Upstream returned an empty body." },
-        { status: 502 },
-      );
+      return jsonError("Upstream returned an empty body.", 502);
     }
 
     const chunks: Uint8Array[] = [];
@@ -126,10 +156,7 @@ export async function GET(req: NextRequest) {
       total += value.byteLength;
       if (total > MAX_IMAGE_BYTES) {
         await reader.cancel();
-        return NextResponse.json(
-          { error: "Image exceeds size limit." },
-          { status: 502 },
-        );
+        return jsonError("Image exceeds size limit.", 502);
       }
       chunks.push(value);
     }
@@ -141,22 +168,26 @@ export async function GET(req: NextRequest) {
       offset += chunk.byteLength;
     }
 
+    const allowOrigin = corsOriginFor(req);
+    const headers: Record<string, string> = {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=86400, immutable",
+      "X-Content-Type-Options": "nosniff",
+      "Cross-Origin-Resource-Policy": "same-origin",
+    };
+    if (allowOrigin) {
+      headers["Access-Control-Allow-Origin"] = allowOrigin;
+      headers.Vary = "Origin";
+    }
+
     return new NextResponse(buffer, {
       status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400, immutable",
-        // Needed when <img crossOrigin="anonymous"> loads the proxy for canvas export.
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers,
     });
   } catch (err) {
     if (err instanceof ProxyHttpError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
+      return jsonError(err.message, err.status);
     }
-    return NextResponse.json(
-      { error: "Failed to fetch image." },
-      { status: 502 },
-    );
+    return jsonError("Failed to fetch image.", 502);
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import type { InventoryItemView } from "@/components/InventoryDashboard";
+import type { InventoryItemView } from "@/types/inventory";
 import {
   downloadTextFile,
   inventoryExportFilename,
@@ -79,7 +79,7 @@ export function InventoryExportButton({
             : `Export full inventory (${items.length} item${items.length === 1 ? "" : "s"})`
         }
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs font-semibold tracking-wide text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
+        className="et-card inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold tracking-wide text-[var(--text-muted)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
       >
         Export
         <svg
@@ -101,7 +101,7 @@ export function InventoryExportButton({
           id={menuId}
           role="menu"
           aria-label="Export format"
-          className="absolute left-0 top-[calc(100%+6px)] z-40 min-w-[11rem] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] py-1 shadow-xl shadow-black/40"
+          className="et-card absolute left-0 top-[calc(100%+6px)] z-40 min-w-[11rem] overflow-hidden py-1"
         >
           <ExportMenuItem
             label="CSV spreadsheet"

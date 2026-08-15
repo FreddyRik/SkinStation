@@ -30,7 +30,6 @@ export {
   buildSkinIndex,
   resolveSkinById,
   resolveSkinFromMarketHash,
-  toSkinRef,
 } from "@/lib/tradeup/resolve";
 
 export {

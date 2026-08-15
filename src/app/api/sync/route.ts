@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseCurrency } from "@/lib/currency";
 import {
   isForceSyncAuthorized,
+  jsonError,
+  jsonErrorWithRetryAfter,
   sanitizeSyncClientError,
 } from "@/lib/api/errors";
+import { ApiParseError, jsonErrorResponse, parseJsonSchema } from "@/lib/api/parse";
 import { clientIpFromRequest, rateLimit } from "@/lib/api/rate-limit";
+import { syncRequestSchema } from "@/lib/api/schemas";
 import {
   ensureProfileFromInput,
   getSyncCooldownMs,
   syncInventory,
 } from "@/lib/sync/inventory-sync";
 import { prisma } from "@/lib/db";
+import { z } from "zod";
 
 export const maxDuration = 300;
 
@@ -22,12 +27,7 @@ const PROFILE_SYNC_LIMIT = {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as {
-      profileId?: string;
-      input?: string;
-      force?: boolean;
-      currency?: string;
-    };
+    const body = await parseJsonSchema(req, syncRequestSchema);
 
     let profileId = body.profileId;
     const currency = body.currency ? parseCurrency(body.currency) : undefined;
@@ -35,10 +35,7 @@ export async function POST(req: NextRequest) {
     const force = isForceSyncAuthorized(req, wantsForce);
 
     if (wantsForce && !force) {
-      return NextResponse.json(
-        { error: "Force sync is not authorized." },
-        { status: 403 },
-      );
+      return jsonError("Force sync is not authorized.", 403);
     }
 
     if (!profileId && body.input) {
@@ -47,15 +44,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!profileId) {
-      return NextResponse.json(
-        { error: "profileId or input is required." },
-        { status: 400 },
-      );
+      return jsonError("profileId or input is required.", 400);
     }
 
     const exists = await prisma.profile.findUnique({ where: { id: profileId } });
     if (!exists) {
-      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+      return jsonError("Profile not found.", 404);
     }
 
     const ip = clientIpFromRequest(req);
@@ -64,12 +58,10 @@ export async function POST(req: NextRequest) {
       PROFILE_SYNC_LIMIT,
     );
     if (!profileLimit.ok && !force) {
-      const res = NextResponse.json(
-        { error: "Too many syncs for this profile. Please wait and try again." },
-        { status: 429 },
+      return jsonErrorWithRetryAfter(
+        "Too many syncs for this profile. Please wait and try again.",
+        profileLimit.retryAfterSec,
       );
-      res.headers.set("Retry-After", String(profileLimit.retryAfterSec));
-      return res;
     }
 
     const result = await syncInventory(profileId, {
@@ -82,8 +74,12 @@ export async function POST(req: NextRequest) {
       cooldownMs: getSyncCooldownMs(),
     });
   } catch (err) {
+    if (err instanceof ApiParseError || err instanceof z.ZodError) {
+      const { status, error } = jsonErrorResponse(err);
+      return jsonError(error, status);
+    }
     console.error("Sync failed:", err);
     const { status, error } = sanitizeSyncClientError(err);
-    return NextResponse.json({ error }, { status });
+    return jsonError(error, status);
   }
 }

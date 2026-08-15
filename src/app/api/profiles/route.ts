@@ -1,25 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { sanitizeProfileCreateError } from "@/lib/api/errors";
+import { jsonError, sanitizeProfileCreateError } from "@/lib/api/errors";
+import {
+  ApiParseError,
+  jsonErrorResponse,
+  parseJsonSchema,
+} from "@/lib/api/parse";
+import {
+  profileCreateRequestSchema,
+  profileIdsQuerySchema,
+} from "@/lib/api/schemas";
 import { ensureProfileFromInput } from "@/lib/sync/inventory-sync";
-import { RECENT_PROFILES_LIMIT } from "@/lib/recent-profiles";
-
-/** Max ids accepted for a device-local refresh (anti-enumeration). */
-const MAX_IDS = RECENT_PROFILES_LIMIT;
-
-function parseRequestedIds(raw: string | null): string[] {
-  if (!raw?.trim()) return [];
-  const seen = new Set<string>();
-  const ids: string[] = [];
-  for (const part of raw.split(",")) {
-    const id = part.trim();
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    ids.push(id);
-    if (ids.length >= MAX_IDS) break;
-  }
-  return ids;
-}
+import { z } from "zod";
 
 /**
  * Returns profiles for caller-known ids only (from this device's localStorage).
@@ -27,7 +19,11 @@ function parseRequestedIds(raw: string | null): string[] {
  */
 export async function GET(req: NextRequest) {
   try {
-    const ids = parseRequestedIds(req.nextUrl.searchParams.get("ids"));
+    const rawIds = req.nextUrl.searchParams.get("ids");
+    const parsed = rawIds
+      ? profileIdsQuerySchema.safeParse(rawIds)
+      : { success: true as const, data: [] as string[] };
+    const ids = parsed.success ? parsed.data : [];
     if (ids.length === 0) {
       return NextResponse.json({ profiles: [] });
     }
@@ -75,28 +71,22 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error("Failed to load profiles:", err);
-    return NextResponse.json(
-      { error: "Failed to load profiles." },
-      { status: 500 },
-    );
+    return jsonError("Failed to load profiles.", 500);
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as { input?: string };
-    if (!body.input?.trim()) {
-      return NextResponse.json(
-        { error: "Steam profile URL or SteamID64 is required." },
-        { status: 400 },
-      );
-    }
-
+    const body = await parseJsonSchema(req, profileCreateRequestSchema);
     const profile = await ensureProfileFromInput(body.input);
     return NextResponse.json({ profile });
   } catch (err) {
+    if (err instanceof ApiParseError || err instanceof z.ZodError) {
+      const { status, error } = jsonErrorResponse(err);
+      return jsonError(error, status);
+    }
     console.error("Failed to create profile:", err);
     const { status, error } = sanitizeProfileCreateError(err);
-    return NextResponse.json({ error }, { status });
+    return jsonError(error, status);
   }
 }

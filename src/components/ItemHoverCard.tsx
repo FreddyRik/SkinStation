@@ -13,7 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import type { Currency } from "@/lib/currency";
 import { formatFloat, formatMoney } from "@/lib/format";
-import type { InventoryItemView } from "@/components/InventoryDashboard";
+import type { InventoryItemView } from "@/types/inventory";
 import {
   isNonWeaponConsumable,
   itemCanListOnMarket,
@@ -171,7 +171,7 @@ function ItemDetailBody({
               <button
                 type="button"
                 onClick={onClose}
-                className="shrink-0 rounded-lg border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-muted)] transition hover:text-[var(--text)]"
+                className="et-card shrink-0 px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
                 aria-label="Close details"
               >
                 Close
@@ -190,13 +190,13 @@ function ItemDetailBody({
           <>
             <div>
               <dt className="text-[var(--text-muted)]">Float</dt>
-              <dd className="font-mono text-[var(--text)]">
+              <dd className="font-data text-[var(--text)]">
                 {formatFloat(item.floatValue)}
               </dd>
             </div>
             <div>
               <dt className="text-[var(--text-muted)]">Pattern</dt>
-              <dd className="font-mono text-[var(--text)]">
+              <dd className="font-data text-[var(--text)]">
                 {item.paintSeed ?? "—"}
               </dd>
             </div>
@@ -206,7 +206,7 @@ function ItemDetailBody({
           <>
             <div>
               <dt className="text-[var(--text-muted)]">Steam</dt>
-              <dd style={{ color: "var(--steam)" }}>
+              <dd className="font-data" style={{ color: "var(--steam)" }}>
                 {canLinkSteamMarket(item) ? (
                   <SteamMarketLink
                     marketHashName={item.marketHashName}
@@ -221,7 +221,7 @@ function ItemDetailBody({
             </div>
             <div>
               <dt className="text-[var(--text-muted)]">Buff163</dt>
-              <dd style={{ color: "var(--buff)" }}>
+              <dd className="font-data" style={{ color: "var(--buff)" }}>
                 {canLinkBuffMarket(item) && item.buffGoodsId != null ? (
                   <BuffMarketLink
                     goodsId={item.buffGoodsId}
@@ -282,7 +282,7 @@ function ItemDetailBody({
                       </p>
                     )}
                   </div>
-                  <div className="shrink-0 text-right tabular-nums">
+                  <div className="shrink-0 text-right font-data">
                     <span className="block" style={{ color: "var(--steam)" }}>
                       {formatMoney(
                         itemPrice(
@@ -491,7 +491,7 @@ export function ItemHoverCard({
         >
           <div
             ref={contentRef}
-            className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-3 shadow-2xl shadow-black/50"
+            className="et-card p-3 shadow-2xl shadow-black/50"
           >
             {detail}
           </div>
@@ -508,7 +508,7 @@ export function ItemHoverCard({
             id={panelId}
             role="dialog"
             aria-modal="true"
-            className="relative z-10 max-h-[min(85vh,40rem)] w-full overflow-y-auto overscroll-contain rounded-t-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-2xl shadow-black/50 sm:max-w-md sm:rounded-2xl"
+            className="et-card relative z-10 max-h-[min(85vh,40rem)] w-full overflow-y-auto overscroll-contain p-4 shadow-2xl shadow-black/50 sm:max-w-md"
           >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--border)] sm:hidden" />
             {detail}

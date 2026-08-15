@@ -1,5 +1,5 @@
 import type { Currency } from "@/lib/currency";
-import type { InventoryItemView } from "@/components/InventoryDashboard";
+import type { InventoryItemView } from "@/types/inventory";
 import { itemSupportsStickers } from "@/lib/item-flags";
 import {
   portfolioTotalFromItems,

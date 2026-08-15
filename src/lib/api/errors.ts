@@ -2,12 +2,42 @@
  * Shared helpers for mapping internal errors to safe API responses.
  */
 
+import { NextResponse } from "next/server";
+import { secretsEqual } from "@/lib/api/secrets";
+
+const SECRET_LEAK_RE =
+  /STEAM_PROXY|SYNC_FORCE|STEAMWEBAPI_KEY|FACEIT_API_KEY|INSPECT_API|API_KEY|SECRET|Bearer\s+\S+|authorization/i;
+
 export function publicApiError(
   err: unknown,
   fallback: string,
 ): { message: string; logMessage: string } {
   const logMessage = err instanceof Error ? err.message : String(err);
   return { message: fallback, logMessage };
+}
+
+/**
+ * Strip config / secret names before persisting lastError or returning JSON.
+ * Known user-facing sync warnings pass through unchanged.
+ */
+export function sanitizePublicErrorMessage(
+  raw: string | null | undefined,
+  fallback = "Sync failed. Please try again later.",
+): string {
+  if (!raw?.trim()) return fallback;
+  const trimmed = raw.trim();
+  if (SECRET_LEAK_RE.test(trimmed)) return fallback;
+  if (trimmed.length > 400) return `${trimmed.slice(0, 400)}…`;
+  return trimmed;
+}
+
+function looksLikeUnresolvedSteam(lower: string): boolean {
+  return (
+    lower.includes("could not resolve") ||
+    lower.includes("could not parse") ||
+    lower.includes("invalid steam") ||
+    lower.includes("vanity")
+  );
 }
 
 /** Map known sync / Steam / inventory errors to stable client-facing text. */
@@ -48,16 +78,10 @@ export function sanitizeSyncClientError(err: unknown): {
   ) {
     return {
       status: 502,
-      error:
-        "Steam fetch proxy is misconfigured. Check STEAM_PROXY_URL and STEAM_PROXY_SECRET.",
+      error: "Steam inventory proxy is temporarily unavailable. Try again later.",
     };
   }
-  if (
-    lower.includes("could not resolve") ||
-    lower.includes("invalid steam") ||
-    lower.includes("vanity") ||
-    lower.includes("required")
-  ) {
+  if (looksLikeUnresolvedSteam(lower)) {
     return {
       status: 400,
       error: "Could not resolve that Steam profile. Check the URL or SteamID64.",
@@ -90,12 +114,7 @@ export function sanitizeProfileCreateError(err: unknown): {
   const raw = err instanceof Error ? err.message : "Failed to create profile";
   const lower = raw.toLowerCase();
 
-  if (
-    lower.includes("could not resolve") ||
-    lower.includes("invalid steam") ||
-    lower.includes("vanity") ||
-    lower.includes("required")
-  ) {
+  if (looksLikeUnresolvedSteam(lower)) {
     return {
       status: 400,
       error: "Could not resolve that Steam profile. Check the URL or SteamID64.",
@@ -121,6 +140,24 @@ export function sanitizeProfileCreateError(err: unknown): {
   return { status: 500, error: "Failed to create profile. Please try again." };
 }
 
+/** Structured `{ error }` JSON response used by every API route. */
+export function jsonError(
+  error: string,
+  status: number,
+  init?: { headers?: HeadersInit },
+): NextResponse {
+  return NextResponse.json({ error }, { status, headers: init?.headers });
+}
+
+export function jsonErrorWithRetryAfter(
+  error: string,
+  retryAfterSec: number,
+): NextResponse {
+  return jsonError(error, 429, {
+    headers: { "Retry-After": String(retryAfterSec) },
+  });
+}
+
 /** Allow force sync only when SYNC_FORCE_SECRET is set and header matches. */
 export function isForceSyncAuthorized(req: Request, wantsForce: boolean): boolean {
   if (!wantsForce) return false;
@@ -129,5 +166,5 @@ export function isForceSyncAuthorized(req: Request, wantsForce: boolean): boolea
   const provided =
     req.headers.get("x-sync-force-secret")?.trim() ??
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  return Boolean(provided && provided === secret);
+  return Boolean(provided && secretsEqual(provided, secret));
 }

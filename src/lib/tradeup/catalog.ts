@@ -10,7 +10,7 @@ import {
   getBuffGoodsIdMap,
 } from "@/lib/buff/goods-ids";
 import type { Currency } from "@/lib/currency";
-import { rarityToTier, type TradeUpTier } from "@/lib/tradeup/rarity";
+import { rarityToTier } from "@/lib/tradeup/rarity";
 import { resolveSkinPhase } from "@/lib/cs-catalog/phase";
 import type {
   TradeUpCatalogPayload,
@@ -138,7 +138,7 @@ export async function buildTradeUpCatalogPayload(
       name: detail.name,
       contains: detail.contains.map((c) => ({
         id: c.id,
-        rarityTier: (rarityToTier(c.rarity) as TradeUpTier | null) ?? null,
+        rarityTier: rarityToTier(c.rarity),
       })),
     });
   }

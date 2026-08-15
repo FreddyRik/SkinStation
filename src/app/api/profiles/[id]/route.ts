@@ -3,6 +3,8 @@ import {
   buffGoodsIdFor,
   getBuffGoodsIdMap,
 } from "@/lib/buff/goods-ids";
+import { jsonError, sanitizePublicErrorMessage } from "@/lib/api/errors";
+import { profileIdSchema } from "@/lib/api/schemas";
 import { prisma } from "@/lib/db";
 import { portfolioTotalFromItems } from "@/lib/price-source";
 import { itemSupportsStickers } from "@/lib/item-flags";
@@ -12,7 +14,12 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
   try {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const idParsed = profileIdSchema.safeParse(rawId);
+    if (!idParsed.success) {
+      return jsonError("Profile not found.", 404);
+    }
+    const id = idParsed.data;
 
     const profile = await prisma.profile.findUnique({
       where: { id },
@@ -28,7 +35,7 @@ export async function GET(_req: Request, { params }: Params) {
     });
 
     if (!profile) {
-      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+      return jsonError("Profile not found.", 404);
     }
 
     let goodsIds = new Map<string, number>();
@@ -68,7 +75,9 @@ export async function GET(_req: Request, { params }: Params) {
         leetifyRating: profile.leetifyRating,
         leetifyFound: profile.leetifyFound,
         lastSyncedAt: profile.lastSyncedAt,
-        lastError: profile.lastError,
+        lastError: profile.lastError
+          ? sanitizePublicErrorMessage(profile.lastError)
+          : null,
         syncing: profile.syncing,
       },
       items,
@@ -81,9 +90,6 @@ export async function GET(_req: Request, { params }: Params) {
     });
   } catch (err) {
     console.error("Failed to load profile:", err);
-    return NextResponse.json(
-      { error: "Failed to load profile." },
-      { status: 500 },
-    );
+    return jsonError("Failed to load profile.", 500);
   }
 }
