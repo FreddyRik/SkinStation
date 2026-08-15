@@ -6,6 +6,7 @@ import {
   CatalogNamedRefList,
 } from "@/components/CatalogContainsGrid";
 import { JsonLd } from "@/components/JsonLd";
+import { RareSpecialItemsCard } from "@/components/RareSpecialItemsCard";
 import { SkinDetailView } from "@/components/SkinDetailView";
 import {
   CATALOG_KIND_LABELS,
@@ -17,6 +18,8 @@ import {
   getCatalogPayload,
   getCollectionById,
   getItemById,
+  inferRareSpecialCategory,
+  partitionCrateDrops,
 } from "@/lib/cs-catalog";
 import {
   buffGoodsIdFor,
@@ -145,6 +148,11 @@ export default async function CatalogItemPage({ params }: PageProps) {
   const containsRare = pricedById
     ? enrichContainsWithPrices(item.containsRare, pricedById)
     : item.containsRare;
+  const { regular, gold } = partitionCrateDrops(
+    contains,
+    containsRare,
+    pricedById,
+  );
 
   return (
     <>
@@ -160,8 +168,8 @@ export default async function CatalogItemPage({ params }: PageProps) {
       <GenericCatalogItemView
         item={item}
         offers={offers}
-        contains={contains}
-        containsRare={containsRare}
+        contains={regular}
+        containsRare={gold}
       />
     </>
   );
@@ -183,19 +191,19 @@ function GenericCatalogItemView({
     item.weaponCategory,
     item.crateType,
   ].filter(Boolean);
+  const rareCategory = inferRareSpecialCategory(containsRare);
+  const showGoldCard = containsRare.length > 0 && rareCategory !== "items";
 
   return (
     <div className="space-y-8">
       <div className="space-y-2">
         <Link
           href="/database"
-          className="text-sm text-[var(--text-muted)] transition hover:text-[var(--text)]"
+          className="type-overline inline-flex items-center gap-2 transition hover:text-[var(--accent)]"
         >
-          ← Skin Database
+          <span aria-hidden>←</span> Skin Database
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)] sm:text-3xl">
-          {item.name}
-        </h1>
+        <h1 className="type-page-title">{item.name}</h1>
         <p className="text-sm text-[var(--text-muted)]">
           {metaBits.join(" · ")}
           {item.rarity ? (
@@ -208,7 +216,7 @@ function GenericCatalogItemView({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr]">
-        <div className="flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-6">
+        <div className="hud-panel hud-corners flex items-center justify-center p-6">
           {item.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -217,11 +225,11 @@ function GenericCatalogItemView({
               className="max-h-64 w-full object-contain"
             />
           ) : (
-            <span className="text-sm text-[var(--text-muted)]">No image</span>
+            <span className="type-overline">No image</span>
           )}
         </div>
 
-        <div className="space-y-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5 sm:p-6">
+        <div className="hud-panel hud-panel-lit space-y-5 p-5 sm:p-6">
           {item.description ? (
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-muted)]">
               {item.description.replace(/\\n/g, "\n").replace(/<\/?i>/g, "")}
@@ -251,9 +259,7 @@ function GenericCatalogItemView({
 
           {item.collections.length > 0 ? (
             <div className="space-y-2">
-              <h2 className="text-sm font-semibold text-[var(--text)]">
-                Collections
-              </h2>
+              <h2 className="type-overline">Collections</h2>
               <CatalogNamedRefList
                 items={item.collections}
                 hrefFor={(cid) => `/collections/${encodeURIComponent(cid)}`}
@@ -263,7 +269,7 @@ function GenericCatalogItemView({
 
           {item.crates.length > 0 ? (
             <div className="space-y-2">
-              <h2 className="text-sm font-semibold text-[var(--text)]">Crates</h2>
+              <h2 className="type-overline">Crates</h2>
               <CatalogNamedRefList
                 items={item.crates}
                 hrefFor={(cid) => `/database/${encodeURIComponent(cid)}`}
@@ -275,18 +281,28 @@ function GenericCatalogItemView({
 
       <BuyFromOffers steam={offers.steam} buff={offers.buff} />
 
-      {contains.length > 0 ? (
+      {contains.length > 0 || showGoldCard ? (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--text)]">Contains</h2>
-          <CatalogContainsGrid items={contains} />
+          <h2 className="type-section-title">Contains</h2>
+          <CatalogContainsGrid
+            items={contains}
+            leading={
+              showGoldCard ? (
+                <RareSpecialItemsCard
+                  crateName={item.name}
+                  crateId={item.id}
+                  items={containsRare}
+                  lootImage={item.lootList?.image ?? null}
+                />
+              ) : null
+            }
+          />
         </section>
       ) : null}
 
-      {containsRare.length > 0 ? (
+      {!showGoldCard && containsRare.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--text)]">
-            Rare specials
-          </h2>
+          <h2 className="type-section-title">Rare specials</h2>
           <CatalogContainsGrid items={containsRare} />
         </section>
       ) : null}
@@ -297,10 +313,8 @@ function GenericCatalogItemView({
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-        {label}
-      </dt>
-      <dd className="mt-0.5 text-sm text-[var(--text)]">{value}</dd>
+      <dt className="type-overline">{label}</dt>
+      <dd className="mt-1 text-sm text-[var(--text)]">{value}</dd>
     </div>
   );
 }

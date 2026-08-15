@@ -51,8 +51,16 @@ import type {
   TradeUpVariant,
 } from "@/lib/tradeup/types";
 import { PriceSourceToggle } from "@/components/PriceSourceToggle";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Skeleton } from "@/components/ui/Skeleton";
+import type { SegmentedOption } from "@/types/ui";
 
 type Mode = "inventory" | "sandbox";
+
+const MODE_OPTIONS: readonly SegmentedOption<Mode>[] = [
+  { value: "inventory", label: "My Inventory", code: "INV" },
+  { value: "sandbox", label: "Custom Sandbox", code: "SBX" },
+];
 
 type ProfileOption = {
   id: string;
@@ -700,14 +708,11 @@ export function TradeUpCalculator() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1
-            className="text-3xl tracking-tight text-[var(--text)] sm:text-4xl"
-            style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
-          >
-            Trade-up{" "}
-            <span className="text-[var(--accent)]">Calculator</span>
+          <p className="type-overline">Counter-Strike 2 · Contracts</p>
+          <h1 className="type-page-title mt-1.5">
+            Trade-up <span className="text-[var(--accent)]">Calculator</span>
           </h1>
-          <p className="mt-1 max-w-xl text-sm text-[var(--text-muted)]">
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--text-muted)]">
             Pick items from your inventory or the catalog to see outcome odds,
             floats, and expected value.
           </p>
@@ -717,37 +722,19 @@ export function TradeUpCalculator() {
         </div>
       </header>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <div className="flex rounded-lg border border-[var(--border)] p-0.5">
-          <button
-            type="button"
-            onClick={() => onModeChange("inventory")}
-            className={`rounded-md px-3 py-1.5 text-sm transition ${
-              mode === "inventory"
-                ? "bg-[var(--accent)] text-[var(--accent-fg)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
-          >
-            My Inventory
-          </button>
-          <button
-            type="button"
-            onClick={() => onModeChange("sandbox")}
-            className={`rounded-md px-3 py-1.5 text-sm transition ${
-              mode === "sandbox"
-                ? "bg-[var(--accent)] text-[var(--accent-fg)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
-          >
-            Custom Sandbox
-          </button>
-        </div>
-        <p className="text-xs text-[var(--text-muted)]">{tierHint}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <SegmentedControl
+          ariaLabel="Trade-up source"
+          options={MODE_OPTIONS}
+          value={mode}
+          onChange={onModeChange}
+        />
+        <p className="type-overline">{tierHint}</p>
         {filledCount > 0 ? (
           <button
             type="button"
             onClick={clearContract}
-            className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:text-[var(--danger)] sm:ml-auto"
+            className="type-overline rounded-lg border border-[var(--border)] px-3 py-2 transition hover:border-[var(--danger)]/50 hover:text-[var(--danger)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--danger)]/40 sm:ml-auto"
           >
             Clear contract
           </button>
@@ -755,10 +742,8 @@ export function TradeUpCalculator() {
       </div>
 
       {mode === "inventory" ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/50 p-4">
-          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-            Profile
-          </label>
+        <div className="hud-panel flex flex-col gap-3 p-4">
+          <label className="type-overline">Profile</label>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <select
               value={profileId ?? ""}
@@ -769,7 +754,7 @@ export function TradeUpCalculator() {
                 if (id) router.replace(`/tradeup?profileId=${id}`);
                 else router.replace("/tradeup");
               }}
-              className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] sm:min-w-[14rem]"
+              className="w-full min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg)]/60 px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]/50 sm:min-w-[14rem]"
             >
               <option value="">Select a synced profile…</option>
               {profiles.map((p) => (
@@ -783,14 +768,14 @@ export function TradeUpCalculator() {
               value={profileInput}
               onChange={(e) => setProfileInput(e.target.value)}
               placeholder="Or Steam URL / SteamID64"
-              className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] sm:min-w-[12rem]"
+              className="w-full min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg)]/60 px-3 py-2 text-sm text-[var(--text)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]/50 sm:min-w-[12rem]"
             />
             <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => void loadProfileFromInput()}
               disabled={inventoryLoading || !profileInput.trim()}
-              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] disabled:opacity-50"
+              className="rounded-xl bg-[var(--accent)] px-4 py-2 font-mono text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-fg)] transition hover:bg-[var(--accent-dim)] disabled:opacity-50"
             >
               Load
             </button>
@@ -798,7 +783,7 @@ export function TradeUpCalculator() {
               type="button"
               onClick={() => void onSyncClick()}
               disabled={!profileId || inventoryLoading}
-              className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-50"
+              className="rounded-xl border border-[var(--border)] px-4 py-2 font-mono text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)] transition hover:border-[var(--accent)]/45 hover:text-[var(--accent)] disabled:opacity-50"
             >
               Sync
             </button>
@@ -833,19 +818,24 @@ export function TradeUpCalculator() {
       ) : null}
 
       {catalogLoading ? (
-        <p className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-[var(--text-muted)]">
-          Loading trade-up catalog…
-        </p>
+        <div className="hud-panel space-y-3 p-6">
+          <Skeleton className="h-3 w-40 rounded-full" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-3 w-24 rounded-full" />
+        </div>
       ) : catalogError ? (
-        <p className="rounded-xl border border-[var(--danger)]/40 p-4 text-[var(--danger)]">
+        <p className="rounded-xl border border-[var(--danger)]/40 bg-[var(--danger)]/10 p-4 text-sm text-[var(--danger)]">
           {catalogError}
         </p>
       ) : (
         <>
           <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-medium text-[var(--text)]">
-                Contract ({filledCount}/{slotCount})
+              <h2 className="type-overline">
+                Contract{" "}
+                <span className="text-[var(--accent)]">
+                  {filledCount}/{slotCount}
+                </span>
               </h2>
               <button
                 type="button"
@@ -858,7 +848,7 @@ export function TradeUpCalculator() {
                   (mode === "inventory" && !profileId) ||
                   !catalog
                 }
-                className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--accent)] transition hover:border-[var(--accent)]/40 disabled:opacity-40"
+                className="rounded-lg border border-[var(--accent)]/35 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent)] transition hover:bg-[var(--accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-40"
               >
                 Browse skins
               </button>
@@ -893,6 +883,32 @@ export function TradeUpCalculator() {
                       )
                     : floatValue;
                   next[index] = { ...cur, floatValue: clamped };
+                  return next;
+                });
+              }}
+              onWearSelect={(index, floatValue) => {
+                setSlots((prev) => {
+                  const next = [...prev];
+                  const cur = next[index];
+                  if (!cur || !helpers || !catalog) return prev;
+                  const skin = helpers.skinsById.get(cur.skinId);
+                  const clamped = skin
+                    ? Math.min(
+                        skin.maxFloat,
+                        Math.max(skin.minFloat, floatValue),
+                      )
+                    : floatValue;
+                  const variant = lockedVariant ?? "normal";
+                  const cost = skin
+                    ? defaultCostForSkin(
+                        skin,
+                        variant,
+                        clamped,
+                        catalog.prices,
+                        priceSource,
+                      )
+                    : cur.cost;
+                  next[index] = { ...cur, floatValue: clamped, cost };
                   return next;
                 });
               }}
@@ -949,9 +965,7 @@ export function TradeUpCalculator() {
           ) : null}
 
           <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium text-[var(--text)]">
-              Results & odds
-            </h2>
+            <h2 className="type-overline">Results &amp; odds</h2>
             <TradeUpResultsPanel
               result={result}
               currency={currency}

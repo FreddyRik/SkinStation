@@ -224,7 +224,7 @@ export function ShareWrappedCard({
         color: style.vars["--share-text"],
         background: style.background,
         boxShadow: style.boxShadow,
-        fontFamily: "var(--font-share-body), 'Segoe UI', sans-serif",
+        fontFamily: "var(--font-body)",
         minHeight: 720,
       }}
     >
@@ -272,7 +272,7 @@ export function ShareWrappedCard({
               <h2
                 className="truncate text-[1.65rem] font-bold leading-tight tracking-tight"
                 style={{
-                  fontFamily: "var(--font-share-display), Georgia, serif",
+                  fontFamily: "var(--font-display)",
                   color: "var(--share-text)",
                 }}
               >
@@ -301,7 +301,7 @@ export function ShareWrappedCard({
           <p
             className="text-4xl font-bold tabular-nums tracking-tight"
             style={{
-              fontFamily: "var(--font-share-display), Georgia, serif",
+              fontFamily: "var(--font-display)",
               color: accent,
             }}
           >

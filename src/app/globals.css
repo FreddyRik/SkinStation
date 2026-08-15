@@ -1,20 +1,28 @@
 @import "tailwindcss";
 
+/* Three type roles: display for headings, body for prose and UI, mono for
+   numerics and technical labels. Overriding --font-mono here also upgrades
+   every existing `font-mono` utility. */
+@theme {
+  --font-display: var(--font-display-src), "Segoe UI", system-ui, sans-serif;
+  --font-body: var(--font-body-src), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-mono-src), ui-monospace, "Cascadia Mono", monospace;
+}
+
 /* Default = classic (matches share-card classic). Overridden by page theme JS. */
 :root {
-  --bg: #0c1210;
-  --bg-elevated: #121a17;
-  --bg-panel: #16211c;
-  --border: #24332c;
-  --text: #e8f0eb;
-  --text-muted: #8fa399;
-  --accent: #5eead4;
-  --accent-dim: #2dd4bf;
-  --accent-fg: #042f2e;
+  --bg: #0b0d12;
+  --bg-elevated: #12151c;
+  --bg-panel: #161a22;
+  --border: #2a3140;
+  --text: #eef1f5;
+  --text-muted: #8b93a3;
+  --accent: #ff6b35;
+  --accent-dim: #e85d2a;
+  --accent-fg: #1a0e08;
   --page-bg:
-    radial-gradient(ellipse 90% 60% at 10% -10%, rgba(94, 234, 212, 0.12), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 90% 0%, rgba(255, 107, 53, 0.08), transparent 50%),
-    linear-gradient(180deg, #0e1613 0%, #0c1210 40%, #0a0f0d 100%);
+    radial-gradient(ellipse 70% 55% at 50% 28%, rgba(255, 107, 53, 0.18), transparent 58%),
+    linear-gradient(180deg, #10141c 0%, #0b0d12 42%, #090b10 100%);
   --warn: #fbbf24;
   --danger: #f87171;
   --steam: #66c0f4;
@@ -43,7 +51,7 @@ body {
   color: var(--text);
   background-color: var(--bg);
   background-image: var(--page-bg);
-  font-family: var(--font-share-body), "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -53,7 +61,8 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-share-display), Georgia, serif;
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
 }
 
 a {
@@ -62,8 +71,57 @@ a {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+}
+
+/* Type scale. Pages use these instead of ad-hoc size ladders so headings stay
+   consistent between routes. */
+.type-page-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 1.15rem + 1.9vw, 2.35rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+
+.type-section-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.05rem, 0.95rem + 0.45vw, 1.3rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.type-card-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+/* Eyebrow / overline labels: mono + wide tracking is the strongest HUD cue. */
+.type-overline {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+}
+
+/* Any figure that sits in a column and needs to align. */
+.type-metric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 @keyframes share-card-enter {
@@ -102,37 +160,535 @@ input {
   }
 }
 
-@keyframes home-skin-float {
+@keyframes home-skin-enter {
+  from {
+    opacity: 0;
+    transform: translate(var(--enter-x), var(--enter-y)) scale(0.7)
+      rotate(var(--rest-rot));
+  }
+  to {
+    opacity: var(--skin-opacity, 0.55);
+    transform: translate(0, 0) scale(1) rotate(var(--rest-rot));
+  }
+}
+
+@keyframes home-skin-drift {
   0%,
   100% {
     translate: 0 0;
   }
   50% {
-    translate: 0 -10px;
+    translate: 0 -22px;
   }
 }
 
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes home-hero-bloom {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+.home-skin-parallax {
+  transform: translate(
+    calc(var(--hero-px, 0) * var(--depth, 0.5) * 18px),
+    calc(var(--hero-py, 0) * var(--depth, 0.5) * 12px)
+  );
+  transition: transform 0.15s ease-out;
+  will-change: transform;
+}
+
 .home-skin-float {
-  animation: home-skin-float 7s ease-in-out infinite;
+  animation:
+    home-skin-enter 0.9s cubic-bezier(0.22, 1, 0.36, 1) both,
+    home-skin-drift 8s ease-in-out infinite;
+}
+
+.home-hero-bloom {
+  filter: blur(64px);
+  animation: home-hero-bloom 9s ease-in-out infinite;
+}
+
+.hero-rise {
+  animation: hero-rise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-skin-float {
+  .home-skin-float,
+  .home-hero-bloom,
+  .hero-rise,
+  .home-load-btn {
     animation: none;
+  }
+
+  .home-skin-float {
+    opacity: var(--skin-opacity, 0.55);
+    transform: rotate(var(--rest-rot, 0deg));
+  }
+
+  .home-skin-parallax {
+    transform: none;
   }
 }
 
 .home-load-btn {
-  box-shadow: 0 0 0 0 rgba(94, 234, 212, 0.35);
+  box-shadow: 0 0 24px 2px color-mix(in srgb, var(--accent) 30%, transparent);
   transition:
     background-color 0.2s ease,
     box-shadow 0.25s ease,
     opacity 0.2s ease;
+  animation: home-load-idle 2.8s ease-in-out infinite;
+}
+
+.home-load-btn:disabled {
+  animation: none;
 }
 
 .home-load-btn:not(:disabled):hover,
 .home-load-btn:not(:disabled):focus-visible {
+  animation: none;
   box-shadow:
-    0 0 24px 2px rgba(94, 234, 212, 0.35),
-    0 0 48px 4px rgba(94, 234, 212, 0.12);
+    0 0 28px 4px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 56px 8px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+@keyframes home-load-idle {
+  0%,
+  100% {
+    box-shadow: 0 0 20px 2px color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 36px 8px color-mix(in srgb, var(--accent) 48%, transparent);
+  }
+}
+
+/* Midsummer midnight-sun atmosphere — extra bloom on top of --page-bg.
+   Isolate so z-index: -1 stays above the body background without forcing
+   every body child (including the theme-menu portal) off position: fixed. */
+[data-page-theme="midsummer"] body {
+  isolation: isolate;
+}
+
+[data-page-theme="midsummer"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 55% 45% at 95% 2%, rgba(255, 229, 102, 0.22), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 0% 30%, rgba(56, 217, 240, 0.14), transparent 50%),
+    radial-gradient(ellipse 60% 35% at 50% 100%, rgba(244, 114, 182, 0.12), transparent 55%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-page-theme="midsummer"] body::before {
+    animation: midsummer-sun-pulse 12s ease-in-out infinite;
+  }
+}
+
+@keyframes midsummer-sun-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.82;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-page-theme="midsummer"] body::before {
+    animation: none;
+  }
+}
+
+@keyframes dock-beam {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes mark-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mark-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes nav-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes live-dot {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+
+.site-dock {
+  background: color-mix(in srgb, var(--bg-panel) 78%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--border) 85%, transparent),
+    0 14px 40px -18px rgba(0, 0, 0, 0.6),
+    0 0 48px -22px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.site-dock[data-condensed="true"] {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 32%, var(--border)),
+    0 18px 48px -16px rgba(0, 0, 0, 0.7),
+    0 0 56px -14px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+.dock-beam {
+  animation: dock-beam 1.55s ease-in-out infinite;
+}
+
+.site-mark-ring {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 62%,
+    color-mix(in srgb, var(--accent) 90%, white) 78%,
+    var(--accent) 88%,
+    transparent 100%
+  );
+  border-radius: 999px;
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 1.5px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 1.5px)
+  );
+  animation: mark-spin 9s linear infinite;
+}
+
+.site-mark-core {
+  animation: mark-pulse 2.4s ease-in-out infinite;
+}
+
+.nav-indicator {
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease;
+}
+
+.nav-item-in {
+  animation: nav-item-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hud-grid {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--accent) 7%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 7%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 28px 28px;
+}
+
+.hud-grid-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 72%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 72%);
+}
+
+.live-dot {
+  animation: live-dot 2.2s ease-in-out infinite;
+}
+
+.footer-watermark {
+  font-family: var(--font-display);
+  font-size: clamp(4.5rem, 18vw, 12rem);
+  font-weight: 600;
+  line-height: 0.75;
+  letter-spacing: -0.05em;
+  color: var(--text);
+  opacity: 0.055;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.footer-link-arrow {
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.footer-link:hover .footer-link-arrow,
+.footer-link:focus-visible .footer-link-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-beam,
+  .site-mark-ring,
+  .site-mark-core,
+  .nav-item-in,
+  .live-dot {
+    animation: none;
+  }
+
+  .nav-indicator,
+  .footer-link-arrow {
+    transition: none;
+  }
+
+  .site-mark-core {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- HUD surfaces ------------------------------------------------------ */
+
+/* Canonical panel. Replaces the repeated border + translucent bg recipe. */
+.hud-panel {
+  position: relative;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  background: color-mix(in srgb, var(--bg-panel) 62%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.hud-panel-quiet {
+  position: relative;
+  border-radius: 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 42%, transparent);
+}
+
+/* Accent hairline across the top edge, matching the dock. */
+.hud-panel-lit::before {
+  content: "";
+  position: absolute;
+  inset-inline: 2rem;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 60%, transparent),
+    transparent
+  );
+}
+
+/* Bracket ticks at the corners. */
+.hud-corners::before,
+.hud-corners::after {
+  content: "";
+  position: absolute;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  pointer-events: none;
+}
+
+.hud-corners::before {
+  top: 0.35rem;
+  left: 0.35rem;
+  border-top: 1px solid;
+  border-left: 1px solid;
+  border-top-left-radius: 0.25rem;
+}
+
+.hud-corners::after {
+  right: 0.35rem;
+  bottom: 0.35rem;
+  border-right: 1px solid;
+  border-bottom: 1px solid;
+  border-bottom-right-radius: 0.25rem;
+}
+
+/* Rarity treatment. Cards set --rarity inline; colour math stays in CSS. */
+.rarity-frame {
+  border-color: color-mix(in srgb, var(--rarity, var(--border)) 42%, transparent);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    background-color 0.2s ease;
+}
+
+.rarity-frame:hover,
+.rarity-frame:focus-within {
+  border-color: color-mix(in srgb, var(--rarity, var(--accent)) 78%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--rarity, var(--accent)) 28%, transparent),
+    0 0 28px -6px color-mix(in srgb, var(--rarity, var(--accent)) 45%, transparent);
+}
+
+/* Rarity edge stripe along the bottom of a card. */
+.rarity-edge {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--rarity, var(--accent)) 85%, transparent),
+    transparent
+  );
+}
+
+/* Outcome probability bar. */
+.prob-bar {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.prob-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--prob, var(--accent)) 55%, transparent),
+    var(--prob, var(--accent))
+  );
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Skeleton loaders, replacing dashed-border text placeholders. */
+@keyframes skeleton-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text) 7%, transparent),
+    transparent
+  );
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+
+  .rarity-frame,
+  .prob-bar-fill {
+    transition: none;
+  }
+}
+
+/* Trade-up slot float slider: transparent track, visible thumb over the wear bar. */
+.tradeup-float-slider {
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.tradeup-float-slider::-webkit-slider-runnable-track {
+  height: 100%;
+  background: transparent;
+}
+.tradeup-float-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  border: 2px solid var(--bg-elevated);
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 0 12px 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  cursor: pointer;
+}
+.tradeup-float-slider::-moz-range-track {
+  height: 100%;
+  background: transparent;
+  border: none;
+}
+.tradeup-float-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--bg-elevated);
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 0 12px 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  cursor: pointer;
 }

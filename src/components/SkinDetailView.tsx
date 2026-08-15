@@ -1,8 +1,11 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BuyFromOffers } from "@/components/BuyFromOffers";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import type { SegmentedOption } from "@/types/ui";
 import {
   WEAR_BANDS,
   formatFloatShort,
@@ -78,6 +81,16 @@ export function SkinDetailView({
   }, []);
 
   const rows = prices[variant] ?? [];
+
+  const variantOptions = useMemo<SegmentedOption<SkinVariant>[]>(() => {
+    const options: SegmentedOption<SkinVariant>[] = [
+      { value: "normal", label: "Normal" },
+    ];
+    if (item.stattrak) options.push({ value: "stattrak", label: "StatTrak™" });
+    if (item.souvenir) options.push({ value: "souvenir", label: "Souvenir" });
+    return options;
+  }, [item.stattrak, item.souvenir]);
+
   const weaponHref = useMemo(() => {
     const filter = navFilterForWeapon(item.weaponCategory, item.weaponName);
     if (!filter || filter.section === "home") return "/database";
@@ -114,25 +127,27 @@ export function SkinDetailView({
   const skinMin = item.minFloat ?? 0;
   const skinMax = item.maxFloat ?? 1;
 
+  const rarityColor = item.rarity?.color?.trim() || "var(--accent)";
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Link
         href="/database"
-        className="text-sm text-[var(--text-muted)] transition hover:text-[var(--text)]"
+        className="type-overline inline-flex items-center gap-2 transition hover:text-[var(--accent)]"
       >
-        ← Skin Database
+        <span aria-hidden>←</span> Skin Database
       </Link>
 
-      <header className="space-y-1 text-center sm:text-left">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">
+      <header className="space-y-1.5 text-center sm:text-left">
+        <p className="type-overline">
           {item.isKnife ? "★ " : ""}
           {item.weaponName ?? "Skin"}
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-[var(--text)]">
+        <h1 className="type-page-title">
           {item.patternName ?? item.name}
           {item.phase ? (
             <span
-              className="ml-2 align-middle text-xl font-bold tracking-wide"
+              className="ml-2 align-middle font-mono text-xl font-bold tracking-wide"
               style={{ color: phaseAccent(item.phase) }}
             >
               {formatPhaseShort(item.phase) ?? item.phase}
@@ -145,7 +160,10 @@ export function SkinDetailView({
         </p>
       </header>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5 sm:p-6">
+      <section
+        className="hud-panel hud-panel-lit rarity-frame border p-5 sm:p-6"
+        style={{ "--rarity": rarityColor } as CSSProperties}
+      >
         <div className="flex justify-center">
           {item.image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -155,40 +173,25 @@ export function SkinDetailView({
               className="max-h-72 w-full object-contain drop-shadow-lg"
             />
           ) : (
-            <span className="text-sm text-[var(--text-muted)]">No image</span>
+            <span className="type-overline">No image</span>
           )}
         </div>
 
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <VariantChip
-            active={variant === "normal"}
-            onClick={() => setVariant("normal")}
-            label="Normal"
-          />
-          {item.stattrak ? (
-            <VariantChip
-              active={variant === "stattrak"}
-              onClick={() => setVariant("stattrak")}
-              label="StatTrak™"
-              tone="buff"
+        {variantOptions.length > 1 ? (
+          <div className="mt-5 flex justify-center">
+            <SegmentedControl
+              ariaLabel="Skin variant"
+              options={variantOptions}
+              value={variant}
+              onChange={setVariant}
             />
-          ) : null}
-          {item.souvenir ? (
-            <VariantChip
-              active={variant === "souvenir"}
-              onClick={() => setVariant("souvenir")}
-              label="Souvenir"
-              tone="warn"
-            />
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </section>
 
       {phaseSiblings.length > 1 ? (
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5">
-          <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">
-            Phases
-          </h2>
+        <section className="hud-panel p-5">
+          <h2 className="type-overline mb-3">Phases</h2>
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
             {phaseSiblings.map((sib) => {
               const active = sib.id === item.id;
@@ -224,7 +227,7 @@ export function SkinDetailView({
                       )}
                     </div>
                     <p
-                      className="truncate px-2 py-1.5 text-center text-xs font-semibold"
+                      className="type-metric truncate px-2 py-1.5 text-center text-xs"
                       style={{ color: accent }}
                     >
                       {short}
@@ -240,18 +243,18 @@ export function SkinDetailView({
       <BuyFromSection rows={rows} buffGoodsByHash={buffGoodsByHash} />
 
       {rows.length > 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70">
-          <h2 className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">
+        <section className="hud-panel overflow-hidden">
+          <h2 className="type-overline border-b border-[var(--border)]/70 px-4 py-3">
             Market prices
           </h2>
-          <ul className="divide-y divide-[var(--border)]">
+          <ul className="divide-y divide-[var(--border)]/60">
             {rows.map((row) => (
               <li
                 key={row.wearName}
-                className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap"
+                className="flex flex-wrap items-center gap-3 px-4 py-3 transition hover:bg-[var(--bg-elevated)]/40 sm:flex-nowrap"
               >
                 <span
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-[#0b1220]"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-[11px] font-bold text-[#0b1220]"
                   style={{ backgroundColor: row.color }}
                 >
                   {row.abbr}
@@ -260,17 +263,19 @@ export function SkinDetailView({
                   <p className="text-sm font-medium text-[var(--text)]">
                     {row.wearName}
                   </p>
-                  <p className="text-xs text-[var(--text-muted)]">
+                  <p className="type-metric text-xs font-normal text-[var(--text-muted)]">
                     {formatFloatShort(row.floatMin)} –{" "}
                     {formatFloatShort(row.floatMax)}
                   </p>
                 </div>
                 <div className="flex w-full flex-col items-end gap-0.5 sm:w-auto">
-                  <p className="text-sm font-semibold text-[var(--steam)]">
-                    Steam {money(row.steamUsd)}
+                  <p className="type-metric text-sm text-[var(--steam)]">
+                    <span className="type-overline mr-1.5">Steam</span>
+                    {money(row.steamUsd)}
                   </p>
-                  <p className="text-xs font-medium text-[var(--buff)]">
-                    Buff {money(row.buffUsd)}
+                  <p className="type-metric text-xs text-[var(--buff)]">
+                    <span className="type-overline mr-1.5">Buff</span>
+                    {money(row.buffUsd)}
                   </p>
                 </div>
               </li>
@@ -280,19 +285,17 @@ export function SkinDetailView({
       ) : null}
 
       {cleanDescription ? (
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5">
-          <h2 className="mb-2 text-sm font-semibold text-[var(--text)]">
-            Description
-          </h2>
+        <section className="hud-panel p-5">
+          <h2 className="type-overline mb-2">Description</h2>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-muted)]">
             {cleanDescription}
           </p>
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5">
-        <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">Summary</h2>
-        <dl className="divide-y divide-[var(--border)]">
+      <section className="hud-panel p-5">
+        <h2 className="type-overline mb-3">Summary</h2>
+        <dl className="divide-y divide-[var(--border)]/60">
           <SummaryRow label="Category" value="Skin" />
           {item.weaponCategory ? (
             <SummaryRow label="Type" value={item.weaponCategory} />
@@ -342,17 +345,15 @@ export function SkinDetailView({
 
       <section className="grid gap-3 sm:grid-cols-2">
         {item.rarity ? (
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-              Rarity
-            </p>
+          <div className="hud-panel p-4">
+            <p className="type-overline">Rarity</p>
             <div className="mt-2 flex items-center gap-2">
               <span
                 className="h-8 w-1.5 rounded-full"
                 style={{ backgroundColor: item.rarity.color }}
               />
               <p
-                className="text-lg font-semibold"
+                className="type-card-title text-lg"
                 style={{ color: item.rarity.color }}
               >
                 {item.rarity.name}
@@ -360,11 +361,9 @@ export function SkinDetailView({
             </div>
           </div>
         ) : null}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-4">
-          <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-            Quality
-          </p>
-          <p className="mt-2 text-lg font-semibold text-[var(--text)]">
+        <div className="hud-panel p-4">
+          <p className="type-overline">Quality</p>
+          <p className="type-card-title mt-2 text-lg">
             {variant === "stattrak"
               ? "StatTrak™"
               : variant === "souvenir"
@@ -374,8 +373,8 @@ export function SkinDetailView({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5">
-        <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+      <section className="hud-panel p-5">
+        <h2 className="type-overline mb-5 flex items-center gap-2">
           Wear Range
           <span
             className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[var(--border)] text-[10px] font-medium text-[var(--text-muted)]"
@@ -390,15 +389,13 @@ export function SkinDetailView({
 
       {collections.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-[var(--text)]">
-            Collection
-          </h2>
+          <h2 className="type-overline">Collection</h2>
           <ul className="space-y-2">
             {collections.map((col) => (
               <li key={col.id}>
                 <Link
                   href={`/collections/${encodeURIComponent(col.id)}`}
-                  className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-3 transition hover:border-[var(--accent)]/40"
+                  className="hud-panel flex items-center gap-3 p-3 transition hover:border-[var(--accent)]/45"
                 >
                   {col.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -414,7 +411,7 @@ export function SkinDetailView({
                     <p className="truncate text-sm font-semibold text-[var(--text)]">
                       {col.name}
                     </p>
-                    <p className="text-xs text-[var(--text-muted)]">
+                    <p className="type-metric text-xs font-normal text-[var(--text-muted)]">
                       Contains {col.itemCount.toLocaleString("en-US")} items
                     </p>
                   </div>
@@ -427,13 +424,13 @@ export function SkinDetailView({
 
       {item.crates.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-[var(--text)]">Cases</h2>
+          <h2 className="type-overline">Cases</h2>
           <ul className="space-y-2">
             {item.crates.map((crate) => (
               <li key={crate.id}>
                 <Link
                   href={`/database/${encodeURIComponent(crate.id)}`}
-                  className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-3 transition hover:border-[var(--accent)]/40"
+                  className="hud-panel flex items-center gap-3 p-3 transition hover:border-[var(--accent)]/45"
                 >
                   {crate.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -499,38 +496,6 @@ function bestBuffOffer(
   return best;
 }
 
-function VariantChip({
-  active,
-  onClick,
-  label,
-  tone,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  tone?: "buff" | "warn";
-}) {
-  const activeClass =
-    tone === "buff"
-      ? "bg-[var(--buff)] text-[#0b1220]"
-      : tone === "warn"
-        ? "bg-[var(--warn)] text-[#0b1220]"
-        : "bg-[var(--accent)] text-[var(--accent-fg)]";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-        active
-          ? activeClass
-          : "border border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)]"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
 function SummaryRow({
   label,
   value,
@@ -543,7 +508,7 @@ function SummaryRow({
   return (
     <div className="flex items-center justify-between gap-4 py-2.5">
       <dt className="text-sm text-[var(--text-muted)]">{label}</dt>
-      <dd className="text-right text-sm font-medium text-[var(--text)]">
+      <dd className="type-metric text-right text-sm font-medium">
         {href ? (
           <Link
             href={href}
@@ -563,69 +528,67 @@ function FloatRangeBar({ min, max }: { min: number; max: number }) {
   const lo = Math.min(Math.max(min, 0), 1);
   const hi = Math.min(Math.max(max, 0), 1);
   const leftPct = lo * 100;
-  const widthPct = Math.max((hi - lo) * 100, 0.4);
-  const endLabelLeft = Math.min(leftPct + widthPct, 100);
-  const endBadgeLeft =
-    endLabelLeft > 94 ? 100 : Math.max(endLabelLeft, 6);
+  const rightPct = (1 - hi) * 100;
+  const rangeLabel = `Float ${formatFloatShort(lo)} – ${formatFloatShort(hi)}`;
 
   return (
-    <div className="relative pt-9">
-      <div
-        className="pointer-events-none absolute top-0 z-10 flex flex-col items-center"
-        style={{
-          left: `${leftPct}%`,
-          transform: leftPct < 3 ? "none" : "translateX(-50%)",
-        }}
-      >
-        <span className="rounded-md bg-[#1c2420] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--text)]">
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="type-metric shrink-0 rounded-md border border-[var(--border)] bg-[var(--bg)]/70 px-2 py-0.5 text-[11px]">
           {formatFloatShort(lo)}
         </span>
         <span
-          className="mt-[-1px] h-0 w-0 border-x-[5px] border-t-[5px] border-x-transparent border-t-[#1c2420]"
+          className="min-w-0 flex-1 border-t border-dashed border-[var(--border)]/80"
           aria-hidden
         />
-      </div>
-      <div
-        className="pointer-events-none absolute top-0 z-10 flex flex-col items-center"
-        style={{
-          left: `${endBadgeLeft}%`,
-          transform: endLabelLeft > 94 ? "translateX(-100%)" : "translateX(-50%)",
-        }}
-      >
-        <span className="rounded-md bg-[#1c2420] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--text)]">
+        <span className="type-metric shrink-0 rounded-md border border-[var(--border)] bg-[var(--bg)]/70 px-2 py-0.5 text-[11px]">
           {formatFloatShort(hi)}
         </span>
-        <span
-          className="mt-[-1px] h-0 w-0 border-x-[5px] border-t-[5px] border-x-transparent border-t-[#1c2420]"
-          aria-hidden
-        />
       </div>
 
       <div
-        className="relative flex h-11 w-full overflow-hidden rounded-lg bg-[#141a17]"
-        title={`Float ${formatFloatShort(lo)} – ${formatFloatShort(hi)}`}
+        className="relative h-3 w-full overflow-hidden rounded-md border border-[var(--border)]/70 bg-[var(--bg)]"
+        title={rangeLabel}
+        aria-label={rangeLabel}
       >
-        {WEAR_BANDS.map((band, i) => (
-          <div
-            key={band.key}
-            className="relative flex h-full items-center justify-center"
-            style={{
-              width: `${(band.max - band.min) * 100}%`,
-              borderRight:
-                i < WEAR_BANDS.length - 1
-                  ? "1px solid rgba(255,255,255,0.06)"
-                  : undefined,
-            }}
-          >
-            <span
-              className="absolute inset-x-0 top-0 h-[3px]"
-              style={{ backgroundColor: band.color }}
-              aria-hidden
+        <div className="flex h-full w-full">
+          {WEAR_BANDS.map((band) => (
+            <div
+              key={band.key}
+              className="h-full"
+              style={{
+                width: `${(band.max - band.min) * 100}%`,
+                backgroundColor: band.color,
+              }}
             />
-            <span className="text-[11px] font-bold uppercase tracking-wide text-white sm:text-xs">
-              {band.abbr}
-            </span>
-          </div>
+          ))}
+        </div>
+        {leftPct > 0 ? (
+          <div
+            className="absolute inset-y-0 left-0 bg-[var(--bg)]/72"
+            style={{ width: `${leftPct}%` }}
+            aria-hidden
+          />
+        ) : null}
+        {rightPct > 0 ? (
+          <div
+            className="absolute inset-y-0 right-0 bg-[var(--bg)]/72"
+            style={{ width: `${rightPct}%` }}
+            aria-hidden
+          />
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-5 gap-1" aria-hidden>
+        {WEAR_BANDS.map((band) => (
+          <span
+            key={band.key}
+            className="min-w-0 truncate text-center font-mono text-[10px] font-semibold uppercase tracking-[0.08em] sm:text-[11px]"
+            style={{ color: band.color }}
+            title={band.name}
+          >
+            {band.abbr}
+          </span>
         ))}
       </div>
     </div>

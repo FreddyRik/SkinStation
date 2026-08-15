@@ -17,7 +17,7 @@ export const metadata: Metadata = buildPageMetadata({
 
 export default function PrivacyPage() {
   return (
-    <LegalArticle title="Privacy Policy" lastUpdated="July 28, 2026">
+    <LegalArticle title="Privacy Policy" lastUpdated="August 15, 2026">
       <p>
         This Privacy Policy explains what {SITE_NAME} collects and stores when you use the
         hosted site ({SITE_TAGLINE.toLowerCase()}). It is written for clarity about how the
@@ -29,16 +29,16 @@ export default function PrivacyPage() {
         <ul>
           <li>No accounts, passwords, or Steam login — you never sign in to {SITE_NAME}.</li>
           <li>
-            Looking up a public Steam profile caches that inventory and related pricing on our
-            servers (PostgreSQL / Supabase).
+            Looking up a public Steam profile caches that inventory and related prices on our
+            servers.
           </li>
           <li>
-            The Skin Database and Trade-up Calculator use public catalog and market data; they do
-            not require a profile unless you link inventory to a trade-up.
+            The Skin Database and Trade-up Calculator use public catalog and market data. They
+            do not need a profile unless you link an inventory to a trade-up.
           </li>
           <li>
-            We use Vercel Analytics for basic, privacy-friendly page-view metrics — not ads or
-            behavioral marketing pixels.
+            We use privacy-friendly page-view analytics on the hosted site — not ads or tracking
+            pixels.
           </li>
           <li>
             Early Access limitations (for example incomplete floats) are described on{" "}
@@ -53,33 +53,30 @@ export default function PrivacyPage() {
       <section>
         <h2>What you submit</h2>
         <p>
-          When you use Inventory Search, you may enter a SteamID64, vanity name, or Steam Community
-          profile URL. We use that to resolve the profile and fetch its <strong className="font-medium text-[var(--text)]">public</strong>{" "}
-          CS2 inventory. We never ask for Steam credentials.
+          For inventory lookup you may enter a Steam profile URL or ID. We use that to fetch the
+          profile&apos;s <strong className="font-medium text-[var(--text)]">public</strong> CS2
+          inventory. We never ask for Steam credentials.
         </p>
         <p>
-          Share and inventory URLs use opaque profile IDs. Anyone with the link can open that
-          cached snapshot.
+          Inventory and share links use an opaque ID. Anyone with the link can open that cached
+          snapshot.
         </p>
       </section>
 
       <section>
-        <h2>What we store on our servers</h2>
-        <p>For profiles that have been looked up or synced, we may persist:</p>
+        <h2>What we store</h2>
+        <p>For profiles that have been looked up, we may keep:</p>
         <ul>
-          <li>Steam identifiers, persona name, and avatar URL</li>
-          <li>
-            Inventory items (names, images, floats/paint seed when available, stickers, market
-            flags) and last sync metadata
-          </li>
-          <li>Cached Buff163 / Steam Market prices used for totals and the catalog</li>
-          <li>Portfolio value snapshots from successful syncs (for the history chart)</li>
-          <li>Optional FACEIT / Leetify reputation fields when enrichment succeeds</li>
+          <li>Public Steam name, avatar, and identifiers needed to refresh the inventory</li>
+          <li>Inventory items (names, images, floats and stickers when available)</li>
+          <li>Cached market prices used for totals and the catalog</li>
+          <li>Portfolio snapshots from successful refreshes (for the history chart)</li>
+          <li>Optional FACEIT / Leetify rank badges when they are available</li>
         </ul>
         <p>
-          Catalog browsing caches item metadata from public CS2 item APIs. We do not publish a
-          browsable directory of tracked Steam accounts. “Recent profiles” in the UI are stored only
-          in your browser (this device) and are not shared with other visitors.
+          Catalog browsing uses public CS2 item data. We do not publish a directory of tracked
+          Steam accounts. Recent profiles in the UI stay on this device only and are not shared
+          with other visitors.
         </p>
       </section>
 
@@ -87,8 +84,8 @@ export default function PrivacyPage() {
         <h2>Public Steam data and removal</h2>
         <p>
           {SITE_NAME} only works with inventories set to Public on Steam. Looking up a profile
-          causes that public inventory (and derived prices / share cards) to be stored for display
-          and Refresh. If you want a stored profile deleted, open an issue or contact us via{" "}
+          stores that public inventory (and derived prices / share cards) so we can display and
+          refresh it. If you want a stored profile deleted, open an issue or contact us via{" "}
           <a
             href={SITE_GITHUB_URL}
             target="_blank"
@@ -97,48 +94,36 @@ export default function PrivacyPage() {
           >
             GitHub
           </a>
-          ; we will remove the cached row when reasonably able to do so.
+          ; we will remove the cached data when reasonably able to do so.
         </p>
       </section>
 
       <section>
         <h2>Browser storage</h2>
         <p>
-          Preferences such as display currency (USD/EUR), page theme, recent profiles viewed on
-          this device, and similar UI choices may be saved in your browser&apos;s local storage.
-          They stay on your device and are not used for advertising or cross-site tracking.
+          Preferences such as display currency, theme, and recent profiles on this device may be
+          saved in your browser. They stay on your device and are not used for advertising or
+          cross-site tracking.
         </p>
       </section>
 
       <section>
-        <h2>Third parties we contact</h2>
-        <p>
-          Server-side requests may go to (depending on feature and configuration):
-        </p>
+        <h2>Third parties</h2>
+        <p>Depending on the feature, we may contact:</p>
         <ul>
-          <li>Steam — community profiles, inventory, and Market priceoverview</li>
-          <li>CSGOTrader / Buff163 pricing feeds</li>
-          <li>Public CS2 catalogs (for example ByMykel CSGO-API on GitHub)</li>
-          <li>
-            Optional enrichers: Steamwebapi, FACEIT, Leetify, or a self-hosted inspect/float service
-          </li>
-          <li>
-            Infrastructure: hosting (e.g. Vercel), database (Supabase), and optional Upstash Redis
-            for rate limiting
-          </li>
+          <li>Steam — public profiles, inventories, and market prices</li>
+          <li>Public market and catalog sources (including Buff163 prices)</li>
+          <li>FACEIT and Leetify for optional rank badges</li>
+          <li>Our hosting and database providers, to run the site</li>
         </ul>
-        <p>
-          Those providers process data under their own policies. Optional API keys live only in the
-          server environment and are not shipped to the browser.
-        </p>
+        <p>Those providers handle data under their own policies.</p>
       </section>
 
       <section>
-        <h2>Logs, rate limits, and security</h2>
+        <h2>Logs and security</h2>
         <p>
-          Hosting and edge layers may retain standard operational logs (IP address, user agent,
-          request path, timestamps) to operate the service and enforce rate limits. We do not sell
-          this data.
+          Standard web logs (such as IP address) may be kept to operate the site, prevent abuse,
+          and enforce rate limits. We do not sell this data.
         </p>
       </section>
 
@@ -168,8 +153,8 @@ export default function PrivacyPage() {
           .
         </p>
         <p>
-          We do not embed advertising networks, social tracking pixels, or other behavioral
-          marketing SDKs in the app.
+          We do not embed advertising networks, social tracking pixels, or other marketing trackers
+          in the app.
         </p>
       </section>
 

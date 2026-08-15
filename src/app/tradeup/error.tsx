@@ -8,13 +8,8 @@ export default function TradeUpError({
   reset: () => void;
 }) {
   return (
-    <div className="mx-auto max-w-lg rounded-xl border border-[var(--danger)]/40 bg-[var(--bg-panel)] p-8 text-center">
-      <h1
-        className="text-xl font-semibold tracking-tight text-[var(--text)]"
-        style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
-      >
-        Trade-up calculator error
-      </h1>
+    <div className="hud-panel mx-auto max-w-lg border-[var(--danger)]/40 p-8 text-center">
+      <h1 className="type-section-title">Trade-up calculator error</h1>
       <p className="mt-2 text-sm text-[var(--danger)]">
         Something went wrong computing this trade-up.
       </p>
@@ -24,7 +19,7 @@ export default function TradeUpError({
       <button
         type="button"
         onClick={reset}
-        className="mt-4 text-sm text-[var(--accent)] underline underline-offset-2"
+        className="mt-4 rounded-lg border border-[var(--accent)]/40 px-3 py-1.5 text-sm text-[var(--accent)] transition hover:bg-[var(--accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50"
       >
         Try again
       </button>

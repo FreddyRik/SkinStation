@@ -63,13 +63,11 @@ export default async function CollectionPage({ params }: PageProps) {
       <div className="space-y-2">
         <Link
           href="/database"
-          className="text-sm text-[var(--text-muted)] transition hover:text-[var(--text)]"
+          className="type-overline inline-flex items-center gap-2 transition hover:text-[var(--accent)]"
         >
-          ← Skin Database
+          <span aria-hidden>←</span> Skin Database
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)] sm:text-3xl">
-          {collection.name}
-        </h1>
+        <h1 className="type-page-title">{collection.name}</h1>
         <p className="text-sm text-[var(--text-muted)]">
           Collection · {collection.contains.length.toLocaleString("en-US")} item
           {collection.contains.length === 1 ? "" : "s"}
@@ -77,7 +75,7 @@ export default async function CollectionPage({ params }: PageProps) {
       </div>
 
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <div className="flex w-full max-w-xs shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-6 sm:w-48">
+        <div className="hud-panel hud-corners flex w-full max-w-xs shrink-0 items-center justify-center p-6 sm:w-48">
           {collection.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -86,13 +84,13 @@ export default async function CollectionPage({ params }: PageProps) {
               className="max-h-40 w-full object-contain"
             />
           ) : (
-            <span className="text-sm text-[var(--text-muted)]">No image</span>
+            <span className="type-overline">No image</span>
           )}
         </div>
 
         {collection.crates.length > 0 ? (
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-[var(--text)]">Crates</h2>
+            <h2 className="type-overline">Crates</h2>
             <CatalogNamedRefList
               items={collection.crates}
               hrefFor={(cid) => `/database/${encodeURIComponent(cid)}`}
@@ -102,7 +100,7 @@ export default async function CollectionPage({ params }: PageProps) {
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text)]">Contains</h2>
+        <h2 className="type-section-title">Contains</h2>
         <CatalogContainsGrid
           items={contains}
           emptyLabel="This collection has no listed skins."

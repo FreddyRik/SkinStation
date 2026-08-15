@@ -77,7 +77,7 @@ export function BuyFromOffers({
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-[var(--text)]">{title}</h2>
+      <h2 className="type-overline">{title}</h2>
       <ul className="space-y-2">
         {buff ? (
           <BuyFromRow
@@ -122,22 +122,18 @@ function BuyFromRow({
 }) {
   return (
     <li>
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 px-4 py-3 sm:flex-nowrap">
+      <div className="hud-panel flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center">
             {icon}
           </span>
-          <p className="truncate text-sm font-semibold text-[var(--text)]">
-            {name}
-          </p>
+          <p className="type-card-title truncate text-sm">{name}</p>
         </div>
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
-              from
-            </p>
+            <p className="type-overline">from</p>
             <p
-              className={`text-base font-semibold tabular-nums ${
+              className={`type-metric text-base ${
                 accent === "buff" ? "text-[var(--buff)]" : "text-[var(--steam)]"
               }`}
             >
@@ -148,7 +144,7 @@ function BuyFromRow({
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex shrink-0 items-center rounded-xl bg-[var(--accent)] px-3 py-2 text-xs font-bold uppercase tracking-wide text-[var(--accent-fg)] transition hover:bg-[var(--accent-dim)]"
+            className="inline-flex shrink-0 items-center rounded-xl bg-[var(--accent)] px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--accent-fg)] transition hover:bg-[var(--accent-dim)] hover:shadow-[0_0_20px_-4px_color-mix(in_srgb,var(--accent)_65%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50"
           >
             View offer
             <span className="ml-1" aria-hidden>

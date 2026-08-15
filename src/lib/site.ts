@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { SiteNavLink } from "@/types/nav";
 
 export const SITE_GITHUB_URL = "https://github.com/FreddyRik/SkinStation";
 
@@ -106,11 +107,28 @@ export function rootMetadata(): Metadata {
   };
 }
 
-export const FOOTER_TOOL_LINKS = [
-  { href: "/inventory", label: "Inventory Search" },
-  { href: "/database", label: "Skin Database" },
-  { href: "/tradeup", label: "Trade-Up Calculator" },
-] as const;
+export const PRIMARY_NAV_LINKS: readonly SiteNavLink[] = [
+  {
+    href: "/inventory",
+    label: "Inventory",
+    code: "INV",
+    match: (pathname) =>
+      pathname === "/inventory" || pathname.startsWith("/inventory/"),
+  },
+  {
+    href: "/database",
+    label: "Database",
+    code: "DB",
+    match: (pathname) =>
+      pathname.startsWith("/database") || pathname.startsWith("/collections"),
+  },
+  {
+    href: "/tradeup",
+    label: "Trade-up",
+    code: "TU",
+    match: (pathname) => pathname.startsWith("/tradeup"),
+  },
+];
 
 export const FOOTER_LEGAL_LINKS = [
   { href: "/status", label: "Roadmap & Limitations" },

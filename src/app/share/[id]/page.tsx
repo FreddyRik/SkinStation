@@ -99,13 +99,10 @@ export default async function SharePage({ params, searchParams }: PageProps) {
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-4xl flex-col items-center gap-6 sm:gap-8">
       <div className="w-full min-w-0 space-y-2 text-center">
-        <p className="text-xs uppercase tracking-[0.28em] text-[var(--accent-dim)]">
+        <p className="type-overline text-[var(--accent-dim)]">
           Shareable inventory card
         </p>
-        <h1
-          className="break-words text-2xl font-semibold tracking-tight sm:text-4xl"
-          style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
-        >
+        <h1 className="type-page-title break-words">
           {profile.personaName ?? profile.steamId}
           <span className="text-[var(--text-muted)]"> · Wrapped</span>
         </h1>
@@ -140,7 +137,7 @@ export default async function SharePage({ params, searchParams }: PageProps) {
       <div className="flex w-full flex-wrap items-center justify-center gap-3 text-sm">
         <Link
           href={`/inventory/${profile.id}`}
-          className="rounded-xl bg-[var(--accent)] px-4 py-2.5 font-semibold text-[#042f2e] hover:bg-[var(--accent-dim)]"
+          className="rounded-xl bg-[var(--accent)] px-4 py-2.5 font-semibold text-[var(--accent-fg)] hover:bg-[var(--accent-dim)]"
         >
           Open full inventory
         </Link>

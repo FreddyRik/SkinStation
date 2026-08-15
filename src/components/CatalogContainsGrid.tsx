@@ -1,40 +1,17 @@
+import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { CatalogPriceText } from "@/components/CatalogPriceText";
+import { KnifeBadge } from "@/components/database/CatalogBadges";
 import {
   collapsePhasedContains,
+  containsLooksLikeKnife,
   formatPhaseShort,
   phaseAccent,
   resolveSkinPhase,
+  sortByRarityDesc,
   type CatalogContainsItem,
   type CatalogNamedRef,
 } from "@/lib/cs-catalog";
-
-/** Heuristic for contains rows that lack category ids (gloves also use ★). */
-export function containsLooksLikeKnife(name: string): boolean {
-  const n = name.trim();
-  if (!n.startsWith("★") && !n.startsWith("\u2605")) return false;
-  const lower = n.toLowerCase();
-  if (
-    lower.includes("gloves") ||
-    lower.includes("hand wraps") ||
-    lower.includes("wraps |")
-  ) {
-    return false;
-  }
-  return true;
-}
-
-function KnifeBadge() {
-  return (
-    <span
-      className="inline-flex shrink-0 items-center justify-center rounded bg-[var(--accent)]/15 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-[var(--accent)]"
-      title="Knife"
-      aria-label="Knife"
-    >
-      ★
-    </span>
-  );
-}
 
 export type ContainsGridItem = CatalogContainsItem & {
   priceMinUsd?: number | null;
@@ -59,21 +36,25 @@ function multiPhaseFamilyNames(items: ContainsGridItem[]): Set<string> {
 export function CatalogContainsGrid({
   items,
   emptyLabel = "No items listed.",
+  leading,
 }: {
   items: ContainsGridItem[];
   emptyLabel?: string;
+  /** Optional first cell (e.g. rare specials teaser on case pages). */
+  leading?: ReactNode;
 }) {
   const familyNames = multiPhaseFamilyNames(items);
-  const displayItems = collapsePhasedContains(items);
+  const displayItems = sortByRarityDesc(collapsePhasedContains(items));
 
-  if (displayItems.length === 0) {
+  if (displayItems.length === 0 && !leading) {
     return (
       <p className="text-sm text-[var(--text-muted)]">{emptyLabel}</p>
     );
   }
 
   return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+    <ul className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      {leading ? <li>{leading}</li> : null}
       {displayItems.map((item) => {
         const knife = containsLooksLikeKnife(item.name);
         const isPhaseFamily = familyNames.has(item.name.trim());
@@ -83,13 +64,17 @@ export function CatalogContainsGrid({
               paintIndex: item.paint_index,
             });
         const phaseShort = formatPhaseShort(phase);
+        const rarityVar = {
+          "--rarity": item.rarity?.color?.trim() || "var(--accent)",
+        } as CSSProperties;
         return (
           <li key={item.id}>
             <Link
               href={`/database/${encodeURIComponent(item.id)}`}
-              className="flex h-full flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/40 p-3 transition hover:border-[var(--accent)]/35 hover:bg-[var(--bg-panel)]/80"
+              style={rarityVar}
+              className="rarity-frame group flex h-full flex-col gap-2 rounded-xl border bg-[var(--bg-elevated)]/40 p-3"
             >
-              <div className="flex h-24 items-center justify-center rounded-lg bg-[var(--bg)]">
+              <div className="flex h-24 items-center justify-center rounded-lg bg-[var(--bg)]/70">
                 {item.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -105,11 +90,11 @@ export function CatalogContainsGrid({
               <div className="flex items-start gap-1.5">
                 {knife ? <KnifeBadge /> : null}
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium leading-snug text-[var(--text)]">
+                  <p className="text-xs font-medium leading-snug text-[var(--text)] transition group-hover:text-[var(--accent)]">
                     {item.name}
                     {phaseShort ? (
                       <span
-                        className="ml-1 font-bold"
+                        className="ml-1 font-mono font-bold"
                         style={{ color: phaseAccent(phase) }}
                       >
                         {phaseShort}
@@ -117,15 +102,13 @@ export function CatalogContainsGrid({
                     ) : null}
                   </p>
                   {isPhaseFamily ? (
-                    <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
-                      Multiple phases
-                    </p>
+                    <p className="type-overline mt-1">Multiple phases</p>
                   ) : null}
                 </div>
               </div>
               {item.rarity ? (
                 <p
-                  className="truncate text-[11px]"
+                  className="type-overline truncate"
                   style={{ color: item.rarity.color }}
                 >
                   {item.rarity.name}
@@ -157,7 +140,7 @@ export function CatalogNamedRefList({
         <li key={ref.id}>
           <Link
             href={hrefFor(ref.id)}
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/50 px-2.5 py-1.5 text-xs text-[var(--text)] transition hover:border-[var(--accent)]/40"
+            className="hud-panel-quiet inline-flex items-center gap-2 px-2.5 py-1.5 text-xs text-[var(--text)] transition hover:border-[var(--accent)]/45 hover:text-[var(--accent)]"
           >
             {ref.image ? (
               // eslint-disable-next-line @next/next/no-img-element

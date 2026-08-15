@@ -1,6 +1,8 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
+import { Drawer } from "@/components/ui/Drawer";
+import { SearchField } from "@/components/ui/SearchField";
 import { formatMoney } from "@/lib/format";
 import type { Currency } from "@/lib/currency";
 import type { PriceSource } from "@/lib/price-source";
@@ -100,40 +102,23 @@ export function TradeUpInventoryPicker({
     deferred,
   ]);
 
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3
-            className="text-lg text-[var(--text)]"
-            style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
-          >
-            Inventory picker
-          </h3>
-          <p className="text-xs text-[var(--text-muted)]">
-            {remainingSlots} slot{remainingSlots === 1 ? "" : "s"} remaining
-            {lockedTier ? ` · locked ${TIER_LABELS[lockedTier]}` : ""}
-            {lockedVariant === "stattrak" ? " · StatTrak™" : ""}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:text-[var(--text)]"
-        >
-          Close
-        </button>
-      </div>
+  const subtitle = `${remainingSlots} slot${
+    remainingSlots === 1 ? "" : "s"
+  } remaining${lockedTier ? ` · locked ${TIER_LABELS[lockedTier]}` : ""}${
+    lockedVariant === "stattrak" ? " · StatTrak™" : ""
+  }`;
 
-      <input
-        type="search"
+  return (
+    <Drawer open title="Inventory picker" subtitle={subtitle} onClose={onClose}>
+      <SearchField
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={setQuery}
+        ariaLabel="Search inventory"
         placeholder="Search inventory or collections…"
-        className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]"
+        className="flex-none"
       />
 
-      <ul className="grid max-h-[28rem] gap-2 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-2 sm:grid-cols-2">
         {rows.map(({ item, tier, variant, groupLabel }) => {
           const selected = selectedKeys.has(item.assetId);
           const disabled = !selected && remainingSlots <= 0;
@@ -144,10 +129,10 @@ export function TradeUpInventoryPicker({
                 type="button"
                 disabled={disabled}
                 onClick={() => onToggle(item)}
-                className={`flex w-full items-center gap-2 rounded-lg border px-2 py-2 text-left transition ${
+                className={`flex w-full items-center gap-2 rounded-xl border px-2 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 ${
                   selected
                     ? "border-[var(--accent)] bg-[var(--accent)]/10"
-                    : "border-[var(--border)] bg-[var(--bg-elevated)]/60 hover:border-[var(--accent)]/40 disabled:opacity-40"
+                    : "border-[var(--border)]/70 bg-[var(--bg-elevated)]/40 hover:border-[var(--accent)]/45 disabled:opacity-40"
                 }`}
               >
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-[var(--bg)]">
@@ -168,7 +153,7 @@ export function TradeUpInventoryPicker({
                   <p className="truncate text-xs font-medium text-[var(--text)]">
                     {item.marketHashName}
                   </p>
-                  <p className="text-[10px] text-[var(--text-muted)]">
+                  <p className="type-metric text-[10px] font-normal text-[var(--text-muted)]">
                     {TIER_LABELS[tier]}
                     {variant === "stattrak" ? " · ST" : ""} ·{" "}
                     {formatMoney(cost || null, currency)}
@@ -180,8 +165,8 @@ export function TradeUpInventoryPicker({
                     {groupLabel}
                   </p>
                 </div>
-                <span className="text-[10px] text-[var(--accent)]">
-                  {selected ? "In" : "+"}
+                <span className="font-mono text-[10px] font-bold tracking-[0.12em] text-[var(--accent)]">
+                  {selected ? "IN" : "+"}
                 </span>
               </button>
             </li>
@@ -206,6 +191,6 @@ export function TradeUpInventoryPicker({
           </li>
         ) : null}
       </ul>
-    </div>
+    </Drawer>
   );
 }

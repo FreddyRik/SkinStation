@@ -235,7 +235,7 @@ export function ShareCardDialog({
                   type="button"
                   disabled={busy || items.length === 0}
                   onClick={() => void downloadPng()}
-                  className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[#042f2e] hover:bg-[var(--accent-dim)] disabled:opacity-50"
+                  className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-fg)] hover:bg-[var(--accent-dim)] disabled:opacity-50"
                 >
                   {busy ? "Generating…" : "Download PNG"}
                 </button>

@@ -579,7 +579,7 @@ export function InventoryDashboard({
                     ? `Steam cooldown — ${formatBackoffCountdown(backoffRemainingMs)}`
                     : undefined
                 }
-                className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[#042f2e] hover:bg-[var(--accent-dim)] disabled:opacity-50"
+                className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-fg)] hover:bg-[var(--accent-dim)] disabled:opacity-50"
               >
                 {syncing
                   ? "Refreshing…"

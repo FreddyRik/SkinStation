@@ -12,6 +12,7 @@ import type {
   CatalogContainsItem,
   CatalogItemDetail,
   CatalogKind,
+  CatalogLootList,
   CatalogNamedRef,
   CatalogRarity,
   CatalogWear,
@@ -92,6 +93,11 @@ type RawCrate = {
   contains?: RawContains[];
   contains_rare?: RawContains[];
   market_hash_name?: string;
+  loot_list?: {
+    name?: string | null;
+    footer?: string | null;
+    image?: string | null;
+  } | null;
 };
 
 type RawSimpleItem = {
@@ -143,6 +149,17 @@ function asNamedRefs(list?: RawNamed[] | null): CatalogNamedRef[] {
     });
   }
   return out;
+}
+
+function asLootList(
+  raw?: RawCrate["loot_list"] | null,
+): CatalogLootList | null {
+  if (!raw || typeof raw !== "object") return null;
+  const name = raw.name?.trim() || null;
+  const footer = raw.footer?.trim() || null;
+  const image = raw.image?.trim() || null;
+  if (!name && !footer && !image) return null;
+  return { name, footer, image };
 }
 
 function asContains(list?: RawContains[] | null): CatalogContainsItem[] {
@@ -214,6 +231,7 @@ function slimFromDetail(detail: CatalogItemDetail): SlimCatalogItem {
     isKnife: detail.isKnife,
     isGlove: detail.isGlove,
     crateType: detail.crateType,
+    lootListImage: detail.lootList?.image ?? null,
     crateIds: detail.crates.map((c) => c.id),
     firstSaleDate: detail.firstSaleDate,
     tournamentName: detail.tournamentName,
@@ -254,6 +272,25 @@ function earliestSaleDate(dates: Iterable<string>): string | null {
     }
   }
   return best;
+}
+
+/**
+ * ByMykel's `souvenir` boolean is true for most weapon skins, including case
+ * drops that have never had a Souvenir version. Trust souvenir packages:
+ * a skin can drop as Souvenir only if it appears in a crate with type Souvenir.
+ */
+function applySouvenirFlags(byId: Map<string, CatalogItemDetail>): void {
+  const souvenirIds = new Set<string>();
+  for (const item of byId.values()) {
+    if (item.kind !== "crate" || item.crateType !== "Souvenir") continue;
+    for (const row of item.contains) souvenirIds.add(row.id);
+  }
+  for (const [id, detail] of byId) {
+    if (detail.kind !== "skin") continue;
+    const souvenir = souvenirIds.has(id);
+    if (detail.souvenir === souvenir) continue;
+    byId.set(id, { ...detail, souvenir });
+  }
 }
 
 /**
@@ -352,6 +389,7 @@ function mapSkin(raw: RawSkin): CatalogItemDetail | null {
     crates: asNamedRefs(raw.crates),
     contains: [],
     containsRare: [],
+    lootList: null,
     team: raw.team?.name ?? null,
     crateType: null,
     firstSaleDate: null,
@@ -399,6 +437,7 @@ function mapSimple(
     crates: asNamedRefs(raw.crates),
     contains: [],
     containsRare: [],
+    lootList: null,
     team: raw.team?.name ?? null,
     crateType: raw.type ?? null,
     firstSaleDate: null,
@@ -439,6 +478,7 @@ function mapCrate(raw: RawCrate): CatalogItemDetail | null {
     crates: [],
     contains: asContains(raw.contains),
     containsRare: asContains(raw.contains_rare),
+    lootList: asLootList(raw.loot_list),
     team: null,
     crateType: raw.type ?? null,
     firstSaleDate: raw.first_sale_date ?? null,
@@ -503,6 +543,7 @@ function collectionAsItem(detail: CatalogCollectionDetail): CatalogItemDetail {
     crates: detail.crates,
     contains: detail.contains,
     containsRare: [],
+    lootList: null,
     team: null,
     crateType: null,
     firstSaleDate: null,
@@ -588,6 +629,7 @@ async function loadBundle(): Promise<CatalogBundle> {
   }
 
   applyDerivedSaleDates(byId, collectionsById);
+  applySouvenirFlags(byId);
 
   const items: SlimCatalogItem[] = [];
   for (const detail of byId.values()) {

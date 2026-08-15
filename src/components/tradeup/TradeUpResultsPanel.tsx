@@ -6,6 +6,11 @@ import type { Currency } from "@/lib/currency";
 import type { ComputeTradeUpResult, TradeUpOutcome } from "@/lib/tradeup/types";
 import { SteamMarketLink } from "@/components/SteamMarketLink";
 import { BuffMarketLink } from "@/components/BuffMarketLink";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ProbabilityBar } from "@/components/ui/ProbabilityBar";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { StatCard } from "@/components/ui/StatCard";
+import type { SegmentedOption, StatTone } from "@/types/ui";
 import { formatPhaseShort, phaseAccent } from "@/lib/cs-catalog/phase";
 
 type OutcomeSort =
@@ -25,6 +30,11 @@ const SORT_OPTIONS: Array<{ value: OutcomeSort; label: string }> = [
   { value: "biggest_loss", label: "Biggest loss" },
   { value: "highest_probability", label: "Highest probability" },
   { value: "lowest_probability", label: "Lowest probability" },
+];
+
+const VIEW_OPTIONS: readonly SegmentedOption<OutcomeView>[] = [
+  { value: "list", label: "List" },
+  { value: "grid", label: "Grid" },
 ];
 
 function outcomeDelta(o: TradeUpOutcome, totalCost: number): number | null {
@@ -206,105 +216,80 @@ export function TradeUpResultsPanel({
     return groupByCollection(sorted);
   }, [sorted, sort]);
 
+  const maxProbability = useMemo(
+    () =>
+      sorted.reduce((max, o) => (o.probability > max ? o.probability : max), 0),
+    [sorted],
+  );
+
   if (!result) {
     return (
-      <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--text-muted)]">
-        Select {slotCount} skins to calculate odds and expected value.
-        {filledCount > 0 ? (
-          <span className="mt-1 block">
-            {filledCount}/{slotCount} filled
-          </span>
-        ) : null}
-      </div>
+      <EmptyState
+        title="Awaiting contract"
+        description={`Select ${slotCount} skins to calculate odds and expected value.${
+          filledCount > 0 ? ` ${filledCount}/${slotCount} filled.` : ""
+        }`}
+      />
     );
   }
 
   if (!result.ok) {
     return (
-      <div className="rounded-xl border border-[var(--warn)]/40 bg-[var(--warn)]/5 p-4 text-sm text-[var(--warn)]">
+      <div className="rounded-xl border border-[var(--warn)]/40 bg-[var(--warn)]/10 p-4 text-sm text-[var(--warn)]">
         {result.error}
       </div>
     );
   }
 
-  const profitPositive = result.profit >= 0;
+  const profitTone: StatTone = result.profit >= 0 ? "positive" : "negative";
   const isCovert = result.inputTier === "covert";
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-            Average normalized float
-          </p>
-          <p className="font-mono text-lg text-[var(--text)]">
-            {result.avgNormalized.toFixed(6)}
-          </p>
-        </div>
-        <p className="text-xs text-[var(--text-muted)]">
-          {result.outcomes.length} possible outcome
-          {result.outcomes.length === 1 ? "" : "s"}
-        </p>
-      </div>
-
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryStat label="Total cost" value={formatMoney(result.totalCost, currency)} />
-        <SummaryStat
+        <StatCard
+          label="Total cost"
+          value={formatMoney(result.totalCost, currency)}
+        />
+        <StatCard
           label="Expected value"
           value={formatMoney(result.expectedValue, currency)}
         />
-        <SummaryStat
+        <StatCard
           label="Profit / loss"
           value={formatMoney(result.profit, currency)}
-          accent={profitPositive ? "var(--accent)" : "var(--danger)"}
+          tone={profitTone}
         />
-        <SummaryStat
+        <StatCard
           label="ROI"
-          value={
-            result.roi == null
-              ? "—"
-              : `${(result.roi * 100).toFixed(1)}%`
-          }
-          accent={profitPositive ? "var(--accent)" : "var(--danger)"}
+          value={result.roi == null ? "—" : `${(result.roi * 100).toFixed(1)}%`}
+          tone={profitTone}
+          hint={`Avg float ${result.avgNormalized.toFixed(6)}`}
         />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-[var(--text)]">Possible outcomes</p>
+        <p className="type-overline">
+          {result.outcomes.length} possible outcome
+          {result.outcomes.length === 1 ? "" : "s"}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
-          <div
-            className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg)] p-0.5"
-            role="group"
-            aria-label="Outcome layout"
-          >
-            {(["list", "grid"] as const).map((v) => {
-              const active = view === v;
-              return (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => {
-                    writeStoredOutcomeView(v);
-                    setView(v);
-                  }}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wide transition ${
-                    active
-                      ? "bg-[var(--accent)] text-[var(--accent-fg)]"
-                      : "text-[var(--text-muted)] hover:text-[var(--text)]"
-                  }`}
-                >
-                  {v === "list" ? "List" : "Grid"}
-                </button>
-              );
-            })}
-          </div>
-          <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+          <SegmentedControl
+            ariaLabel="Outcome layout"
+            size="sm"
+            options={VIEW_OPTIONS}
+            value={view}
+            onChange={(next) => {
+              writeStoredOutcomeView(next);
+              setView(next);
+            }}
+          />
+          <label className="type-overline flex items-center gap-2">
             Sort
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as OutcomeSort)}
-              className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-2.5 py-1.5 text-xs text-[var(--text)]"
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)]/60 px-2.5 py-1.5 text-xs normal-case tracking-normal text-[var(--text)] outline-none transition focus:border-[var(--accent)]/50"
             >
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -319,17 +304,17 @@ export function TradeUpResultsPanel({
       </div>
 
       {view === "list" ? (
-        <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
-          <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)] bg-[var(--bg-elevated)]/80 text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-                <th className="px-3 py-2 font-medium">Outcome</th>
-                <th className="px-3 py-2 font-medium">Float</th>
-                <th className="px-3 py-2 font-medium">Wear</th>
-                <th className="px-3 py-2 font-medium">Odds</th>
-                <th className="px-3 py-2 font-medium text-right">Price</th>
-                <th className="px-3 py-2 font-medium text-right">P/L</th>
-                <th className="px-3 py-2 font-medium">Market</th>
+        <div className="hud-panel max-h-[36rem] overflow-auto">
+          <table className="w-full min-w-[46rem] border-collapse text-left text-sm">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-[var(--border)] bg-[var(--bg-panel)]/95 backdrop-blur-md">
+                <th className="type-overline px-3 py-2.5 text-left">Outcome</th>
+                <th className="type-overline px-3 py-2.5 text-left">Float</th>
+                <th className="type-overline px-3 py-2.5 text-left">Wear</th>
+                <th className="type-overline w-32 px-3 py-2.5 text-left">Odds</th>
+                <th className="type-overline px-3 py-2.5 text-right">Price</th>
+                <th className="type-overline px-3 py-2.5 text-right">P/L</th>
+                <th className="type-overline px-3 py-2.5 text-left">Market</th>
               </tr>
             </thead>
             <tbody>
@@ -342,16 +327,19 @@ export function TradeUpResultsPanel({
                       totalCost={result.totalCost}
                       currency={currency}
                       goodsIds={goodsIds}
+                      maxProbability={maxProbability}
                       colSpan={7}
                     />
                   ))
-                : sorted.map((o) => (
+                : sorted.map((o, i) => (
                     <OutcomeRow
                       key={o.skinId}
                       outcome={o}
                       totalCost={result.totalCost}
                       currency={currency}
                       goodsIds={goodsIds}
+                      maxProbability={maxProbability}
+                      zebra={i % 2 === 1}
                       showGroup
                     />
                   ))}
@@ -362,7 +350,7 @@ export function TradeUpResultsPanel({
         <div className="flex flex-col gap-5">
           {collectionGroups.map((group) => (
             <div key={group.groupId} className="flex flex-col gap-2">
-              <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
+              <h3 className="type-overline text-[var(--accent)]">
                 {group.groupName}
               </h3>
               <OutcomeGrid
@@ -370,6 +358,7 @@ export function TradeUpResultsPanel({
                 totalCost={result.totalCost}
                 currency={currency}
                 goodsIds={goodsIds}
+                maxProbability={maxProbability}
                 showGroup={false}
               />
             </div>
@@ -381,6 +370,7 @@ export function TradeUpResultsPanel({
           totalCost={result.totalCost}
           currency={currency}
           goodsIds={goodsIds}
+          maxProbability={maxProbability}
           showGroup
         />
       )}
@@ -393,12 +383,14 @@ function OutcomeGrid({
   totalCost,
   currency,
   goodsIds,
+  maxProbability,
   showGroup,
 }: {
   outcomes: TradeUpOutcome[];
   totalCost: number;
   currency: Currency;
   goodsIds: Record<string, number>;
+  maxProbability: number;
   showGroup: boolean;
 }) {
   return (
@@ -408,8 +400,8 @@ function OutcomeGrid({
         const goodsId = goodsIds[o.marketHashName] ?? null;
         return (
           <li key={o.skinId}>
-            <article className="flex h-full flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/40 p-3">
-              <div className="flex h-24 items-center justify-center rounded-lg bg-[var(--bg)]">
+            <article className="hud-panel-quiet flex h-full flex-col gap-2 p-3 transition hover:border-[var(--accent)]/40">
+              <div className="flex h-24 items-center justify-center rounded-lg bg-[var(--bg)]/70">
                 {o.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -427,14 +419,14 @@ function OutcomeGrid({
                   outcome={o}
                   className="text-xs leading-snug"
                 />
-                <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
+                <p className="type-overline mt-1">
                   {o.isKnife ? "Knife" : o.isGlove ? "Gloves" : "Skin"}
                   {showGroup ? ` · ${o.groupName}` : ""}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <span
-                  className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                  className="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold"
                   style={{
                     color: o.wearColor,
                     background: `${o.wearColor}22`,
@@ -442,27 +434,30 @@ function OutcomeGrid({
                 >
                   {o.wearAbbr}
                 </span>
-                <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                <span className="type-metric text-[10px] font-normal text-[var(--text-muted)]">
                   {formatFloat(o.outputFloat)}
                 </span>
               </div>
-              <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)]/60 pt-2">
+              <div className="mt-auto flex flex-col gap-1 border-t border-[var(--border)]/60 pt-2">
                 <div className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className="text-[var(--text-muted)]">Odds</span>
-                  <span className="font-mono text-[var(--text)]">
+                  <span className="type-overline">Odds</span>
+                  <span className="type-metric text-[11px]">
                     {(o.probability * 100).toFixed(2)}%
                   </span>
                 </div>
+                <ProbabilityBar
+                  value={maxProbability > 0 ? o.probability / maxProbability : 0}
+                />
                 <div className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className="text-[var(--text-muted)]">Price</span>
-                  <span className="font-mono text-[var(--text)]">
+                  <span className="type-overline">Price</span>
+                  <span className="type-metric text-[11px]">
                     {formatMoney(o.price, currency)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className="text-[var(--text-muted)]">P/L</span>
+                  <span className="type-overline">P/L</span>
                   <span
-                    className="font-mono"
+                    className="type-metric text-[11px]"
                     style={{
                       color:
                         delta == null
@@ -498,6 +493,7 @@ function OutcomeGroupRows({
   totalCost,
   currency,
   goodsIds,
+  maxProbability,
   colSpan,
 }: {
   groupName: string;
@@ -505,25 +501,25 @@ function OutcomeGroupRows({
   totalCost: number;
   currency: Currency;
   goodsIds: Record<string, number>;
+  maxProbability: number;
   colSpan: number;
 }) {
   return (
     <>
-      <tr className="border-b border-[var(--border)] bg-[var(--bg-elevated)]/50">
-        <td
-          colSpan={colSpan}
-          className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]"
-        >
+      <tr className="border-y border-[var(--border)] bg-[var(--bg-elevated)]/50">
+        <td colSpan={colSpan} className="type-overline px-3 py-2 text-[var(--accent)]">
           {groupName}
         </td>
       </tr>
-      {outcomes.map((o) => (
+      {outcomes.map((o, i) => (
         <OutcomeRow
           key={o.skinId}
           outcome={o}
           totalCost={totalCost}
           currency={currency}
           goodsIds={goodsIds}
+          maxProbability={maxProbability}
+          zebra={i % 2 === 1}
           showGroup={false}
         />
       ))}
@@ -536,18 +532,26 @@ function OutcomeRow({
   totalCost,
   currency,
   goodsIds,
+  maxProbability,
+  zebra,
   showGroup,
 }: {
   outcome: TradeUpOutcome;
   totalCost: number;
   currency: Currency;
   goodsIds: Record<string, number>;
+  maxProbability: number;
+  zebra: boolean;
   showGroup: boolean;
 }) {
   const delta = outcomeDelta(o, totalCost);
   const goodsId = goodsIds[o.marketHashName] ?? null;
   return (
-    <tr className="border-b border-[var(--border)]/70 last:border-0">
+    <tr
+      className={`border-b border-[var(--border)]/50 transition last:border-0 hover:bg-[var(--accent)]/[0.06] ${
+        zebra ? "bg-[var(--bg-elevated)]/25" : ""
+      }`}
+    >
       <td className="px-3 py-2">
         <div className="flex items-center gap-2">
           <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md bg-[var(--bg-elevated)]">
@@ -569,12 +573,12 @@ function OutcomeRow({
           </div>
         </div>
       </td>
-      <td className="px-3 py-2 font-mono text-xs text-[var(--text-muted)]">
+      <td className="type-metric px-3 py-2 text-xs font-normal text-[var(--text-muted)]">
         {formatFloat(o.outputFloat)}
       </td>
       <td className="px-3 py-2">
         <span
-          className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+          className="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold"
           style={{
             color: o.wearColor,
             background: `${o.wearColor}22`,
@@ -583,14 +587,20 @@ function OutcomeRow({
           {o.wearAbbr}
         </span>
       </td>
-      <td className="px-3 py-2 font-mono text-xs">
-        {(o.probability * 100).toFixed(2)}%
+      <td className="px-3 py-2">
+        <span className="type-metric text-xs">
+          {(o.probability * 100).toFixed(2)}%
+        </span>
+        <ProbabilityBar
+          className="mt-1"
+          value={maxProbability > 0 ? o.probability / maxProbability : 0}
+        />
       </td>
-      <td className="px-3 py-2 text-right font-mono text-xs">
+      <td className="type-metric px-3 py-2 text-right text-xs">
         {formatMoney(o.price, currency)}
       </td>
       <td
-        className="px-3 py-2 text-right font-mono text-xs"
+        className="type-metric px-3 py-2 text-right text-xs"
         style={{
           color:
             delta == null
@@ -611,29 +621,5 @@ function OutcomeRow({
         />
       </td>
     </tr>
-  );
-}
-
-function SummaryStat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/70 px-4 py-3">
-      <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-        {label}
-      </p>
-      <p
-        className="mt-1 font-mono text-lg font-semibold text-[var(--text)]"
-        style={accent ? { color: accent } : undefined}
-      >
-        {value}
-      </p>
-    </div>
   );
 }

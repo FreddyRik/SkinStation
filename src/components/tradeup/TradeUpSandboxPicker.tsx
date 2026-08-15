@@ -1,6 +1,11 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useDeferredValue, useMemo, useState } from "react";
+import { Drawer } from "@/components/ui/Drawer";
+import { SearchField } from "@/components/ui/SearchField";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import type { SegmentedOption } from "@/types/ui";
 import type {
   TradeUpCatalogSkin,
   TradeUpCollectionRow,
@@ -20,6 +25,11 @@ const TIER_LABELS: Record<TradeUpTier, string> = {
   covert: "Covert",
   extraordinary: "Extraordinary",
 };
+
+const VARIANT_OPTIONS: readonly SegmentedOption<TradeUpVariant>[] = [
+  { value: "normal", label: "Normal" },
+  { value: "stattrak", label: "StatTrak™" },
+];
 
 export function TradeUpSandboxPicker({
   skins,
@@ -83,58 +93,44 @@ export function TradeUpSandboxPicker({
 
   const visible = eligible.slice(0, 80);
 
+  const subtitle = `${remainingSlots} slot${
+    remainingSlots === 1 ? "" : "s"
+  } remaining${lockedTier ? ` · locked ${TIER_LABELS[lockedTier]}` : ""}`;
+
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3
-            className="text-lg text-[var(--text)]"
-            style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
-          >
-            Sandbox picker
-          </h3>
-          <p className="text-xs text-[var(--text-muted)]">
-            {remainingSlots} slot{remainingSlots === 1 ? "" : "s"} remaining
-            {lockedTier ? ` · locked ${TIER_LABELS[lockedTier]}` : ""}
+    <Drawer
+      open
+      title="Sandbox picker"
+      subtitle={subtitle}
+      onClose={onClose}
+      footer={
+        eligible.length > visible.length ? (
+          <p className="type-overline text-center">
+            Showing {visible.length} of {eligible.length} — refine search to
+            narrow
           </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:text-[var(--text)]"
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <input
-          type="search"
+        ) : null
+      }
+    >
+      <div className="flex flex-none flex-wrap items-center gap-2">
+        <SearchField
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={setQuery}
+          ariaLabel="Search skins"
           placeholder="Search skins or collections…"
-          className="min-w-[12rem] flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]"
+          className="min-w-[12rem]"
         />
-        <div className="flex rounded-lg border border-[var(--border)] p-0.5">
-          {(["normal", "stattrak"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              disabled={lockedVariant != null && lockedVariant !== v}
-              onClick={() => setVariant(v)}
-              className={`rounded-md px-3 py-1.5 text-xs transition ${
-                variant === v
-                  ? "bg-[var(--accent)] text-[var(--accent-fg)]"
-                  : "text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40"
-              }`}
-            >
-              {v === "stattrak" ? "StatTrak™" : "Normal"}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          ariaLabel="Variant"
+          size="sm"
+          options={VARIANT_OPTIONS}
+          value={variant}
+          disabled={lockedVariant != null}
+          onChange={setVariant}
+        />
       </div>
 
-      <ul className="grid max-h-[28rem] gap-2 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-2 sm:grid-cols-2">
         {visible.map((skin) => {
           const groupLabel = skinGroupLabel(skin, collectionsById, cratesById);
           return (
@@ -142,7 +138,12 @@ export function TradeUpSandboxPicker({
               <button
                 type="button"
                 onClick={() => onPick(skin, variant)}
-                className="flex w-full items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)]/60 px-2 py-2 text-left transition hover:border-[var(--accent)]/40"
+                style={
+                  {
+                    "--rarity": skin.rarityColor ?? "var(--accent)",
+                  } as CSSProperties
+                }
+                className="rarity-frame flex w-full items-center gap-2 rounded-xl border bg-[var(--bg-elevated)]/40 px-2 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50"
               >
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-[var(--bg)]">
                   {skin.image ? (
@@ -159,7 +160,7 @@ export function TradeUpSandboxPicker({
                     {skin.name}
                   </p>
                   <p
-                    className="text-[10px]"
+                    className="type-overline"
                     style={{ color: skin.rarityColor ?? "var(--text-muted)" }}
                   >
                     {TIER_LABELS[skin.rarityTier]}
@@ -182,11 +183,6 @@ export function TradeUpSandboxPicker({
           </li>
         ) : null}
       </ul>
-      {eligible.length > visible.length ? (
-        <p className="text-center text-[11px] text-[var(--text-muted)]">
-          Showing {visible.length} of {eligible.length} — refine search to narrow.
-        </p>
-      ) : null}
-    </div>
+    </Drawer>
   );
 }

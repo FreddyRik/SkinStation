@@ -1,4 +1,4 @@
-export const SHARE_CARD_THEMES = ["classic", "dark", "midsummer"] as const;
+export const SHARE_CARD_THEMES = ["classic", "midsummer"] as const;
 
 export type ShareCardTheme = (typeof SHARE_CARD_THEMES)[number];
 
@@ -8,7 +8,6 @@ export const SHARE_CARD_THEME_STORAGE_KEY = "inventory-tracker-share-theme";
 
 export const SHARE_CARD_THEME_LABELS: Record<ShareCardTheme, string> = {
   classic: "Classic",
-  dark: "Dark",
   midsummer: "Midsummer",
 };
 
@@ -39,82 +38,59 @@ export const SHARE_CARD_THEME_STYLES: Record<
 > = {
   classic: {
     background:
-      "radial-gradient(ellipse 120% 80% at 0% 0%, rgba(94,234,212,0.22), transparent 55%), radial-gradient(ellipse 90% 70% at 100% 10%, rgba(255,107,53,0.18), transparent 50%), linear-gradient(165deg, #14201b 0%, #0c1210 48%, #101816 100%)",
+      "radial-gradient(ellipse 90% 70% at 50% 8%, rgba(255,107,53,0.22), transparent 52%), linear-gradient(165deg, #161a22 0%, #0b0d12 48%, #10141c 100%)",
     boxShadow:
-      "0 0 0 1px rgba(94,234,212,0.18), 0 28px 60px rgba(0,0,0,0.45)",
+      "0 0 0 1px rgba(255,107,53,0.22), 0 28px 60px rgba(0,0,0,0.45)",
     gridOverlay:
-      "linear-gradient(rgba(232,240,235,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(232,240,235,0.04) 1px, transparent 1px)",
-    avatarRing: "0 0 0 2px rgba(94,234,212,0.35)",
+      "linear-gradient(rgba(238,241,245,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(238,241,245,0.04) 1px, transparent 1px)",
+    avatarRing: "0 0 0 2px rgba(255,107,53,0.4)",
     panelBg: "rgba(0,0,0,0.25)",
     panelBorder: "rgba(255,255,255,0.1)",
     rowBg: "rgba(255,255,255,0.04)",
     rowBorder: "rgba(255,255,255,0.08)",
     iconBg: "rgba(0,0,0,0.4)",
-    badgeText: "#0c1210",
+    badgeText: "#1a0e08",
     vars: {
-      "--share-text": "#e8f0eb",
-      "--share-text-muted": "#8fa399",
-      "--share-accent": "#5eead4",
-      "--share-accent-dim": "#2dd4bf",
-      "--share-border": "#24332c",
-    },
-  },
-  dark: {
-    background:
-      "radial-gradient(ellipse 100% 70% at 50% 0%, rgba(100,116,139,0.18), transparent 55%), linear-gradient(180deg, #0a0a0b 0%, #111113 45%, #080809 100%)",
-    boxShadow:
-      "0 0 0 1px rgba(148,163,184,0.16), 0 28px 60px rgba(0,0,0,0.65)",
-    gridOverlay:
-      "linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px)",
-    avatarRing: "0 0 0 2px rgba(148,163,184,0.35)",
-    panelBg: "rgba(255,255,255,0.04)",
-    panelBorder: "rgba(148,163,184,0.16)",
-    rowBg: "rgba(255,255,255,0.035)",
-    rowBorder: "rgba(148,163,184,0.12)",
-    iconBg: "rgba(0,0,0,0.55)",
-    badgeText: "#0a0a0b",
-    vars: {
-      "--share-text": "#f1f5f9",
-      "--share-text-muted": "#94a3b8",
-      "--share-accent": "#e2e8f0",
-      "--share-accent-dim": "#94a3b8",
-      "--share-border": "#1e293b",
+      "--share-text": "#eef1f5",
+      "--share-text-muted": "#8b93a3",
+      "--share-accent": "#ff6b35",
+      "--share-accent-dim": "#e85d2a",
+      "--share-border": "#2a3140",
     },
   },
   midsummer: {
     background:
-      "radial-gradient(ellipse 90% 60% at 85% 8%, rgba(251,191,36,0.32), transparent 50%), radial-gradient(ellipse 110% 80% at 10% 0%, rgba(125,211,252,0.28), transparent 55%), radial-gradient(ellipse 70% 50% at 50% 100%, rgba(52,211,153,0.14), transparent 45%), linear-gradient(165deg, #1e3a5f 0%, #16324a 40%, #1a2e28 100%)",
+      "radial-gradient(ellipse 100% 75% at 92% 4%, rgba(255, 226, 102, 0.52), transparent 42%), radial-gradient(ellipse 95% 85% at 4% 12%, rgba(56, 217, 240, 0.42), transparent 48%), radial-gradient(ellipse 85% 65% at 48% 98%, rgba(244, 114, 182, 0.38), transparent 52%), linear-gradient(165deg, #1a1040 0%, #160e38 42%, #1c1248 100%)",
     boxShadow:
-      "0 0 0 1px rgba(251,191,36,0.22), 0 28px 60px rgba(15,40,60,0.5)",
+      "0 0 0 2px rgba(255, 226, 102, 0.42), 0 0 48px rgba(255, 210, 74, 0.22), 0 28px 60px rgba(22, 14, 56, 0.68)",
     gridOverlay:
-      "linear-gradient(rgba(224,242,254,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(224,242,254,0.05) 1px, transparent 1px)",
-    avatarRing: "0 0 0 2px rgba(251,191,36,0.45)",
-    panelBg: "rgba(15,40,60,0.35)",
-    panelBorder: "rgba(125,211,252,0.22)",
-    rowBg: "rgba(255,255,255,0.06)",
-    rowBorder: "rgba(125,211,252,0.14)",
-    iconBg: "rgba(15,40,60,0.55)",
-    badgeText: "#16324a",
+      "linear-gradient(rgba(224, 242, 254, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(224, 242, 254, 0.06) 1px, transparent 1px)",
+    avatarRing: "0 0 0 2px rgba(255, 226, 102, 0.55)",
+    panelBg: "rgba(26, 16, 64, 0.45)",
+    panelBorder: "rgba(56, 217, 240, 0.28)",
+    rowBg: "rgba(255, 255, 255, 0.07)",
+    rowBorder: "rgba(56, 217, 240, 0.18)",
+    iconBg: "rgba(22, 14, 56, 0.6)",
+    badgeText: "#160e38",
     vars: {
-      "--share-text": "#f0f9ff",
-      "--share-text-muted": "#a5c4d8",
-      "--share-accent": "#fbbf24",
-      "--share-accent-dim": "#7dd3fc",
-      "--share-border": "#2a4a66",
+      "--share-text": "#faf5eb",
+      "--share-text-muted": "#b8a8d8",
+      "--share-accent": "#ffe566",
+      "--share-accent-dim": "#38d9f0",
+      "--share-border": "#5a4588",
     },
   },
 };
 
 export function isShareCardTheme(value: unknown): value is ShareCardTheme {
-  return (
-    value === "classic" || value === "dark" || value === "midsummer"
-  );
+  return value === "classic" || value === "midsummer";
 }
 
 export function parseShareCardTheme(
   value: unknown,
   fallback: ShareCardTheme = DEFAULT_SHARE_CARD_THEME,
 ): ShareCardTheme {
+  if (value === "dark") return "classic";
   return isShareCardTheme(value) ? value : fallback;
 }
 

@@ -4,6 +4,7 @@ export type {
   CatalogNamedRef,
   CatalogWear,
   CatalogContainsItem,
+  CatalogLootList,
   SlimCatalogItem,
   SlimCollection,
   CatalogItemDetail,
@@ -93,6 +94,25 @@ export type {
   PhaseSibling,
   BrowseCatalogItem,
 } from "@/lib/cs-catalog/phase-family";
+
+export {
+  rarityRank,
+  sortByRarityDesc,
+} from "@/lib/cs-catalog/rarity-order";
+
+export {
+  containsLooksLikeGlove,
+  containsLooksLikeKnife,
+  inferRareSpecialCategory,
+  isGoldDropSkin,
+  partitionCrateDrops,
+  pickRarePreviews,
+  rareSpecialCategoryLabel,
+  toContainsItem,
+  uniqueRareItems,
+} from "@/lib/cs-catalog/rare-specials";
+
+export type { RareSpecialCategory } from "@/lib/cs-catalog/rare-specials";
 
 export {
   buildSkinDetailPrices,

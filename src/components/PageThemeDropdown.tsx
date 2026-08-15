@@ -145,8 +145,6 @@ export function PageThemeDropdown({
     setOpen(false);
   }
 
-  const accent = PAGE_THEME_STYLES[value].vars["--accent"];
-
   if (variant === "inline") {
     return (
       <div className="w-full space-y-2" role="group" aria-label="Theme">
@@ -156,7 +154,7 @@ export function PageThemeDropdown({
         <div className="flex flex-wrap gap-2">
           {PAGE_THEMES.map((theme) => {
             const active = value === theme;
-            const swatch = PAGE_THEME_STYLES[theme].vars["--accent"];
+            const swatches = PAGE_THEME_STYLES[theme].swatches;
             return (
               <button
                 key={theme}
@@ -170,11 +168,15 @@ export function PageThemeDropdown({
                     : "border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ background: swatch }}
-                  aria-hidden
-                />
+                <span className="inline-flex shrink-0 items-center gap-0.5" aria-hidden>
+                  {swatches.map((color) => (
+                    <span
+                      key={color}
+                      className="h-2 w-2 rounded-full"
+                      style={{ background: color }}
+                    />
+                  ))}
+                </span>
                 {PAGE_THEME_LABELS[theme]}
               </button>
             );
@@ -192,12 +194,12 @@ export function PageThemeDropdown({
             id={menuId}
             role="menu"
             aria-labelledby={buttonId}
-            className="fixed z-[120] min-w-[10.5rem] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] py-1 shadow-xl shadow-black/40"
+            className="fixed z-[120] min-w-[10.5rem] overflow-hidden rounded-2xl border border-[var(--border)]/80 bg-[var(--bg-panel)]/85 py-1.5 shadow-xl shadow-black/50 backdrop-blur-xl"
             style={{ top: menuPos.top, left: menuPos.left }}
           >
             {PAGE_THEMES.map((theme) => {
               const active = value === theme;
-              const swatch = PAGE_THEME_STYLES[theme].vars["--accent"];
+              const swatches = PAGE_THEME_STYLES[theme].swatches;
               return (
                 <li key={theme} role="none">
                   <button
@@ -212,11 +214,15 @@ export function PageThemeDropdown({
                         : "text-[var(--text-muted)] hover:bg-[var(--bg-panel)] hover:text-[var(--text)]"
                     }`}
                   >
-                    <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ background: swatch }}
-                      aria-hidden
-                    />
+                    <span className="inline-flex shrink-0 items-center gap-0.5" aria-hidden>
+                      {swatches.map((color) => (
+                        <span
+                          key={color}
+                          className="h-2 w-2 rounded-full"
+                          style={{ background: color }}
+                        />
+                      ))}
+                    </span>
                     {PAGE_THEME_LABELS[theme]}
                   </button>
                 </li>
@@ -239,18 +245,16 @@ export function PageThemeDropdown({
         aria-controls={menuId}
         title={`Theme: ${PAGE_THEME_LABELS[value]}`}
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-xs font-semibold tracking-wide text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-50"
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg)]/60 transition hover:border-[var(--accent)]/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-50"
       >
+        <span className="sr-only">{`Theme: ${PAGE_THEME_LABELS[value]}`}</span>
         <span
-          className="h-2.5 w-2.5 shrink-0 rounded-full"
-          style={{ background: accent }}
+          className="h-5 w-5 rounded-full shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
+          style={{
+            background: `conic-gradient(from 210deg, ${PAGE_THEME_STYLES[value].swatches[0]}, ${PAGE_THEME_STYLES[value].swatches[1]}, ${PAGE_THEME_STYLES[value].swatches[2]}, ${PAGE_THEME_STYLES[value].swatches[0]})`,
+          }}
           aria-hidden
         />
-        <span className="hidden sm:inline">{PAGE_THEME_LABELS[value]}</span>
-        <span className="sm:hidden">Theme</span>
-        <span className="text-[10px] opacity-70" aria-hidden>
-          {open ? "▴" : "▾"}
-        </span>
       </button>
       {menu}
     </div>

@@ -222,74 +222,105 @@ export function ProfileLookup({
   }
 
   return (
-    <div className="space-y-8">
+    <div className={accentGlow ? "flex flex-1 flex-col" : "space-y-8"}>
       <section
-        className={`relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/80 p-6 sm:p-10 ${
-          accentGlow ? "shadow-[0_0_60px_-12px_rgba(94,234,212,0.25)]" : ""
-        }`}
+        className={
+          accentGlow
+            ? "relative flex flex-1 flex-col items-center justify-center py-6 sm:py-8"
+            : "relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/80 p-6 sm:p-10"
+        }
       >
         {atmosphere}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(94,234,212,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(94,234,212,0.04) 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
-        />
-        {accentGlow ? (
+        {!accentGlow ? (
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent)]/60 to-transparent"
+            className="pointer-events-none absolute inset-0 opacity-40"
+            style={{
+              backgroundImage:
+                "linear-gradient(color-mix(in srgb, var(--accent) 8%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, transparent) 1px, transparent 1px)",
+              backgroundSize: "28px 28px",
+            }}
           />
         ) : null}
-        <div className="relative mx-auto max-w-2xl space-y-4 text-center">
-          <p className="text-sm uppercase tracking-[0.18em] text-[var(--accent-dim)]">
+        <div
+          className={`relative mx-auto text-center ${
+            accentGlow ? "max-w-3xl space-y-5" : "max-w-2xl space-y-4"
+          }`}
+        >
+          <p
+            className={`text-sm uppercase tracking-[0.18em] ${
+              accentGlow
+                ? "hero-rise text-[var(--accent)]"
+                : "text-[var(--accent-dim)]"
+            }`}
+            style={accentGlow ? { animationDelay: "0.08s" } : undefined}
+          >
             Public Steam inventory
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-[var(--text)] sm:text-4xl">
+          <h1
+            className={
+              accentGlow
+                ? "hero-rise type-page-title text-[clamp(2.35rem,5vw,4.25rem)]"
+                : "text-3xl font-semibold tracking-tight text-[var(--text)] sm:text-4xl"
+            }
+            style={accentGlow ? { animationDelay: "0.18s" } : undefined}
+          >
             Your one-stop for CS2 skins
           </h1>
-          <p className="text-[var(--text-muted)] leading-relaxed">
+          <p
+            className={`leading-relaxed text-[var(--text-muted)] ${
+              accentGlow ? "hero-rise mx-auto max-w-xl text-base sm:text-lg" : ""
+            }`}
+            style={accentGlow ? { animationDelay: "0.28s" } : undefined}
+          >
             Track your inventory, browse the skin catalog, and run trade-up
             odds. Paste a Steam profile URL or SteamID64 to get started.
           </p>
 
           {accentGlow ? (
-            <div
-              aria-hidden
-              className="mx-auto h-1 w-full max-w-md overflow-hidden rounded-full"
-              style={{
-                background:
-                  "linear-gradient(90deg, #b0c3d9 0%, #5e98d9 16%, #4b69ff 33%, #8847ff 50%, #d32ce6 66%, #eb4b4b 83%, #e4ae39 100%)",
-                opacity: 0.85,
-              }}
-            />
-          ) : null}
-
-          <form
-            onSubmit={onSubmit}
-            className="mx-auto mt-6 flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:items-stretch"
-          >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="https://steamcommunity.com/id/yourname or SteamID64"
-              className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-left text-[var(--text)] outline-none ring-[var(--accent)] placeholder:text-[var(--text-muted)] focus:ring-2"
-              disabled={loading}
-              required
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className={`rounded-xl bg-[var(--accent)] px-5 py-3 font-semibold text-[#042f2e] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0 ${
-                accentGlow ? "home-load-btn" : ""
-              }`}
+            <form
+              onSubmit={onSubmit}
+              className="hero-rise mx-auto mt-2 flex w-full max-w-2xl items-stretch overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg)]/85 p-1.5 shadow-[0_0_48px_-8px_color-mix(in_srgb,var(--accent)_55%,transparent)] backdrop-blur-sm"
+              style={{ animationDelay: "0.42s" }}
             >
-              {loading ? "Loading…" : "Load inventory"}
-            </button>
-          </form>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="https://steamcommunity.com/id/yourname or SteamID64"
+                className="min-w-0 flex-1 bg-transparent px-4 py-3 text-left text-[var(--text)] outline-none placeholder:text-[var(--text-muted)] sm:px-5 sm:py-3.5"
+                disabled={loading}
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="home-load-btn shrink-0 rounded-xl bg-[var(--accent)] px-6 py-3 font-semibold text-[var(--accent-fg)] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50 sm:px-7"
+              >
+                {loading ? "Loading…" : "Load inventory"}
+              </button>
+            </form>
+          ) : (
+            <form
+              onSubmit={onSubmit}
+              className="mx-auto mt-6 flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:items-stretch"
+            >
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="https://steamcommunity.com/id/yourname or SteamID64"
+                className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-left text-[var(--text)] outline-none ring-[var(--accent)] placeholder:text-[var(--text-muted)] focus:ring-2"
+                disabled={loading}
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="rounded-xl bg-[var(--accent)] px-5 py-3 font-semibold text-[var(--accent-fg)] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0"
+              >
+                {loading ? "Loading…" : "Load inventory"}
+              </button>
+            </form>
+          )}
 
           {syncNote && (
             <p className="text-sm text-[var(--steam)]">{syncNote}</p>
@@ -297,7 +328,12 @@ export function ProfileLookup({
           {error && (
             <p className="text-sm text-[var(--danger)]">{error}</p>
           )}
-          <p className="text-xs text-[var(--text-muted)]">
+          <p
+            className={`text-xs text-[var(--text-muted)] ${
+              accentGlow ? "hero-rise" : ""
+            }`}
+            style={accentGlow ? { animationDelay: "0.55s" } : undefined}
+          >
             Inventory must be set to Public on Steam. First sync may take longer
             while floats and prices are fetched.
           </p>
@@ -305,11 +341,29 @@ export function ProfileLookup({
       </section>
 
       {recentProfiles.length > 0 && (
-        <section className="mx-auto max-w-3xl space-y-4">
-          <h2 className="text-center text-lg font-medium text-[var(--text)]">
+        <section
+          className={
+            accentGlow
+              ? "relative z-10 mx-auto w-full max-w-3xl space-y-5 border-t border-[var(--border)]/35 pb-4 pt-8"
+              : "mx-auto max-w-3xl space-y-4"
+          }
+        >
+          <h2
+            className={
+              accentGlow
+                ? "type-overline text-center"
+                : "text-center text-lg font-medium text-[var(--text)]"
+            }
+          >
             Recent on this device
           </h2>
-          <ul className="grid items-stretch gap-3 sm:grid-cols-2">
+          <ul
+            className={
+              accentGlow
+                ? "flex flex-col items-center gap-5"
+                : "grid items-stretch gap-3 sm:grid-cols-2"
+            }
+          >
             {recentProfiles.map((p) => {
               const snapshotCurrency =
                 p.latestSnapshot?.currency ?? p.currency;
@@ -325,11 +379,32 @@ export function ProfileLookup({
                     currency,
                   )
                 : null;
+              const singleHomeRecent =
+                Boolean(accentGlow) && recentProfiles.length === 1;
 
               return (
-                <li key={p.id} className="min-w-0">
-                  <div className="flex h-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/60 p-4 transition hover:border-[var(--accent)]/40 hover:bg-[var(--bg-panel)]">
-                    <div className="flex min-w-0 flex-1 items-center gap-4">
+                <li
+                  key={p.id}
+                  className={
+                    accentGlow
+                      ? singleHomeRecent
+                        ? "w-fit max-w-full"
+                        : "w-full min-w-0 max-w-lg"
+                      : "min-w-0"
+                  }
+                >
+                  <div
+                    className={
+                      accentGlow
+                        ? "flex w-fit max-w-full items-center gap-4"
+                        : "flex h-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/60 p-4 transition hover:border-[var(--accent)]/40 hover:bg-[var(--bg-panel)]"
+                    }
+                  >
+                    <div
+                      className={`flex min-w-0 items-center gap-4 ${
+                        accentGlow ? "" : "flex-1"
+                      }`}
+                    >
                       <Link
                         href={inventoryHref}
                         className="relative shrink-0"

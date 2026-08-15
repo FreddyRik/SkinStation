@@ -17,7 +17,7 @@ export const metadata: Metadata = buildPageMetadata({
 
 export default function TermsPage() {
   return (
-    <LegalArticle title="Terms of Service" lastUpdated="July 28, 2026">
+    <LegalArticle title="Terms of Service" lastUpdated="August 15, 2026">
       <p>
         These Terms of Service (&quot;Terms&quot;) govern your use of {SITE_NAME} (the
         &quot;Service&quot;). {SITE_TAGLINE} By accessing or using the Service, you agree to these
@@ -30,15 +30,17 @@ export default function TermsPage() {
         <ul>
           <li>
             <strong className="font-medium text-[var(--text)]">Inventory</strong> — look up a
-            public Steam CS2 inventory, sync prices, and view portfolio snapshots and share cards
+            public Steam CS2 inventory, see prices and a portfolio chart, export a list, and
+            share a Wrapped card
           </li>
           <li>
-            <strong className="font-medium text-[var(--text)]">Skin Database</strong> — browse a
-            live CS2 item catalog with market context
+            <strong className="font-medium text-[var(--text)]">Skin Database</strong> — browse
+            CS2 items, cases, and collections with market context
           </li>
           <li>
             <strong className="font-medium text-[var(--text)]">Trade-up Calculator</strong> —
-            estimate contract odds, floats, and expected value from inventory or a sandbox
+            estimate contract odds, floats, and expected value from a linked inventory or a
+            sandbox
           </li>
         </ul>
         <p>
@@ -46,7 +48,7 @@ export default function TermsPage() {
           <Link href="/status" className="text-[var(--accent)] transition hover:underline">
             Roadmap &amp; Limitations
           </Link>{" "}
-          for known gaps (including float coverage and Steam Market throttling).
+          for known gaps (including missing floats and occasional slow lookups).
         </p>
       </section>
 
@@ -62,20 +64,20 @@ export default function TermsPage() {
       <section>
         <h2>No accounts</h2>
         <p>
-          The Service does not offer user accounts, paid subscriptions, or Steam OAuth. You use it
-          by browsing the catalog / trade-up tools and, for inventory features, by pasting a public
-          Steam profile identifier. Cached inventory and share pages are available to anyone with
-          the link after a sync.
+          There are no {SITE_NAME} accounts, paid plans, or Steam login. You browse the catalog
+          and trade-up tools freely. Inventory features work by pasting a public Steam profile.
+          After a lookup, that inventory page and share card are available to anyone with the
+          link.
         </p>
       </section>
 
       <section>
         <h2>Eligibility and public inventories</h2>
         <p>
-          You may only look up Steam inventories that are set to <strong className="font-medium text-[var(--text)]">Public</strong>.
-          You are responsible for complying with Steam&apos;s Subscriber Agreement and applicable
-          law. Do not use the Service to access private inventories or to scrape data you are not
-          allowed to collect.
+          You may only look up Steam inventories that are set to{" "}
+          <strong className="font-medium text-[var(--text)]">Public</strong>. You are responsible
+          for complying with Steam&apos;s rules and applicable law. Do not use the Service to
+          access private inventories or collect data you are not allowed to collect.
         </p>
       </section>
 
@@ -84,18 +86,11 @@ export default function TermsPage() {
         <p>You agree not to:</p>
         <ul>
           <li>Harass, impersonate, or infringe others&apos; rights through the Service</li>
-          <li>
-            Bypass, overload, or abuse rate limits, sync cooldowns, or access controls on this
-            Service or on Steam / other providers
-          </li>
-          <li>
-            Run high-volume automated sync or scrape jobs that degrade Steam, market APIs, or{" "}
-            {SITE_NAME}
-          </li>
-          <li>Attempt to disrupt or reverse-engineer the Service for abuse</li>
+          <li>Overwhelm the Service or Steam with automated lookups or scraping</li>
+          <li>Try to break, disrupt, or abuse the Service</li>
         </ul>
         <p>
-          We may rate-limit, block, or refuse requests that threaten stability or violate these
+          We may slow down, block, or refuse requests that threaten stability or violate these
           Terms.
         </p>
       </section>
@@ -103,10 +98,10 @@ export default function TermsPage() {
       <section>
         <h2>Estimates only — not financial advice</h2>
         <p>
-          Buff163 and Steam prices, floats, sticker data, trade-up odds, expected value, and
-          portfolio totals are <strong className="font-medium text-[var(--text)]">estimates</strong>{" "}
-          built from third-party sources and caches. They can be missing, delayed, or wrong —
-          especially while float enrichment is limited in Early Access.
+          Prices, floats, stickers, trade-up odds, expected value, and portfolio totals are{" "}
+          <strong className="font-medium text-[var(--text)]">estimates</strong>. They can be
+          missing, delayed, or wrong — especially while float coverage is limited in Early
+          Access.
         </p>
         <p>
           {SITE_NAME} does not provide financial, investment, or trading advice. You alone decide
@@ -116,18 +111,11 @@ export default function TermsPage() {
       </section>
 
       <section>
-        <h2>Third-party services and optional keys</h2>
+        <h2>Third-party services</h2>
         <p>
-          The Service depends on Steam and other third parties. Outages, rate limits, or policy
-          changes at those providers can break or degrade features without notice.
-        </p>
-        <p>
-          The operator may configure optional server secrets (for example{" "}
-          <code className="text-[var(--text)]">STEAMWEBAPI_KEY</code>,{" "}
-          <code className="text-[var(--text)]">FACEIT_API_KEY</code>, or{" "}
-          <code className="text-[var(--text)]">INSPECT_API_URL</code>). Those keys and their
-          billing/quotas are the operator&apos;s responsibility and are not provided to end users
-          through the browser.
+          The Service depends on Steam and other public sources for inventories, prices, catalog
+          data, and optional rank badges. Those services can go down, throttle, or change their
+          rules, and features may degrade without notice.
         </p>
       </section>
 

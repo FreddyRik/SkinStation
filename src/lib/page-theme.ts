@@ -33,6 +33,7 @@ export type PageThemeCssVars = {
 
 export type PageThemeStyle = {
   vars: PageThemeCssVars;
+  swatches: [string, string, string];
 };
 
 /**
@@ -40,48 +41,35 @@ export type PageThemeStyle = {
  */
 export const PAGE_THEME_STYLES: Record<PageTheme, PageThemeStyle> = {
   classic: {
+    swatches: ["#ff6b35", "#0b0d12", "#ff8a5c"],
     vars: {
-      "--bg": "#0c1210",
-      "--bg-elevated": "#121a17",
-      "--bg-panel": "#16211c",
-      "--border": "#24332c",
-      "--text": "#e8f0eb",
-      "--text-muted": "#8fa399",
-      "--accent": "#5eead4",
-      "--accent-dim": "#2dd4bf",
-      "--accent-fg": "#042f2e",
+      "--bg": "#0b0d12",
+      "--bg-elevated": "#12151c",
+      "--bg-panel": "#161a22",
+      "--border": "#2a3140",
+      "--text": "#eef1f5",
+      "--text-muted": "#8b93a3",
+      "--accent": "#ff6b35",
+      "--accent-dim": "#e85d2a",
+      "--accent-fg": "#1a0e08",
       "--page-bg":
-        "radial-gradient(ellipse 90% 60% at 10% -10%, rgba(94, 234, 212, 0.12), transparent 55%), radial-gradient(ellipse 70% 50% at 90% 0%, rgba(255, 107, 53, 0.08), transparent 50%), linear-gradient(180deg, #0e1613 0%, #0c1210 40%, #0a0f0d 100%)",
-    },
-  },
-  dark: {
-    vars: {
-      "--bg": "#0a0a0b",
-      "--bg-elevated": "#111113",
-      "--bg-panel": "#151518",
-      "--border": "#1e293b",
-      "--text": "#f1f5f9",
-      "--text-muted": "#94a3b8",
-      "--accent": "#e2e8f0",
-      "--accent-dim": "#94a3b8",
-      "--accent-fg": "#0a0a0b",
-      "--page-bg":
-        "radial-gradient(ellipse 100% 70% at 50% -10%, rgba(100, 116, 139, 0.16), transparent 55%), linear-gradient(180deg, #0c0c0e 0%, #0a0a0b 40%, #080809 100%)",
+        "radial-gradient(ellipse 70% 55% at 50% 28%, rgba(255, 107, 53, 0.18), transparent 58%), linear-gradient(180deg, #10141c 0%, #0b0d12 42%, #090b10 100%)",
     },
   },
   midsummer: {
+    swatches: ["#ffe566", "#38d9f0", "#f472b6"],
     vars: {
-      "--bg": "#16324a",
-      "--bg-elevated": "#1a3a55",
-      "--bg-panel": "#1e405c",
-      "--border": "#2a4a66",
-      "--text": "#f0f9ff",
-      "--text-muted": "#a5c4d8",
-      "--accent": "#fbbf24",
-      "--accent-dim": "#7dd3fc",
-      "--accent-fg": "#16324a",
+      "--bg": "#160e38",
+      "--bg-elevated": "#1e1448",
+      "--bg-panel": "#261a58",
+      "--border": "#5a4588",
+      "--text": "#faf5eb",
+      "--text-muted": "#b8a8d8",
+      "--accent": "#ffe566",
+      "--accent-dim": "#38d9f0",
+      "--accent-fg": "#1a1040",
       "--page-bg":
-        "radial-gradient(ellipse 90% 60% at 85% -5%, rgba(251, 191, 36, 0.22), transparent 50%), radial-gradient(ellipse 110% 80% at 10% -10%, rgba(125, 211, 252, 0.18), transparent 55%), radial-gradient(ellipse 70% 50% at 50% 100%, rgba(52, 211, 153, 0.1), transparent 45%), linear-gradient(180deg, #1e3a5f 0%, #16324a 45%, #1a2e28 100%)",
+        "radial-gradient(ellipse 95% 70% at 88% -8%, rgba(255, 229, 102, 0.38), transparent 48%), radial-gradient(ellipse 100% 85% at 6% 5%, rgba(56, 217, 240, 0.32), transparent 52%), radial-gradient(ellipse 80% 60% at 50% 102%, rgba(244, 114, 182, 0.28), transparent 55%), linear-gradient(180deg, #1a1040 0%, #160e38 42%, #1c1248 100%)",
     },
   },
 };

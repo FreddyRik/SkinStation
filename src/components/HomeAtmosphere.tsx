@@ -1,6 +1,43 @@
 import type { CSSProperties } from "react";
 import type { HomeShowcaseImage } from "@/lib/home-showcase";
 
+type SkinSlot = {
+  top: string;
+  left?: string;
+  right?: string;
+  size: number;
+  delay: string;
+  rot: number;
+  enterX: string;
+  enterY: string;
+  depth: number;
+  opacity: number;
+};
+
+const SLOTS: SkinSlot[] = [
+  { top: "8%", left: "3%", size: 200, delay: "0s", rot: -14, enterX: "-42vw", enterY: "-10vh", depth: 0.95, opacity: 0.62 },
+  { top: "14%", right: "4%", size: 210, delay: "0.06s", rot: 12, enterX: "44vw", enterY: "-8vh", depth: 1, opacity: 0.66 },
+  { top: "48%", left: "1%", size: 170, delay: "0.12s", rot: -8, enterX: "-38vw", enterY: "6vh", depth: 0.7, opacity: 0.55 },
+  { top: "52%", right: "2%", size: 190, delay: "0.18s", rot: 16, enterX: "40vw", enterY: "10vh", depth: 0.82, opacity: 0.58 },
+  { top: "2%", left: "22%", size: 150, delay: "0.22s", rot: 6, enterX: "-18vw", enterY: "-16vh", depth: 0.45, opacity: 0.48 },
+  { top: "4%", right: "20%", size: 160, delay: "0.28s", rot: -10, enterX: "20vw", enterY: "-14vh", depth: 0.5, opacity: 0.5 },
+  { top: "68%", left: "16%", size: 140, delay: "0.34s", rot: 10, enterX: "-16vw", enterY: "18vh", depth: 0.38, opacity: 0.46 },
+  { top: "66%", right: "14%", size: 155, delay: "0.4s", rot: -12, enterX: "18vw", enterY: "16vh", depth: 0.42, opacity: 0.48 },
+  { top: "32%", left: "8%", size: 130, delay: "0.46s", rot: 8, enterX: "-28vw", enterY: "2vh", depth: 0.32, opacity: 0.44 },
+  { top: "34%", right: "7%", size: 135, delay: "0.5s", rot: -6, enterX: "30vw", enterY: "4vh", depth: 0.35, opacity: 0.45 },
+];
+
+type ParallaxStyle = CSSProperties & {
+  "--depth": string;
+};
+
+type SkinStyle = CSSProperties & {
+  "--enter-x": string;
+  "--enter-y": string;
+  "--rest-rot": string;
+  "--skin-opacity": string;
+};
+
 /** Soft floating skin images behind the home inventory hero. */
 export function HomeAtmosphere({
   images,
@@ -9,60 +46,52 @@ export function HomeAtmosphere({
 }) {
   if (images.length === 0) return null;
 
-  const slots = [
-    { top: "8%", left: "2%", size: 88, delay: "0s", rot: -12 },
-    { top: "18%", right: "3%", size: 96, delay: "0.6s", rot: 10 },
-    { top: "55%", left: "0%", size: 78, delay: "1.2s", rot: -6 },
-    { top: "62%", right: "1%", size: 90, delay: "0.3s", rot: 14 },
-    { top: "4%", left: "22%", size: 70, delay: "1.8s", rot: 4 },
-    { top: "6%", right: "20%", size: 74, delay: "1.1s", rot: -8 },
-    { top: "72%", left: "18%", size: 68, delay: "0.9s", rot: 8 },
-    { top: "70%", right: "16%", size: 72, delay: "1.5s", rot: -10 },
-    { top: "38%", left: "4%", size: 64, delay: "2s", rot: 6 },
-    { top: "40%", right: "5%", size: 66, delay: "0.4s", rot: -4 },
-  ];
-
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-    >
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <div
-        className="absolute -left-10 -top-16 h-56 w-56 rounded-full opacity-50 blur-3xl"
-        style={{ background: "rgba(94, 234, 212, 0.18)" }}
-      />
-      <div
-        className="absolute -right-8 top-0 h-48 w-48 rounded-full opacity-40 blur-3xl"
-        style={{ background: "rgba(255, 107, 53, 0.12)" }}
+        className="home-hero-bloom absolute left-1/2 top-[46%] h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-[28rem] sm:w-[34rem]"
+        style={{
+          background: "color-mix(in srgb, var(--accent) 28%, transparent)",
+        }}
       />
 
-      {images.slice(0, slots.length).map((img, i) => {
-        const slot = slots[i]!;
-        const style: CSSProperties = {
+      {images.slice(0, SLOTS.length).map((img, i) => {
+        const slot = SLOTS[i]!;
+        const wrapStyle: ParallaxStyle = {
           top: slot.top,
-          width: slot.size,
-          height: slot.size,
-          animationDelay: slot.delay,
-          transform: `rotate(${slot.rot}deg)`,
+          width: `clamp(5.6rem, 14vw, ${slot.size}px)`,
+          height: `clamp(5.6rem, 14vw, ${slot.size}px)`,
+          "--depth": String(slot.depth),
           ...(slot.left != null ? { left: slot.left } : {}),
           ...(slot.right != null ? { right: slot.right } : {}),
         };
+        const imgStyle: SkinStyle = {
+          animationDelay: `${slot.delay}, calc(${slot.delay} + 0.9s)`,
+          "--enter-x": slot.enterX,
+          "--enter-y": slot.enterY,
+          "--rest-rot": `${slot.rot}deg`,
+          "--skin-opacity": String(slot.opacity),
+        };
         return (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <div
             key={img.id}
-            src={img.image}
-            alt=""
-            className="home-skin-float absolute object-contain opacity-[0.22] blur-[0.5px] sm:opacity-[0.28]"
-            style={style}
-            loading="lazy"
-            draggable={false}
-          />
+            className="home-skin-parallax absolute"
+            style={wrapStyle}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={img.image}
+              alt=""
+              className="home-skin-float h-full w-full object-contain"
+              style={imgStyle}
+              loading="lazy"
+              draggable={false}
+            />
+          </div>
         );
       })}
 
-      <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-panel)]/20 via-transparent to-[var(--bg-panel)]/70" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg-panel)]/80 via-transparent to-[var(--bg-panel)]/80" />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[var(--bg)]/70" />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { formatFloat, formatMoney } from "@/lib/format";
+import type { CSSProperties } from "react";
+import { formatMoney } from "@/lib/format";
 import type { Currency } from "@/lib/currency";
 import type {
   TradeUpCatalogSkin,
@@ -9,6 +10,7 @@ import type {
   TradeUpInput,
 } from "@/lib/tradeup/types";
 import { skinGroupLabel } from "@/components/tradeup/helpers";
+import { TradeUpFloatControl } from "@/components/tradeup/TradeUpFloatControl";
 
 export type SlotDraft = TradeUpInput | null;
 
@@ -20,6 +22,7 @@ export function TradeUpContractSlots({
   cratesById,
   onRemove,
   onFloatChange,
+  onWearSelect,
   onCostChange,
   onPickSlot,
 }: {
@@ -30,6 +33,7 @@ export function TradeUpContractSlots({
   cratesById: Map<string, TradeUpCrateRow>;
   onRemove: (index: number) => void;
   onFloatChange: (index: number, floatValue: number) => void;
+  onWearSelect: (index: number, floatValue: number) => void;
   onCostChange: (index: number, cost: number) => void;
   onPickSlot: (index: number) => void;
 }) {
@@ -43,7 +47,14 @@ export function TradeUpContractSlots({
         return (
           <li key={slot?.key ?? `empty-${index}`}>
             {slot ? (
-              <div className="flex h-full flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/80 p-2.5">
+              <div
+                className="rarity-frame flex h-full flex-col gap-2 rounded-xl border bg-[var(--bg-panel)]/70 p-2.5"
+                style={
+                  {
+                    "--rarity": skin?.rarityColor ?? "var(--accent)",
+                  } as CSSProperties
+                }
+              >
                 <div className="flex items-start gap-2">
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-elevated)]">
                     {slot.image ? (
@@ -56,7 +67,10 @@ export function TradeUpContractSlots({
                     ) : null}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-[var(--text)]">
+                    <p className="type-overline">
+                      {String(index + 1).padStart(2, "0")}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs font-medium text-[var(--text)]">
                       {slot.displayName ?? "Skin"}
                     </p>
                     {groupLabel ? (
@@ -67,50 +81,29 @@ export function TradeUpContractSlots({
                         {groupLabel}
                       </p>
                     ) : null}
-                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-                      Slot {index + 1}
-                    </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => onRemove(index)}
-                    className="rounded-md px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--danger)]"
+                    className="rounded-md px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--danger)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--danger)]/40"
                     aria-label={`Remove slot ${index + 1}`}
                   >
                     ✕
                   </button>
                 </div>
-                <label className="flex flex-col gap-0.5 text-[10px] text-[var(--text-muted)]">
-                  Float
-                  <input
-                    type="number"
-                    step="0.000001"
-                    min={0}
-                    max={1}
-                    value={slot.floatValue}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (Number.isFinite(v)) onFloatChange(index, v);
-                    }}
-                    className="rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-1 font-mono text-xs text-[var(--text)]"
-                  />
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.001}
-                    value={Math.min(1, Math.max(0, slot.floatValue))}
-                    onChange={(e) =>
-                      onFloatChange(index, Number(e.target.value))
-                    }
-                    className="w-full accent-[var(--accent)]"
-                  />
-                  <span className="font-mono text-[var(--text-muted)]">
-                    {formatFloat(slot.floatValue)}
-                  </span>
-                </label>
-                <label className="flex flex-col gap-0.5 text-[10px] text-[var(--text-muted)]">
-                  Cost ({currency})
+                <TradeUpFloatControl
+                  floatValue={slot.floatValue}
+                  minFloat={skin?.minFloat ?? 0}
+                  maxFloat={skin?.maxFloat ?? 1}
+                  onFloatChange={(floatValue) =>
+                    onFloatChange(index, floatValue)
+                  }
+                  onWearSelect={(floatValue) =>
+                    onWearSelect(index, floatValue)
+                  }
+                />
+                <label className="flex flex-col gap-1">
+                  <span className="type-overline">Cost ({currency})</span>
                   <input
                     type="number"
                     step="0.01"
@@ -121,9 +114,9 @@ export function TradeUpContractSlots({
                       if (Number.isFinite(v))
                         onCostChange(index, Math.max(0, v));
                     }}
-                    className="rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-1 font-mono text-xs text-[var(--text)]"
+                    className="type-metric rounded-md border border-[var(--border)] bg-[var(--bg)]/60 px-2 py-1 text-xs outline-none transition focus:border-[var(--accent)]/50"
                   />
-                  <span className="text-[var(--text-muted)]">
+                  <span className="type-metric text-[10px] font-normal text-[var(--text-muted)]">
                     {formatMoney(slot.cost, currency)}
                   </span>
                 </label>
@@ -132,13 +125,16 @@ export function TradeUpContractSlots({
               <button
                 type="button"
                 onClick={() => onPickSlot(index)}
-                className="flex h-full min-h-[10.5rem] w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-elevated)]/40 px-3 py-4 text-center transition hover:border-[var(--accent)]/50 hover:bg-[var(--bg-panel)]/60"
+                className="hud-corners group relative flex h-full min-h-[10.5rem] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-[var(--border)]/60 bg-[var(--bg-elevated)]/25 px-3 py-4 text-center transition hover:border-[var(--accent)]/45 hover:bg-[var(--bg-panel)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50"
               >
-                <span className="text-xs font-medium text-[var(--text-muted)]">
-                  Slot {index + 1}
+                <span className="type-overline">
+                  {String(index + 1).padStart(2, "0")}
                 </span>
-                <span className="text-[11px] text-[var(--accent)]">
-                  + Add skin
+                <span className="text-2xl leading-none text-[var(--text-muted)] transition group-hover:text-[var(--accent)]">
+                  +
+                </span>
+                <span className="type-overline transition group-hover:text-[var(--accent)]">
+                  Add skin
                 </span>
               </button>
             )}

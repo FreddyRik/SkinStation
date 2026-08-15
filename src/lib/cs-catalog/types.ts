@@ -40,6 +40,12 @@ export type CatalogContainsItem = {
   paint_index?: string | null;
 };
 
+export type CatalogLootList = {
+  name: string | null;
+  footer: string | null;
+  image: string | null;
+};
+
 /** Slim row for browse/search grids. */
 export type SlimCatalogItem = {
   id: string;
@@ -56,6 +62,8 @@ export type SlimCatalogItem = {
   isKnife: boolean;
   isGlove: boolean;
   crateType: string | null;
+  /** Official rare-drop icon from ByMykel `loot_list.image` (crates). */
+  lootListImage: string | null;
   /** Skin: crate ids this finish can drop from. */
   crateIds: string[];
   /** Crate first sale date when available (ISO-ish string). */
@@ -127,6 +135,8 @@ export type CatalogItemDetail = {
   crates: CatalogNamedRef[];
   contains: CatalogContainsItem[];
   containsRare: CatalogContainsItem[];
+  /** Official rare-drop teaser from ByMykel (`loot_list`). */
+  lootList: CatalogLootList | null;
   team: string | null;
   crateType: string | null;
   firstSaleDate: string | null;
