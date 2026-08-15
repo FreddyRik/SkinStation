@@ -112,14 +112,14 @@ export function SharePageClient({
           type="button"
           disabled={busy}
           onClick={() => void downloadPng()}
-          className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[#042f2e] hover:bg-[var(--accent-dim)] disabled:opacity-50"
+          className="rounded-[4px] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-fg)] hover:bg-[var(--accent-dim)] disabled:opacity-50"
         >
           {busy ? "Generating…" : "Download PNG"}
         </button>
         <button
           type="button"
           onClick={() => void copyLink()}
-          className="rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm hover:border-[var(--accent)]/40"
+          className="et-card px-4 py-2.5 text-sm hover:bg-[var(--bg-panel)]"
         >
           Copy link
         </button>

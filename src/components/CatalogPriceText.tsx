@@ -14,7 +14,7 @@ import { formatMoney } from "@/lib/format";
 export function CatalogPriceText({
   minUsd,
   maxUsd,
-  className = "text-xs font-semibold tabular-nums text-[var(--steam)]",
+  className = "font-data text-xs font-semibold text-[var(--steam)]",
 }: {
   minUsd: number | null;
   maxUsd?: number | null;

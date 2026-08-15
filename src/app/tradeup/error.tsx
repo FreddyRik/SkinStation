@@ -8,11 +8,8 @@ export default function TradeUpError({
   reset: () => void;
 }) {
   return (
-    <div className="mx-auto max-w-lg rounded-xl border border-[var(--danger)]/40 bg-[var(--bg-panel)] p-8 text-center">
-      <h1
-        className="text-xl font-semibold tracking-tight text-[var(--text)]"
-        style={{ fontFamily: "var(--font-share-display), Georgia, serif" }}
-      >
+    <div className="et-card mx-auto max-w-lg p-8 text-center">
+      <h1 className="text-xl font-semibold tracking-tight text-[var(--text)]">
         Trade-up calculator error
       </h1>
       <p className="mt-2 text-sm text-[var(--danger)]">

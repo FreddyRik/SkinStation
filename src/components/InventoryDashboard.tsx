@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CartesianGrid,
+  Area,
+  AreaChart,
   Legend,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -503,7 +502,7 @@ export function InventoryDashboard({
 
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-5 sm:p-6">
+      <section className="et-card p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             <div className="relative shrink-0">
@@ -579,7 +578,7 @@ export function InventoryDashboard({
                     ? `Steam cooldown — ${formatBackoffCountdown(backoffRemainingMs)}`
                     : undefined
                 }
-                className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[#042f2e] hover:bg-[var(--accent-dim)] disabled:opacity-50"
+                className="rounded-[4px] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-fg)] hover:bg-[var(--accent-dim)] disabled:opacity-50"
               >
                 {syncing
                   ? "Refreshing…"
@@ -591,7 +590,7 @@ export function InventoryDashboard({
                 type="button"
                 onClick={() => setShareOpen(true)}
                 disabled={items.length === 0}
-                className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/20 disabled:opacity-50"
+                className="rounded-[4px] bg-[var(--accent)]/12 px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/22 disabled:opacity-50"
                 title="Generate a downloadable inventory Wrapped card"
               >
                 Share card
@@ -628,11 +627,11 @@ export function InventoryDashboard({
       </section>
 
       {snapshots.length > 0 && (
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]/50 p-4 sm:p-6">
+        <section className="et-card p-4 sm:p-6">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-medium">Portfolio value over time</h2>
             <div
-              className="inline-flex flex-wrap gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)]/60 p-1"
+              className="et-seg flex-wrap gap-1"
               role="group"
               aria-label="Chart date range"
             >
@@ -643,7 +642,7 @@ export function InventoryDashboard({
                     key={range.key}
                     type="button"
                     onClick={() => setChartRange(range.key)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold tracking-wide transition ${
+                    className={`rounded-[4px] px-2.5 py-1 font-data text-xs font-semibold tracking-wide ${
                       active
                         ? "bg-[var(--accent)] text-[var(--accent-fg)]"
                         : "text-[var(--text-muted)] hover:text-[var(--text)]"
@@ -662,25 +661,55 @@ export function InventoryDashboard({
           ) : (
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid
-                    stroke="rgba(36,51,44,0.8)"
-                    strokeDasharray="3 3"
-                  />
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient
+                      id="portfolioCopperFill"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="var(--accent)"
+                        stopOpacity={0.38}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="var(--bg)"
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  </defs>
                   <XAxis
                     dataKey="time"
-                    tick={{ fill: "#8fa399", fontSize: 11 }}
+                    tick={{
+                      fill: "var(--text-muted)",
+                      fontSize: 11,
+                      fontFamily: "var(--font-data), ui-monospace, monospace",
+                    }}
+                    axisLine={false}
+                    tickLine={false}
                     hide={chartData.length > 8}
                   />
                   <YAxis
-                    tick={{ fill: "#8fa399", fontSize: 11 }}
+                    tick={{
+                      fill: "var(--text-muted)",
+                      fontSize: 11,
+                      fontFamily: "var(--font-data), ui-monospace, monospace",
+                    }}
+                    axisLine={false}
+                    tickLine={false}
                     width={56}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "#121a17",
-                      border: "1px solid #24332c",
-                      borderRadius: 8,
+                      background: "var(--bg-elevated)",
+                      border: "none",
+                      borderRadius: 6,
+                      boxShadow: "0 10px 30px -10px rgba(0,0,0,0.5)",
+                      color: "var(--text)",
                     }}
                     formatter={(value) =>
                       formatMoney(
@@ -690,24 +719,16 @@ export function InventoryDashboard({
                     }
                   />
                   <Legend />
-                  {priceSource === "steam" ? (
-                    <Line
-                      type="monotone"
-                      dataKey="Steam"
-                      stroke="#66c0f4"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  ) : (
-                    <Line
-                      type="monotone"
-                      dataKey="Buff"
-                      stroke="var(--buff)"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  )}
-                </LineChart>
+                  <Area
+                    type="monotone"
+                    dataKey={priceSource === "steam" ? "Steam" : "Buff"}
+                    stroke="var(--accent)"
+                    strokeWidth={2}
+                    fill="url(#portfolioCopperFill)"
+                    dot={false}
+                    activeDot={{ r: 4, fill: "var(--accent)" }}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
@@ -718,7 +739,9 @@ export function InventoryDashboard({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-medium">
             Inventory{" "}
-            <span className="text-[var(--text-muted)]">({filtered.length})</span>
+            <span className="font-data text-[var(--text-muted)]">
+              ({filtered.length})
+            </span>
           </h2>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <InventoryExportButton
@@ -741,12 +764,12 @@ export function InventoryDashboard({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Filter by name…"
-              className="rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm outline-none ring-[var(--accent)] focus:ring-2"
+              className="et-field px-3 py-2 text-sm"
             />
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
-              className="rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm outline-none"
+              className="et-field px-3 py-2 text-sm"
             >
               <option value="value">Sort by value</option>
               <option value="name">Sort by name</option>
@@ -783,7 +806,7 @@ export function InventoryDashboard({
         </div>
 
         {filtered.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-[var(--text-muted)]">
+          <p className="et-slot p-8 text-center text-[var(--text-muted)]">
             {items.length === 0
               ? "No items yet. Hit Refresh to sync from Steam."
               : "No items match these filters."}
@@ -871,7 +894,18 @@ function InventoryGridCard({
   const buffMarketLink = priceSource === "buff" && canLinkBuffMarket(item);
 
   return (
-    <div className="flex h-full cursor-default gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/40 p-3 transition hover:border-[var(--accent)]/35 hover:bg-[var(--bg-panel)]/80">
+    <div
+      className="et-card et-card-hover flex h-full cursor-default gap-3 p-3"
+      style={
+        item.rarity
+          ? {
+              borderLeft: `2px solid ${
+                resolveRarityColor(item.rarity) ?? "transparent"
+              }`,
+            }
+          : undefined
+      }
+    >
       {item.iconUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -891,25 +925,9 @@ function InventoryGridCard({
         </p>
         <p className="truncate text-xs leading-snug text-[var(--text-muted)]">
           {item.exterior ?? item.type ?? "—"}
-          {item.rarity ? (
-            <>
-              {" · "}
-              <span
-                className="font-medium"
-                style={{
-                  color:
-                    resolveRarityColor(item.rarity) ??
-                    "var(--text-muted)",
-                  opacity: 0.85,
-                }}
-              >
-                {item.rarity}
-              </span>
-            </>
-          ) : null}
         </p>
         {/* Reserved meta rows keep every card the same height in a grid row */}
-        <p className="min-h-4 truncate text-xs leading-4 text-[var(--text-muted)]">
+        <p className="min-h-4 truncate font-data text-xs leading-4 text-[var(--text-muted)]">
           {showFloat
             ? `Float ${formatFloat(item.floatValue)}${
                 showPaintSeed ? ` · Pattern ${item.paintSeed}` : ""
@@ -919,7 +937,7 @@ function InventoryGridCard({
         <div className="mt-auto flex flex-col gap-1">
           <div className="flex min-h-4 items-center justify-between gap-2">
             <p
-              className="min-w-0 truncate text-xs font-medium leading-4"
+              className="min-w-0 truncate font-data text-xs font-medium leading-4"
               style={showPrice ? { color: accent } : undefined}
             >
               {showPrice
@@ -984,7 +1002,18 @@ function InventoryListRow({
   const buffMarketLink = priceSource === "buff" && canLinkBuffMarket(item);
 
   return (
-    <div className="flex cursor-default items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)]/40 px-3 py-2 transition hover:border-[var(--accent)]/35 hover:bg-[var(--bg-panel)]/80">
+    <div
+      className="et-card et-card-hover flex cursor-default items-center gap-3 px-3 py-2"
+      style={
+        item.rarity
+          ? {
+              borderLeft: `2px solid ${
+                resolveRarityColor(item.rarity) ?? "transparent"
+              }`,
+            }
+          : undefined
+      }
+    >
       {item.iconUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -1003,9 +1032,8 @@ function InventoryListRow({
         >
           {item.marketHashName}
         </p>
-        <p className="truncate text-xs text-[var(--text-muted)]">
+        <p className="truncate font-data text-xs text-[var(--text-muted)]">
           {item.exterior ?? item.type ?? "—"}
-          {item.rarity ? ` · ${item.rarity}` : ""}
           {showFloat
             ? ` · Float ${formatFloat(item.floatValue)}`
             : ""}
@@ -1057,7 +1085,7 @@ function InventoryListRow({
 
       {showPrice && (
         <p
-          className="shrink-0 text-right text-sm font-medium tabular-nums"
+          className="shrink-0 text-right font-data text-sm font-medium"
           style={{ color: accent }}
           title={PRICE_SOURCE_LABELS[priceSource]}
         >
@@ -1082,10 +1110,10 @@ function FilterToggle({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold tracking-wide transition ${
+      className={`rounded-[4px] px-3 py-1.5 text-xs font-semibold tracking-wide ${
         active
-          ? "border-[var(--accent)]/50 bg-[var(--accent)]/15 text-[var(--accent)]"
-          : "border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)]"
+          ? "bg-[var(--accent)] text-[var(--accent-fg)]"
+          : "bg-[var(--bg-elevated)] text-[var(--text-muted)] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] hover:text-[var(--text)]"
       }`}
     >
       {label}
@@ -1103,12 +1131,12 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/50 px-4 py-4">
+    <div className="et-card px-4 py-4">
       <p className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
         {label}
       </p>
       <p
-        className="mt-1 text-2xl font-semibold tabular-nums"
+        className="mt-1 font-data text-2xl font-semibold"
         style={accent ? { color: accent } : undefined}
       >
         {value}

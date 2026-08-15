@@ -16,7 +16,7 @@ const sectionLabelClass =
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-[var(--border)]/80 bg-[var(--bg-elevated)]/70 backdrop-blur-md">
+    <footer className="bg-[var(--bg-elevated)]/80 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
           <div className="space-y-4 sm:col-span-2 lg:col-span-1">

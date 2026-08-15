@@ -70,14 +70,14 @@ export default async function CollectionPage({ params }: PageProps) {
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)] sm:text-3xl">
           {collection.name}
         </h1>
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="font-data text-sm text-[var(--text-muted)]">
           Collection · {collection.contains.length.toLocaleString("en-US")} item
           {collection.contains.length === 1 ? "" : "s"}
         </p>
       </div>
 
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <div className="flex w-full max-w-xs shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/70 p-6 sm:w-48">
+        <div className="et-card flex w-full max-w-xs shrink-0 items-center justify-center p-6 sm:w-48">
           {collection.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

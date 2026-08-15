@@ -38,7 +38,7 @@ function ToolCard({
     <li>
       <Link
         href={href}
-        className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]/50 transition hover:border-[var(--accent)]/45 hover:bg-[var(--bg-panel)]/80"
+        className="et-card et-card-hover group flex h-full flex-col overflow-hidden"
       >
         <div className="relative flex h-28 items-end justify-center gap-1 overflow-hidden bg-[var(--bg)]/80 px-3 pt-4 sm:h-32">
           <div
@@ -46,7 +46,7 @@ function ToolCard({
             className="pointer-events-none absolute inset-0 opacity-60"
             style={{
               background:
-                "radial-gradient(ellipse 80% 70% at 50% 100%, rgba(94,234,212,0.14), transparent 70%)",
+                "radial-gradient(ellipse 80% 70% at 50% 100%, rgba(200,121,65,0.16), transparent 70%)",
             }}
           />
           {previews.length > 0 ? (
@@ -69,14 +69,14 @@ function ToolCard({
               );
             })
           ) : (
-            <div className="relative mb-3 h-16 w-full rounded-lg border border-dashed border-[var(--border)]" />
+            <div className="et-slot relative mb-3 h-16 w-full" />
           )}
         </div>
         <div className="flex flex-1 flex-col gap-2 p-5 sm:p-6">
           <h3
             className="text-xl font-semibold tracking-tight text-[var(--text)] group-hover:text-[var(--accent)]"
             style={{
-              fontFamily: "var(--font-share-display), Georgia, serif",
+              fontFamily: "var(--font-ui), Inter, system-ui, sans-serif",
             }}
           >
             {title}
@@ -97,7 +97,7 @@ function ToolCard({
 export function HomeHub({ showcase }: { showcase: HomeShowcase }) {
   return (
     <div className="space-y-10 sm:space-y-14">
-      <p className="rounded-xl border border-[var(--border)]/80 bg-[var(--bg-elevated)]/40 px-4 py-3 text-center text-sm leading-relaxed text-[var(--text-muted)] sm:px-5">
+      <p className="et-card px-4 py-3 text-center text-sm leading-relaxed text-[var(--text-muted)] sm:px-5">
         <span className="font-medium text-[var(--text)]">Early Access Beta</span>
         <span className="mx-1.5 text-[var(--border)]" aria-hidden>
           —
@@ -125,9 +125,9 @@ export function HomeHub({ showcase }: { showcase: HomeShowcase }) {
           {HOW_IT_WORKS.map((item) => (
             <li
               key={item.step}
-              className="rounded-2xl border border-[var(--border)]/80 bg-[var(--bg-elevated)]/30 px-4 py-5 text-center sm:px-5"
+              className="et-card px-4 py-5 text-center sm:px-5"
             >
-              <p className="font-mono text-xs text-[var(--accent)]">
+              <p className="font-data text-xs text-[var(--accent)]">
                 {item.step}
               </p>
               <h3 className="mt-2 text-sm font-semibold text-[var(--text)]">

@@ -224,17 +224,17 @@ export function ProfileLookup({
   return (
     <div className="space-y-8">
       <section
-        className={`relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/80 p-6 sm:p-10 ${
-          accentGlow ? "shadow-[0_0_60px_-12px_rgba(94,234,212,0.25)]" : ""
+        className={`et-card relative overflow-hidden p-6 sm:p-10 ${
+          accentGlow ? "shadow-[0_0_60px_-12px_rgba(200,121,65,0.28)]" : ""
         }`}
       >
         {atmosphere}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-40"
+          className="pointer-events-none absolute inset-0 opacity-30"
           style={{
             backgroundImage:
-              "linear-gradient(rgba(94,234,212,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(94,234,212,0.04) 1px, transparent 1px)",
+              "linear-gradient(rgba(200,121,65,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(200,121,65,0.05) 1px, transparent 1px)",
             backgroundSize: "28px 28px",
           }}
         />
@@ -270,22 +270,20 @@ export function ProfileLookup({
 
           <form
             onSubmit={onSubmit}
-            className="mx-auto mt-6 flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:items-stretch"
+            className="et-command mx-auto mt-6 max-w-xl"
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="https://steamcommunity.com/id/yourname or SteamID64"
-              className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-left text-[var(--text)] outline-none ring-[var(--accent)] placeholder:text-[var(--text-muted)] focus:ring-2"
+              className="et-command-input text-left"
               disabled={loading}
               required
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className={`rounded-xl bg-[var(--accent)] px-5 py-3 font-semibold text-[#042f2e] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0 ${
-                accentGlow ? "home-load-btn" : ""
-              }`}
+              className={`et-command-submit ${accentGlow ? "home-load-btn" : ""}`}
             >
               {loading ? "Loading…" : "Load inventory"}
             </button>
@@ -328,7 +326,7 @@ export function ProfileLookup({
 
               return (
                 <li key={p.id} className="min-w-0">
-                  <div className="flex h-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]/60 p-4 transition hover:border-[var(--accent)]/40 hover:bg-[var(--bg-panel)]">
+                  <div className="et-card et-card-hover flex h-full p-4">
                     <div className="flex min-w-0 flex-1 items-center gap-4">
                       <Link
                         href={inventoryHref}
@@ -393,7 +391,7 @@ export function ProfileLookup({
                         />
                         <Link
                           href={inventoryHref}
-                          className="block truncate text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
+                          className="block truncate font-data text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
                         >
                           {p.itemCount} items
                           {buffDisplay ? ` · Buff ${buffDisplay}` : ""}

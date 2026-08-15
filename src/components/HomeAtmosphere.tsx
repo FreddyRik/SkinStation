@@ -25,11 +25,11 @@ export function HomeAtmosphere({
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
+      className="pointer-events-none absolute inset-0 overflow-hidden rounded-[6px]"
     >
       <div
         className="absolute -left-10 -top-16 h-56 w-56 rounded-full opacity-50 blur-3xl"
-        style={{ background: "rgba(94, 234, 212, 0.18)" }}
+        style={{ background: "rgba(200, 121, 65, 0.18)" }}
       />
       <div
         className="absolute -right-8 top-0 h-48 w-48 rounded-full opacity-40 blur-3xl"

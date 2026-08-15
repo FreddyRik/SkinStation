@@ -13,12 +13,12 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(145deg, #0e1613, #0c1210)",
-          borderRadius: 8,
-          color: "#5eead4",
+          background: "linear-gradient(145deg, #131a2a, #0a0f1d)",
+          borderRadius: 6,
+          color: "#c87941",
           fontSize: 20,
           fontWeight: 700,
-          fontFamily: "Georgia, serif",
+          fontFamily: "Inter, system-ui, sans-serif",
         }}
       >
         S

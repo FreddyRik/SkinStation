@@ -18,7 +18,7 @@ export function ShareCardThemeToggle({
 }) {
   return (
     <div
-      className="inline-flex flex-wrap rounded-xl border border-[var(--border)] bg-[var(--bg)] p-0.5"
+      className="et-seg flex-wrap"
       role="group"
       aria-label="Share card theme"
     >

@@ -22,6 +22,7 @@ export type PageThemeCssVars = {
   "--bg": string;
   "--bg-elevated": string;
   "--bg-panel": string;
+  "--bg-recessed": string;
   "--border": string;
   "--text": string;
   "--text-muted": string;
@@ -36,52 +37,56 @@ export type PageThemeStyle = {
 };
 
 /**
- * Site palettes aligned with share-card themes (classic = current default look).
+ * Site palettes aligned with share-card themes.
+ * Classic = Executive Terminal (indigo + copper).
  */
 export const PAGE_THEME_STYLES: Record<PageTheme, PageThemeStyle> = {
   classic: {
     vars: {
-      "--bg": "#0c1210",
-      "--bg-elevated": "#121a17",
-      "--bg-panel": "#16211c",
-      "--border": "#24332c",
-      "--text": "#e8f0eb",
-      "--text-muted": "#8fa399",
-      "--accent": "#5eead4",
-      "--accent-dim": "#2dd4bf",
-      "--accent-fg": "#042f2e",
+      "--bg": "#0a0f1d",
+      "--bg-elevated": "#131a2a",
+      "--bg-panel": "#1a2236",
+      "--bg-recessed": "#060910",
+      "--border": "rgba(200, 121, 65, 0.14)",
+      "--text": "#ffffff",
+      "--text-muted": "#8b95a5",
+      "--accent": "#c87941",
+      "--accent-dim": "#e09a62",
+      "--accent-fg": "#0a0f1d",
       "--page-bg":
-        "radial-gradient(ellipse 90% 60% at 10% -10%, rgba(94, 234, 212, 0.12), transparent 55%), radial-gradient(ellipse 70% 50% at 90% 0%, rgba(255, 107, 53, 0.08), transparent 50%), linear-gradient(180deg, #0e1613 0%, #0c1210 40%, #0a0f0d 100%)",
+        "radial-gradient(ellipse 90% 60% at 12% -8%, rgba(200, 121, 65, 0.16), transparent 55%), radial-gradient(ellipse 70% 50% at 92% 0%, rgba(74, 98, 168, 0.14), transparent 50%), linear-gradient(180deg, #0d1424 0%, #0a0f1d 42%, #080c18 100%)",
     },
   },
   dark: {
     vars: {
-      "--bg": "#0a0a0b",
-      "--bg-elevated": "#111113",
-      "--bg-panel": "#151518",
-      "--border": "#1e293b",
-      "--text": "#f1f5f9",
-      "--text-muted": "#94a3b8",
-      "--accent": "#e2e8f0",
-      "--accent-dim": "#94a3b8",
-      "--accent-fg": "#0a0a0b",
+      "--bg": "#070b16",
+      "--bg-elevated": "#101726",
+      "--bg-panel": "#172033",
+      "--bg-recessed": "#04060c",
+      "--border": "rgba(200, 121, 65, 0.12)",
+      "--text": "#ffffff",
+      "--text-muted": "#8b95a5",
+      "--accent": "#c87941",
+      "--accent-dim": "#d4925c",
+      "--accent-fg": "#070b16",
       "--page-bg":
-        "radial-gradient(ellipse 100% 70% at 50% -10%, rgba(100, 116, 139, 0.16), transparent 55%), linear-gradient(180deg, #0c0c0e 0%, #0a0a0b 40%, #080809 100%)",
+        "radial-gradient(ellipse 100% 70% at 50% -10%, rgba(200, 121, 65, 0.1), transparent 55%), linear-gradient(180deg, #0a1020 0%, #070b16 40%, #05080f 100%)",
     },
   },
   midsummer: {
     vars: {
-      "--bg": "#16324a",
-      "--bg-elevated": "#1a3a55",
-      "--bg-panel": "#1e405c",
-      "--border": "#2a4a66",
-      "--text": "#f0f9ff",
+      "--bg": "#10243a",
+      "--bg-elevated": "#17304a",
+      "--bg-panel": "#1d3b58",
+      "--bg-recessed": "#0b1828",
+      "--border": "rgba(251, 191, 36, 0.18)",
+      "--text": "#ffffff",
       "--text-muted": "#a5c4d8",
-      "--accent": "#fbbf24",
-      "--accent-dim": "#7dd3fc",
-      "--accent-fg": "#16324a",
+      "--accent": "#c87941",
+      "--accent-dim": "#fbbf24",
+      "--accent-fg": "#10243a",
       "--page-bg":
-        "radial-gradient(ellipse 90% 60% at 85% -5%, rgba(251, 191, 36, 0.22), transparent 50%), radial-gradient(ellipse 110% 80% at 10% -10%, rgba(125, 211, 252, 0.18), transparent 55%), radial-gradient(ellipse 70% 50% at 50% 100%, rgba(52, 211, 153, 0.1), transparent 45%), linear-gradient(180deg, #1e3a5f 0%, #16324a 45%, #1a2e28 100%)",
+        "radial-gradient(ellipse 90% 60% at 85% -5%, rgba(200, 121, 65, 0.22), transparent 50%), radial-gradient(ellipse 110% 80% at 10% -10%, rgba(125, 211, 252, 0.14), transparent 55%), linear-gradient(180deg, #16324a 0%, #10243a 45%, #0e1e30 100%)",
     },
   },
 };
