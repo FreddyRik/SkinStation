@@ -5,6 +5,7 @@ import {
   STEAM_CURRENCY_CODES,
 } from "@/lib/currency";
 import { fetchSteamPriceOverview } from "@/lib/steam/steam-proxy";
+import { isRecord, readString } from "@/types/json";
 
 const STEAM_PRICE_TTL_MS = 60 * 60 * 1000;
 
@@ -41,13 +42,6 @@ export function parseSteamPrice(raw?: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-type PriceOverviewResponse = {
-  success?: boolean;
-  lowest_price?: string;
-  median_price?: string;
-  volume?: string;
-};
-
 async function fetchSteamPriceOnce(
   marketHashName: string,
   currency: Currency,
@@ -73,16 +67,16 @@ async function fetchSteamPriceOnce(
     const text = await res.text();
     if (!text || text === "null") return null;
 
-    let data: PriceOverviewResponse;
+    let parsed: unknown;
     try {
-      data = JSON.parse(text) as PriceOverviewResponse;
+      parsed = JSON.parse(text);
     } catch {
       return null;
     }
-
-    if (!data.success) return null;
+    if (!isRecord(parsed) || parsed.success === false) return null;
     return (
-      parseSteamPrice(data.lowest_price) ?? parseSteamPrice(data.median_price)
+      parseSteamPrice(readString(parsed.lowest_price)) ??
+      parseSteamPrice(readString(parsed.median_price))
     );
   } catch (err) {
     console.warn("Steam priceoverview failed:", marketHashName, err);

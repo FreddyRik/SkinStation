@@ -12,7 +12,6 @@ export type {
 
 export {
   CATALOG_KIND_LABELS,
-  CATALOG_KIND_ORDER,
 } from "@/lib/cs-catalog/types";
 
 export {
@@ -48,6 +47,7 @@ export {
   weaponCases,
   navFilterLabel,
   navFilterForWeapon,
+  isOtherNavKey,
 } from "@/lib/cs-catalog/nav";
 
 export type {

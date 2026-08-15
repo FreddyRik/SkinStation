@@ -141,6 +141,14 @@ export const OTHER_NAV_ITEMS: { key: OtherNavKey; label: string }[] = [
   { key: "pins", label: "Pins" },
 ];
 
+const OTHER_NAV_KEY_SET: ReadonlySet<string> = new Set(
+  OTHER_NAV_ITEMS.map((item) => item.key),
+);
+
+export function isOtherNavKey(value: unknown): value is OtherNavKey {
+  return typeof value === "string" && OTHER_NAV_KEY_SET.has(value);
+}
+
 const OTHER_KIND: Partial<Record<OtherNavKey, CatalogKind>> = {
   keys: "key",
   keychains: "keychain",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parseFxApiResponse } from "@/types/api";
 
 const CLIENT_FALLBACK = 0.92;
 
@@ -14,11 +15,10 @@ export function useUsdToEurRate(): number {
     let cancelled = false;
     void fetch("/api/fx")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { usdToEur?: number } | null) => {
+      .then((data: unknown) => {
         if (cancelled) return;
-        if (typeof data?.usdToEur === "number" && data.usdToEur > 0) {
-          setRate(data.usdToEur);
-        }
+        const parsed = parseFxApiResponse(data);
+        if (parsed) setRate(parsed.usdToEur);
       })
       .catch(() => {
         if (!cancelled) setRate(CLIENT_FALLBACK);

@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState, type ReactNode } from "react";
+import { FormEvent, useCallback, useEffect, useState, type ReactNode } from "react";
 import { ReputationBadges } from "@/components/ReputationBadges";
 import type { Currency } from "@/lib/currency";
 import {
   CURRENCY_CHANGE_EVENT,
   DEFAULT_CURRENCY,
-  parseCurrency,
   readStoredCurrency,
   writeStoredCurrency,
 } from "@/lib/currency";
@@ -16,6 +15,7 @@ import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
 import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 import {
+  parseRecentProfileEntry,
   readRecentProfiles,
   rememberRecentProfile,
   type RecentProfileEntry,
@@ -27,6 +27,12 @@ import {
   markSteamBackoff,
   steamBackoffRemainingMs,
 } from "@/lib/steam-backoff";
+import {
+  parseCreateProfileResponse,
+  parseSyncApiResponse,
+} from "@/types/api";
+import { customEventDetail } from "@/types/events";
+import { readString } from "@/types/json";
 
 type ProfileSummary = RecentProfileEntry;
 
@@ -35,48 +41,12 @@ function steamProfileUrl(steamId: string): string {
 }
 
 function entryFromApiProfile(
-  profile: Record<string, unknown>,
+  profile: unknown,
   overrides?: Partial<RecentProfileEntry>,
 ): RecentProfileEntry | null {
-  const id = typeof profile.id === "string" ? profile.id : null;
-  const steamId = typeof profile.steamId === "string" ? profile.steamId : null;
-  if (!id || !steamId) return null;
-
-  const currency = parseCurrency(profile.currency);
-  const faceitFetchedAt =
-    typeof profile.faceitFetchedAt === "string"
-      ? profile.faceitFetchedAt
-      : null;
-  const lastSyncedAt =
-    typeof profile.lastSyncedAt === "string" ? profile.lastSyncedAt : null;
-
-  return {
-    id,
-    steamId,
-    personaName:
-      typeof profile.personaName === "string" ? profile.personaName : null,
-    avatarUrl: typeof profile.avatarUrl === "string" ? profile.avatarUrl : null,
-    currency,
-    faceitUrl: typeof profile.faceitUrl === "string" ? profile.faceitUrl : null,
-    faceitLevel:
-      typeof profile.faceitLevel === "number" ? profile.faceitLevel : null,
-    faceitElo: typeof profile.faceitElo === "number" ? profile.faceitElo : null,
-    faceitNickname:
-      typeof profile.faceitNickname === "string" ? profile.faceitNickname : null,
-    faceitFound: Boolean(profile.faceitFound),
-    faceitFetchedAt,
-    leetifyUrl:
-      typeof profile.leetifyUrl === "string" ? profile.leetifyUrl : null,
-    leetifyName:
-      typeof profile.leetifyName === "string" ? profile.leetifyName : null,
-    leetifyRating:
-      typeof profile.leetifyRating === "number" ? profile.leetifyRating : null,
-    leetifyFound: Boolean(profile.leetifyFound),
-    itemCount: typeof profile.itemCount === "number" ? profile.itemCount : 0,
-    lastSyncedAt,
-    latestSnapshot: null,
-    ...overrides,
-  };
+  const entry = parseRecentProfileEntry(profile);
+  if (!entry) return null;
+  return { ...entry, ...overrides };
 }
 
 export function ProfileLookup({
@@ -104,14 +74,14 @@ export function ProfileLookup({
     setCurrency(readStoredCurrency());
     setRecentProfiles(readRecentProfiles());
     function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
+      const next = customEventDetail<Currency>(e);
       if (next) setCurrency(next);
     }
     window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
     return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
   }, []);
 
-  async function onSubmit(e: FormEvent) {
+  const onSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setSyncNote(null);
@@ -131,10 +101,7 @@ export function ProfileLookup({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input }),
       });
-      const createData = (await createRes.json()) as {
-        error?: string;
-        profile?: Record<string, unknown>;
-      };
+      const createData = parseCreateProfileResponse(await createRes.json());
       if (!createRes.ok || !createData.profile) {
         if (
           createRes.status === 429 ||
@@ -145,7 +112,10 @@ export function ProfileLookup({
         throw new Error(createData.error ?? "Failed to resolve profile");
       }
 
-      const profileId = createData.profile.id as string;
+      const profileId = readString(createData.profile.id);
+      if (!profileId) {
+        throw new Error("Failed to resolve profile");
+      }
       const remembered = entryFromApiProfile(createData.profile);
       if (remembered) {
         setRecentProfiles(rememberRecentProfile(remembered));
@@ -162,24 +132,19 @@ export function ProfileLookup({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profileId, currency: storageCurrency }),
       });
-      const syncData = (await syncRes.json().catch(() => null)) as {
-        error?: string;
-        itemCount?: number;
-        warning?: string;
-        usedCachedInventory?: boolean;
-        skippedCooldown?: boolean;
-      } | null;
+      const syncRaw: unknown = await syncRes.json().catch(() => null);
+      const syncData = parseSyncApiResponse(syncRaw);
 
       if (
         syncRes.status === 429 ||
-        looksLikeSteamRateLimitMessage(syncData?.error) ||
-        looksLikeSteamRateLimitMessage(syncData?.warning) ||
-        syncData?.usedCachedInventory
+        looksLikeSteamRateLimitMessage(syncData.error) ||
+        looksLikeSteamRateLimitMessage(syncData.warning) ||
+        syncData.usedCachedInventory
       ) {
         markSteamBackoff();
       }
 
-      if (remembered && typeof syncData?.itemCount === "number") {
+      if (remembered && syncData.itemCount != null) {
         setRecentProfiles(
           rememberRecentProfile({
             ...remembered,
@@ -193,7 +158,7 @@ export function ProfileLookup({
         // Prefer opening inventory when Steam fails — cached items may still be there.
         if (
           syncRes.status === 429 ||
-          looksLikeSteamRateLimitMessage(syncData?.error)
+          looksLikeSteamRateLimitMessage(syncData.error)
         ) {
           setSyncNote(
             "Steam rate-limited this sync. Opening inventory — cached items will show if we have any.",
@@ -204,9 +169,9 @@ export function ProfileLookup({
         return;
       }
 
-      if (syncData?.usedCachedInventory || syncData?.warning) {
+      if (syncData.usedCachedInventory || syncData.warning) {
         setSyncNote(
-          typeof syncData.warning === "string" && syncData.warning
+          syncData.warning
             ? syncData.warning
             : "Opened cached inventory (Steam was unavailable).",
         );
@@ -219,7 +184,7 @@ export function ProfileLookup({
     } finally {
       setLoading(false);
     }
-  }
+  }, [currency, input, router]);
 
   const commandBar = (
     <form

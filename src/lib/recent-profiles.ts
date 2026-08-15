@@ -1,4 +1,5 @@
 import { parseCurrency, type Currency } from "@/lib/currency";
+import { isRecord, readBoolean, readNumberOrNull, readStringOrNull } from "@/types/json";
 
 export const RECENT_PROFILES_STORAGE_KEY = "skinstation-recent-profiles";
 export const RECENT_PROFILES_LIMIT = 8;
@@ -29,29 +30,16 @@ export type RecentProfileEntry = {
   } | null;
 };
 
-function asStringOrNull(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
-function asNumberOrNull(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function asBoolean(value: unknown, fallback = false): boolean {
-  return typeof value === "boolean" ? value : fallback;
-}
-
 function parseSnapshot(
   value: unknown,
   fallbackCurrency: Currency,
 ): RecentProfileEntry["latestSnapshot"] {
-  if (!value || typeof value !== "object") return null;
-  const row = value as Record<string, unknown>;
-  const totalSteam = asNumberOrNull(row.totalSteam);
-  const totalBuff = asNumberOrNull(row.totalBuff);
+  if (!isRecord(value)) return null;
+  const totalSteam = readNumberOrNull(value.totalSteam);
+  const totalBuff = readNumberOrNull(value.totalBuff);
   if (totalSteam == null || totalBuff == null) return null;
   return {
-    currency: parseCurrency(row.currency, fallbackCurrency),
+    currency: parseCurrency(value.currency, fallbackCurrency),
     totalSteam,
     totalBuff,
   };
@@ -60,34 +48,33 @@ function parseSnapshot(
 export function parseRecentProfileEntry(
   value: unknown,
 ): RecentProfileEntry | null {
-  if (!value || typeof value !== "object") return null;
-  const row = value as Record<string, unknown>;
-  const id = asStringOrNull(row.id);
-  const steamId = asStringOrNull(row.steamId);
+  if (!isRecord(value)) return null;
+  const id = readStringOrNull(value.id);
+  const steamId = readStringOrNull(value.steamId);
   if (!id || !steamId) return null;
 
-  const currency = parseCurrency(row.currency);
-  const itemCount = asNumberOrNull(row.itemCount) ?? 0;
+  const currency = parseCurrency(value.currency);
+  const itemCount = readNumberOrNull(value.itemCount) ?? 0;
 
   return {
     id,
     steamId,
-    personaName: asStringOrNull(row.personaName),
-    avatarUrl: asStringOrNull(row.avatarUrl),
+    personaName: readStringOrNull(value.personaName),
+    avatarUrl: readStringOrNull(value.avatarUrl),
     currency,
-    faceitUrl: asStringOrNull(row.faceitUrl),
-    faceitLevel: asNumberOrNull(row.faceitLevel),
-    faceitElo: asNumberOrNull(row.faceitElo),
-    faceitNickname: asStringOrNull(row.faceitNickname),
-    faceitFound: asBoolean(row.faceitFound),
-    faceitFetchedAt: asStringOrNull(row.faceitFetchedAt),
-    leetifyUrl: asStringOrNull(row.leetifyUrl),
-    leetifyName: asStringOrNull(row.leetifyName),
-    leetifyRating: asNumberOrNull(row.leetifyRating),
-    leetifyFound: asBoolean(row.leetifyFound),
+    faceitUrl: readStringOrNull(value.faceitUrl),
+    faceitLevel: readNumberOrNull(value.faceitLevel),
+    faceitElo: readNumberOrNull(value.faceitElo),
+    faceitNickname: readStringOrNull(value.faceitNickname),
+    faceitFound: readBoolean(value.faceitFound),
+    faceitFetchedAt: readStringOrNull(value.faceitFetchedAt),
+    leetifyUrl: readStringOrNull(value.leetifyUrl),
+    leetifyName: readStringOrNull(value.leetifyName),
+    leetifyRating: readNumberOrNull(value.leetifyRating),
+    leetifyFound: readBoolean(value.leetifyFound),
     itemCount,
-    lastSyncedAt: asStringOrNull(row.lastSyncedAt),
-    latestSnapshot: parseSnapshot(row.latestSnapshot, currency),
+    lastSyncedAt: readStringOrNull(value.lastSyncedAt),
+    latestSnapshot: parseSnapshot(value.latestSnapshot, currency),
   };
 }
 

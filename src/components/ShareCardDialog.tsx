@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { PriceSourceToggle } from "@/components/PriceSourceToggle";
 import { ShareCardThemeToggle } from "@/components/ShareCardThemeToggle";
@@ -28,6 +28,7 @@ import {
   type ShareCardTheme,
   writeStoredShareCardTheme,
 } from "@/lib/share-card-theme";
+import { queryHtmlElement } from "@/types/events";
 
 type ShareCardDialogProps = {
   open: boolean;
@@ -111,12 +112,8 @@ export function ShareCardDialog({
     };
   }, [open, onClose]);
 
-  if (!open || !mounted) return null;
-
-  async function downloadPng() {
-    const node = cardRef.current?.querySelector(
-      "[data-share-card]",
-    ) as HTMLElement | null;
+  const downloadPng = useCallback(async () => {
+    const node = queryHtmlElement(cardRef.current, "[data-share-card]");
     if (!node) return;
 
     setBusy(true);
@@ -143,9 +140,9 @@ export function ShareCardDialog({
     } finally {
       setBusy(false);
     }
-  }
+  }, [profile.personaName, profile.steamId]);
 
-  async function copyLink() {
+  const copyLink = useCallback(async () => {
     setError(null);
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -153,17 +150,26 @@ export function ShareCardDialog({
     } catch {
       setError("Could not copy link — copy it manually from the field below.");
     }
-  }
+  }, [shareUrl]);
 
-  function onPriceSourceChange(next: PriceSource) {
+  const onPriceSourceChange = useCallback((next: PriceSource) => {
     writeStoredPriceSource(next);
     setPriceSource(next);
-  }
+  }, []);
 
-  function onThemeChange(next: ShareCardTheme) {
+  const onThemeChange = useCallback((next: ShareCardTheme) => {
     writeStoredShareCardTheme(next);
     setTheme(next);
-  }
+  }, []);
+
+  const onBackdropClick = useCallback(
+    (e: MouseEvent<HTMLDivElement>) => {
+      if (e.target === e.currentTarget) onClose();
+    },
+    [onClose],
+  );
+
+  if (!open || !mounted) return null;
 
   const otherLabel =
     priceSource === "buff"
@@ -176,9 +182,7 @@ export function ShareCardDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-card-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onClick={onBackdropClick}
     >
       <div className="et-card flex max-h-[min(94vh,94dvh)] w-full max-w-3xl flex-col overflow-hidden">
         <div className="flex shrink-0 flex-col gap-4 px-4 py-4 shadow-[inset_0_-1px_0_rgba(200,121,65,0.12)] sm:flex-row sm:items-center sm:justify-between sm:px-5">

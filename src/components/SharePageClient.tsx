@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ShareWrappedCard } from "@/components/ShareWrappedCard";
 import { ShareCardViewport } from "@/components/ShareCardViewport";
 import type { Currency } from "@/lib/currency";
@@ -20,6 +20,7 @@ import {
   DEFAULT_SHARE_CARD_THEME,
   type ShareCardTheme,
 } from "@/lib/share-card-theme";
+import { queryHtmlElement } from "@/types/events";
 
 export function SharePageClient({
   profile,
@@ -58,10 +59,8 @@ export function SharePageClient({
     };
   }, [items, currency, priceSource]);
 
-  async function downloadPng() {
-    const node = cardRef.current?.querySelector(
-      "[data-share-card]",
-    ) as HTMLElement | null;
+  const downloadPng = useCallback(async () => {
+    const node = queryHtmlElement(cardRef.current, "[data-share-card]");
     if (!node) return;
     setBusy(true);
     setNote(null);
@@ -81,9 +80,9 @@ export function SharePageClient({
     } finally {
       setBusy(false);
     }
-  }
+  }, [profile.personaName, profile.steamId]);
 
-  async function copyLink() {
+  const copyLink = useCallback(async () => {
     const url = `${window.location.origin}${sharePath}`;
     try {
       await navigator.clipboard.writeText(url);
@@ -91,7 +90,7 @@ export function SharePageClient({
     } catch {
       setNote("Copy failed — use the address bar URL.");
     }
-  }
+  }, [sharePath]);
 
   return (
     <div className="flex w-full min-w-0 flex-col items-center gap-5">

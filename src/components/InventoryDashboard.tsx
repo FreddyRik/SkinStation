@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Area,
@@ -70,70 +70,21 @@ import {
   markSteamBackoff,
   steamBackoffRemainingMs,
 } from "@/lib/steam-backoff";
+import { customEventDetail } from "@/types/events";
+import { parseSyncApiResponse } from "@/types/api";
+import type {
+  InventoryItemView,
+  PortfolioTotals,
+  ProfileView,
+  SnapshotView,
+} from "@/types/inventory";
+
+export type { InventoryItemView, ProfileView, SnapshotView };
 
 /** Profile lastError / sync warnings we intentionally do not show in the banner. */
 function isHiddenSyncMessage(message: string | null | undefined): boolean {
   return isSteamwebapiLimitMessage(message);
 }
-
-export type InventoryItemView = {
-  id: string;
-  assetId: string;
-  marketHashName: string;
-  name: string;
-  iconUrl: string | null;
-  exterior: string | null;
-  floatValue: number | null;
-  paintSeed: number | null;
-  paintIndex: number | null;
-  stickers: Array<{
-    slot?: number;
-    name?: string;
-    wear?: number;
-    iconUrl?: string | null;
-    steamPrice?: number | null;
-    buffPrice?: number | null;
-  }>;
-  steamPrice: number | null;
-  buffPrice: number | null;
-  /** Buff163 goods id when resolved from the community ID map. */
-  buffGoodsId?: number | null;
-  rarity: string | null;
-  type: string | null;
-  tradable: boolean;
-  marketable: boolean;
-};
-
-export type SnapshotView = {
-  id: string;
-  currency: Currency;
-  itemCount: number;
-  totalSteam: number;
-  totalBuff: number;
-  createdAt: string;
-};
-
-export type ProfileView = {
-  id: string;
-  steamId: string;
-  personaName: string | null;
-  avatarUrl: string | null;
-  profileUrl: string | null;
-  currency: Currency;
-  faceitUrl: string | null;
-  faceitLevel: number | null;
-  faceitElo: number | null;
-  faceitNickname: string | null;
-  faceitFound: boolean;
-  faceitFetchedAt: string | null;
-  leetifyUrl: string | null;
-  leetifyName: string | null;
-  leetifyRating: number | null;
-  leetifyFound: boolean;
-  lastSyncedAt: string | null;
-  lastError: string | null;
-  syncing: boolean;
-};
 
 type SortKey = "value" | "name" | "float";
 
@@ -176,7 +127,7 @@ export function InventoryDashboard({
   profile: ProfileView;
   items: InventoryItemView[];
   snapshots: SnapshotView[];
-  totals: { itemCount: number; totalSteam: number; totalBuff: number };
+  totals: PortfolioTotals;
   cooldownMs: number;
 }) {
   const router = useRouter();
@@ -281,7 +232,7 @@ export function InventoryDashboard({
 
   useEffect(() => {
     function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
+      const next = customEventDetail<Currency>(e);
       if (!next || next === currency) return;
       // Display-only FX conversion — no inventory re-sync.
       setCurrency(next);
@@ -402,7 +353,7 @@ export function InventoryDashboard({
     });
   }, [snapshots, chartRangeDef, currency, usdToEur]);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     if (isSteamBackoffActive()) {
       const left = steamBackoffRemainingMs();
       setBackoffRemainingMs(left);
@@ -426,7 +377,7 @@ export function InventoryDashboard({
           currency: storageCurrency,
         }),
       });
-      const data = await res.json();
+      const data = parseSyncApiResponse(await res.json());
       if (!res.ok) {
         if (res.status === 429 || looksLikeSteamRateLimitMessage(data.error)) {
           markSteamBackoff();
@@ -434,11 +385,7 @@ export function InventoryDashboard({
         }
         throw new Error(data.error ?? "Refresh failed");
       }
-      if (
-        typeof data.warning === "string" &&
-        data.warning &&
-        !isHiddenSyncMessage(data.warning)
-      ) {
+      if (data.warning && !isHiddenSyncMessage(data.warning)) {
         setWarning(data.warning);
         if (
           data.usedCachedInventory ||
@@ -450,13 +397,13 @@ export function InventoryDashboard({
       }
       if (data.skippedCooldown) {
         setNote(
-          data.warning && typeof data.warning === "string"
+          data.warning
             ? data.warning
             : `Cooldown active (${Math.round(cooldownMs / 1000)}s). Showing cached inventory.`,
         );
       } else if (data.usedCachedInventory) {
         setNote(
-          typeof data.warning === "string" && data.warning
+          data.warning
             ? data.warning
             : "Steam was unavailable — showing your last successful sync.",
         );
@@ -466,8 +413,8 @@ export function InventoryDashboard({
           source === "buff" ? data.totalBuff : data.totalSteam;
         const syncedCurrency = parseCurrency(data.currency, storageCurrency);
         setNote(
-          `Synced ${data.itemCount} items · ${PRICE_SOURCE_LABELS[source]} ${formatMoney(
-            convertMoney(total, syncedCurrency, currency, usdToEur),
+          `Synced ${data.itemCount ?? 0} items · ${PRICE_SOURCE_LABELS[source]} ${formatMoney(
+            convertMoney(total ?? null, syncedCurrency, currency, usdToEur),
             currency,
           )}`,
         );
@@ -481,23 +428,44 @@ export function InventoryDashboard({
     } finally {
       setSyncing(false);
     }
-  }
+  }, [
+    profile.id,
+    storageCurrency,
+    cooldownMs,
+    priceSource,
+    currency,
+    usdToEur,
+    items.length,
+    router,
+  ]);
 
-  function onPriceSourceChange(next: PriceSource) {
+  const onPriceSourceChange = useCallback((next: PriceSource) => {
     writeStoredPriceSource(next);
     setPriceSource(next);
-  }
+  }, []);
 
-  function onInventoryViewChange(next: InventoryView) {
+  const onInventoryViewChange = useCallback((next: InventoryView) => {
     writeStoredInventoryView(next);
     setInventoryView(next);
-  }
+  }, []);
 
-  function toggleFilter(key: keyof InventoryFilters) {
+  const toggleFilter = useCallback((key: keyof InventoryFilters) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
+  }, []);
 
-  const portfolioTotal = portfolioTotalFromItems(displayItems, priceSource);
+  const onShareClose = useCallback(() => setShareOpen(false), []);
+  const onShareOpen = useCallback(() => setShareOpen(true), []);
+  const onSortChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value === "value" || value === "name" || value === "float") {
+      setSort(value);
+    }
+  }, []);
+
+  const portfolioTotal = useMemo(
+    () => portfolioTotalFromItems(displayItems, priceSource),
+    [displayItems, priceSource],
+  );
   const portfolioAccent = priceSourceAccent(priceSource);
 
   return (
@@ -571,7 +539,7 @@ export function InventoryDashboard({
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <button
                 type="button"
-                onClick={() => refresh()}
+                onClick={() => void refresh()}
                 disabled={syncing || backoffRemainingMs > 0}
                 title={
                   backoffRemainingMs > 0
@@ -588,7 +556,7 @@ export function InventoryDashboard({
               </button>
               <button
                 type="button"
-                onClick={() => setShareOpen(true)}
+                onClick={onShareOpen}
                 disabled={items.length === 0}
                 className="rounded-[4px] bg-[var(--accent)]/12 px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/22 disabled:opacity-50"
                 title="Generate a downloadable inventory Wrapped card"
@@ -602,7 +570,7 @@ export function InventoryDashboard({
 
       <ShareCardDialog
         open={shareOpen}
-        onClose={() => setShareOpen(false)}
+        onClose={onShareClose}
         profile={profile}
         items={displayItems}
         currency={currency}
@@ -768,7 +736,7 @@ export function InventoryDashboard({
             />
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
+              onChange={onSortChange}
               className="et-field px-3 py-2 text-sm"
             >
               <option value="value">Sort by value</option>
@@ -785,23 +753,27 @@ export function InventoryDashboard({
         >
           <FilterToggle
             label="Only StatTrak™"
+            filterKey="onlyStatTrak"
             active={filters.onlyStatTrak}
-            onClick={() => toggleFilter("onlyStatTrak")}
+            onToggle={toggleFilter}
           />
           <FilterToggle
             label="Only Souvenir"
+            filterKey="onlySouvenir"
             active={filters.onlySouvenir}
-            onClick={() => toggleFilter("onlySouvenir")}
+            onToggle={toggleFilter}
           />
           <FilterToggle
             label="Only Knives/Gloves"
+            filterKey="onlyKnivesGloves"
             active={filters.onlyKnivesGloves}
-            onClick={() => toggleFilter("onlyKnivesGloves")}
+            onToggle={toggleFilter}
           />
           <FilterToggle
             label="Has Stickers"
+            filterKey="hasStickers"
             active={filters.hasStickers}
-            onClick={() => toggleFilter("hasStickers")}
+            onToggle={toggleFilter}
           />
         </div>
 
@@ -864,7 +836,7 @@ export function InventoryDashboard({
   );
 }
 
-function InventoryGridCard({
+const InventoryGridCard = memo(function InventoryGridCard({
   item,
   price,
   showPrice,
@@ -971,9 +943,9 @@ function InventoryGridCard({
       </div>
     </div>
   );
-}
+});
 
-function InventoryListRow({
+const InventoryListRow = memo(function InventoryListRow({
   item,
   price,
   showPrice,
@@ -1094,22 +1066,24 @@ function InventoryListRow({
       )}
     </div>
   );
-}
+});
 
-function FilterToggle({
+const FilterToggle = memo(function FilterToggle({
   label,
+  filterKey,
   active,
-  onClick,
+  onToggle,
 }: {
   label: string;
+  filterKey: keyof InventoryFilters;
   active: boolean;
-  onClick: () => void;
+  onToggle: (key: keyof InventoryFilters) => void;
 }) {
   return (
     <button
       type="button"
       aria-pressed={active}
-      onClick={onClick}
+      onClick={() => onToggle(filterKey)}
       className={`rounded-[4px] px-3 py-1.5 text-xs font-semibold tracking-wide ${
         active
           ? "bg-[var(--accent)] text-[var(--accent-fg)]"
@@ -1119,9 +1093,9 @@ function FilterToggle({
       {label}
     </button>
   );
-}
+});
 
-function StatCard({
+const StatCard = memo(function StatCard({
   label,
   value,
   accent,
@@ -1143,4 +1117,4 @@ function StatCard({
       </p>
     </div>
   );
-}
+});

@@ -13,6 +13,15 @@ import {
 } from "@/lib/steamwebapi/errors";
 import { isLocallyDecodableInspectLink } from "@/lib/inspect/links";
 import { SITE_USER_AGENT } from "@/lib/site";
+import {
+  isRecord,
+  nestedRecord,
+  readInt,
+  readNumber,
+  readString,
+  stringField,
+  type JsonRecord,
+} from "@/types/json";
 
 export type SteamwebapiSticker = {
   slot?: number;
@@ -39,27 +48,18 @@ function getKey(): string | null {
 }
 
 function asNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim()) {
-    const n = Number.parseFloat(value);
-    return Number.isFinite(n) ? n : null;
-  }
-  return null;
+  return readNumber(value) ?? null;
 }
 
 function asInt(value: unknown): number | null {
-  const n = asNumber(value);
-  return n == null ? null : Math.trunc(n);
+  return readInt(value) ?? null;
 }
 
 function parseStickers(raw: unknown): SteamwebapiSticker[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((s, idx) => {
-    const row = (s ?? {}) as Record<string, unknown>;
-    const nameRaw =
-      (typeof row.name === "string" && row.name) ||
-      (typeof row.market_hash_name === "string" && row.market_hash_name) ||
-      undefined;
+    const row = isRecord(s) ? s : {};
+    const nameRaw = stringField(row, "name", "market_hash_name");
     return {
       slot: asNumber(row.slot) ?? idx,
       stickerId:
@@ -70,32 +70,15 @@ function parseStickers(raw: unknown): SteamwebapiSticker[] {
       name: nameRaw,
       wear: asNumber(row.wear) ?? undefined,
       image:
-        (typeof row.image === "string" && row.image) ||
-        (typeof row.icon === "string" && row.icon) ||
-        (typeof row.icon_url === "string" && row.icon_url) ||
+        stringField(row, "image", "icon", "icon_url") ??
         null,
-      market_hash_name:
-        typeof row.market_hash_name === "string"
-          ? row.market_hash_name
-          : undefined,
+      market_hash_name: readString(row.market_hash_name),
     };
   });
 }
 
-function pickFloatBlock(
-  row: Record<string, unknown>,
-): Record<string, unknown> | null {
-  if (row.float && typeof row.float === "object" && !Array.isArray(row.float)) {
-    return row.float as Record<string, unknown>;
-  }
-  if (
-    row.iteminfo &&
-    typeof row.iteminfo === "object" &&
-    !Array.isArray(row.iteminfo)
-  ) {
-    return row.iteminfo as Record<string, unknown>;
-  }
-  return null;
+function pickFloatBlock(row: JsonRecord): JsonRecord | null {
+  return nestedRecord(row, "float") ?? nestedRecord(row, "iteminfo");
 }
 
 function certificateToInspectLink(certificate: string): string {
@@ -105,8 +88,8 @@ function certificateToInspectLink(certificate: string): string {
 }
 
 function pickInspectLink(
-  row: Record<string, unknown>,
-  floatBlock: Record<string, unknown> | null,
+  row: JsonRecord,
+  floatBlock: JsonRecord | null,
 ): string | null {
   const candidates = [
     row.inspect,
@@ -177,23 +160,14 @@ export async function fetchSteamwebapiInventory(
 
   let data: unknown;
   try {
-    data = JSON.parse(body) as unknown;
+    data = JSON.parse(body);
   } catch {
     throw new Error("Steamwebapi inventory returned invalid JSON.");
   }
 
   // Some plans return 200 with an error payload when credits are gone.
-  if (
-    data &&
-    typeof data === "object" &&
-    !Array.isArray(data) &&
-    ("error" in data || "message" in data)
-  ) {
-    const msg = String(
-      (data as { error?: unknown; message?: unknown }).error ??
-        (data as { message?: unknown }).message ??
-        "",
-    );
+  if (isRecord(data) && ("error" in data || "message" in data)) {
+    const msg = String(data.error ?? data.message ?? "");
     if (isSteamwebapiLimitResponse(200, msg)) {
       throw new SteamwebapiLimitError(200, msg);
     }
@@ -201,15 +175,15 @@ export async function fetchSteamwebapiInventory(
 
   const rows = Array.isArray(data)
     ? data
-    : Array.isArray((data as { items?: unknown[] }).items)
-      ? (data as { items: unknown[] }).items
-      : Array.isArray((data as { data?: unknown[] }).data)
-        ? (data as { data: unknown[] }).data
+    : isRecord(data) && Array.isArray(data.items)
+      ? data.items
+      : isRecord(data) && Array.isArray(data.data)
+        ? data.data
         : [];
 
   for (const raw of rows) {
-    if (!raw || typeof raw !== "object") continue;
-    const row = raw as Record<string, unknown>;
+    if (!isRecord(raw)) continue;
+    const row = raw;
     const assetId = String(row.assetid ?? row.assetId ?? row.id ?? "");
     if (!assetId) continue;
 

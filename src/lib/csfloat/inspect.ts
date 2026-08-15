@@ -6,6 +6,7 @@ import {
   isLocallyDecodableInspectLink,
   isMaskedInspectPayload,
 } from "@/lib/inspect/links";
+import { isRecord } from "@/types/json";
 
 export type DecodedSticker = {
   slot: number;
@@ -30,11 +31,6 @@ export {
   isLocallyDecodableInspectLink,
   isMaskedInspectPayload,
 };
-
-/** @deprecated Prefer isLocallyDecodableInspectLink — classic S/A/D is not local. */
-export function isUsableInspectLink(inspectLink: string | null): boolean {
-  return isLocallyDecodableInspectLink(inspectLink);
-}
 
 function finiteOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -90,20 +86,9 @@ function decodeWithVlydev(inspectLink: string): InspectResult | null {
 
 function decodeWithCsfloat(inspectLink: string): InspectResult | null {
   try {
-    const decoded = decodeLink(inspectLink) as {
-      paintwear?: number;
-      floatvalue?: number;
-      paintseed?: number;
-      paintindex?: number;
-      stickers?: Array<{
-        slot?: number;
-        stickerId?: number;
-        stickerid?: number;
-        wear?: number;
-        name?: string;
-      }>;
-      customname?: string | null;
-    };
+    const decodedUnknown: unknown = decodeLink(inspectLink);
+    if (!isRecord(decodedUnknown)) return null;
+    const decoded = decodedUnknown;
 
     const floatValue =
       finiteOrNull(decoded.paintwear) ?? finiteOrNull(decoded.floatvalue);
@@ -114,17 +99,23 @@ function decodeWithCsfloat(inspectLink: string): InspectResult | null {
       paintIndex,
     );
 
+    const stickersRaw = Array.isArray(decoded.stickers) ? decoded.stickers : [];
+
     return {
       floatValue,
       paintSeed,
       paintIndex: paintIndex != null ? Math.trunc(paintIndex) : null,
-      stickers: (decoded.stickers ?? []).map((s, idx) => ({
-        slot: s.slot ?? idx,
-        stickerId: s.stickerId ?? s.stickerid ?? 0,
-        wear: s.wear,
-        name: s.name,
-      })),
-      customName: decoded.customname ?? null,
+      stickers: stickersRaw.map((raw, idx) => {
+        const s = isRecord(raw) ? raw : {};
+        return {
+          slot: finiteOrNull(s.slot) ?? idx,
+          stickerId: finiteOrNull(s.stickerId) ?? finiteOrNull(s.stickerid) ?? 0,
+          wear: finiteOrNull(s.wear) ?? undefined,
+          name: typeof s.name === "string" ? s.name : undefined,
+        };
+      }),
+      customName:
+        typeof decoded.customname === "string" ? decoded.customname : null,
       source: "local",
     };
   } catch {

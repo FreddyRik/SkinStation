@@ -13,7 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import type { Currency } from "@/lib/currency";
 import { formatFloat, formatMoney } from "@/lib/format";
-import type { InventoryItemView } from "@/components/InventoryDashboard";
+import type { InventoryItemView } from "@/types/inventory";
 import {
   isNonWeaponConsumable,
   itemCanListOnMarket,

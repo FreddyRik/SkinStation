@@ -3,18 +3,7 @@ import type { Currency } from "@/lib/currency";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { getUsdToEurRate } from "@/lib/fx";
 import { SITE_USER_AGENT } from "@/lib/site";
-
-type TraderSteamEntry = {
-  last_24h?: number | null;
-  last_7d?: number | null;
-  last_30d?: number | null;
-  last_90d?: number | null;
-};
-
-type Buff163Entry = {
-  starting_at?: { price?: number | null };
-  highest_order?: { price?: number | null };
-};
+import { isRecord, readNumber } from "@/types/json";
 
 type CatalogCache = {
   fetchedAt: number;
@@ -25,17 +14,22 @@ const CATALOG_TTL_MS = 6 * 60 * 60 * 1000; // 6h — upstream updates ~8h
 let steamMemoryCatalog: CatalogCache | null = null;
 let buffMemoryCatalog: CatalogCache | null = null;
 
-function pickTraderPrice(entry: TraderSteamEntry): number | null {
+function pickTraderPrice(entry: unknown): number | null {
+  if (!isRecord(entry)) return null;
   const value =
-    entry.last_24h ?? entry.last_7d ?? entry.last_30d ?? entry.last_90d ?? null;
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+    readNumber(entry.last_24h) ??
+    readNumber(entry.last_7d) ??
+    readNumber(entry.last_30d) ??
+    readNumber(entry.last_90d) ??
+    null;
+  return value;
 }
 
-function pickBuffPrice(entry: Buff163Entry): number | null {
-  const value = entry.starting_at?.price ?? null;
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? value
-    : null;
+function pickBuffPrice(entry: unknown): number | null {
+  if (!isRecord(entry)) return null;
+  const starting = isRecord(entry.starting_at) ? entry.starting_at : null;
+  const value = starting ? readNumber(starting.price) : null;
+  return value != null && value > 0 ? value : null;
 }
 
 async function convertCatalog(
@@ -92,10 +86,7 @@ async function loadJsonCatalog(
   }
 
   const raw: unknown = await res.json();
-  const data =
-    raw && typeof raw === "object" && !Array.isArray(raw)
-      ? (raw as Record<string, unknown>)
-      : {};
+  const data = isRecord(raw) ? raw : {};
   const byName = new Map<string, number>();
   for (const [name, entry] of Object.entries(data)) {
     const price = pickPrice(entry);
@@ -132,7 +123,7 @@ export async function getCsgoTraderSteamCatalog(
     (cache) => {
       steamMemoryCatalog = cache;
     },
-    (entry) => pickTraderPrice(entry as TraderSteamEntry),
+    (entry) => pickTraderPrice(entry),
     force,
     "CSGOTrader Steam prices",
   );
@@ -151,7 +142,7 @@ export async function getCsgoTraderBuffCatalog(
     (cache) => {
       buffMemoryCatalog = cache;
     },
-    (entry) => pickBuffPrice(entry as Buff163Entry),
+    (entry) => pickBuffPrice(entry),
     force,
     "CSGOTrader Buff163 prices",
   );

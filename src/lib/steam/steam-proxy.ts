@@ -6,6 +6,8 @@
  * Steam while the proxy is configured (avoids reintroducing Vercel egress).
  */
 
+import { isRecord, readString } from "@/types/json";
+
 export const STEAM_BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -103,17 +105,12 @@ async function readProxyErrorBody(res: Response): Promise<{
   const fallbackCode = res.headers.get("X-Steam-Proxy-Error") ?? "upstream";
   try {
     const data: unknown = await res.json();
-    if (
-      data &&
-      typeof data === "object" &&
-      "error" in data &&
-      typeof (data as { error: unknown }).error === "string"
-    ) {
-      const code =
-        "code" in data && typeof (data as { code: unknown }).code === "string"
-          ? (data as { code: string }).code
-          : fallbackCode;
-      return { code, message: (data as { error: string }).error };
+    if (isRecord(data)) {
+      const message = readString(data.error);
+      if (message) {
+        const code = readString(data.code) ?? fallbackCode;
+        return { code, message };
+      }
     }
   } catch {
     // ignore

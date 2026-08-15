@@ -19,6 +19,7 @@ import {
 } from "@/lib/inspect/links";
 import { isSteamwebapiLimitResponse } from "@/lib/steamwebapi/errors";
 import { SITE_USER_AGENT } from "@/lib/site";
+import { isRecord, nestedRecord, type JsonRecord } from "@/types/json";
 
 export type SteamwebapiFloat = {
   floatValue: number | null;
@@ -60,20 +61,16 @@ function asInt(value: unknown): number | null {
   return n == null ? null : Math.trunc(n);
 }
 
-function pickItemBlock(data: Record<string, unknown>): Record<string, unknown> {
-  if (data.iteminfo && typeof data.iteminfo === "object") {
-    return data.iteminfo as Record<string, unknown>;
-  }
-  if (data.item && typeof data.item === "object") {
-    return data.item as Record<string, unknown>;
-  }
-  if (data.float && typeof data.float === "object") {
-    return data.float as Record<string, unknown>;
-  }
-  return data;
+function pickItemBlock(data: JsonRecord): JsonRecord {
+  return (
+    nestedRecord(data, "iteminfo") ??
+    nestedRecord(data, "item") ??
+    nestedRecord(data, "float") ??
+    data
+  );
 }
 
-function parseFloatPayload(data: Record<string, unknown>): SteamwebapiFloat | null {
+function parseFloatPayload(data: JsonRecord): SteamwebapiFloat | null {
   const block = pickItemBlock(data);
   const floatValue =
     asNumber(block.floatvalue) ??
@@ -147,22 +144,13 @@ async function fetchFloatFromAssetDb(
 
     let data: unknown;
     try {
-      data = JSON.parse(body) as unknown;
+      data = JSON.parse(body);
     } catch {
       return { ok: true, value: null };
     }
 
-    if (
-      data &&
-      typeof data === "object" &&
-      !Array.isArray(data) &&
-      ("error" in data || "message" in data)
-    ) {
-      const msg = String(
-        (data as { error?: unknown; message?: unknown }).error ??
-          (data as { message?: unknown }).message ??
-          "",
-      );
+    if (isRecord(data) && ("error" in data || "message" in data)) {
+      const msg = String(data.error ?? data.message ?? "");
       if (isSteamwebapiLimitResponse(200, msg)) {
         return { ok: false, limitHit: true };
       }
@@ -170,20 +158,19 @@ async function fetchFloatFromAssetDb(
 
     const rows = Array.isArray(data)
       ? data
-      : Array.isArray((data as { assets?: unknown[] }).assets)
-        ? (data as { assets: unknown[] }).assets
-        : Array.isArray((data as { data?: unknown[] }).data)
-          ? (data as { data: unknown[] }).data
-          : Array.isArray((data as { items?: unknown[] }).items)
-            ? (data as { items: unknown[] }).items
+      : isRecord(data) && Array.isArray(data.assets)
+        ? data.assets
+        : isRecord(data) && Array.isArray(data.data)
+          ? data.data
+          : isRecord(data) && Array.isArray(data.items)
+            ? data.items
             : [];
 
     for (const raw of rows) {
-      if (!raw || typeof raw !== "object") continue;
-      const row = raw as Record<string, unknown>;
-      const rowAsset = String(row.assetid ?? row.asset_id ?? row.assetId ?? "");
+      if (!isRecord(raw)) continue;
+      const rowAsset = String(raw.assetid ?? raw.asset_id ?? raw.assetId ?? "");
       if (rowAsset && rowAsset !== String(assetId)) continue;
-      const parsed = parseFloatPayload(row);
+      const parsed = parseFloatPayload(raw);
       if (parsed) return { ok: true, value: parsed };
     }
     return { ok: true, value: null };
@@ -230,19 +217,20 @@ async function fetchFloatFromCertificate(
     // 406 = legacy/unsupported link format — treat as miss, not quota.
     if (res.status === 406 || !res.ok) return { ok: true, value: null };
 
-    let data: Record<string, unknown>;
+    let parsed: unknown;
     try {
-      data = JSON.parse(body) as Record<string, unknown>;
+      parsed = JSON.parse(body);
     } catch {
       return { ok: true, value: null };
     }
+    if (!isRecord(parsed)) return { ok: true, value: null };
 
-    const errText = String(data.error ?? data.message ?? "");
+    const errText = String(parsed.error ?? parsed.message ?? "");
     if (errText && isSteamwebapiLimitResponse(200, errText)) {
       return { ok: false, limitHit: true };
     }
 
-    return { ok: true, value: parseFloatPayload(data) };
+    return { ok: true, value: parseFloatPayload(parsed) };
   } catch {
     return { ok: true, value: null };
   }

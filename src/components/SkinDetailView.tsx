@@ -24,6 +24,8 @@ import {
 } from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney, formatSaleDate } from "@/lib/format";
+import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
+import { customEventDetail } from "@/types/events";
 
 type CollectionCard = CatalogNamedRef & { itemCount: number };
 
@@ -42,7 +44,7 @@ export function SkinDetailView({
   phaseSiblings?: PhaseSibling[];
 }) {
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
-  const [usdToEur, setUsdToEur] = useState(0.92);
+  const usdToEur = useUsdToEurRate();
   const [variant, setVariant] = useState<SkinVariant>(() => {
     if (item.souvenir && !item.stattrak) return "souvenir";
     return "normal";
@@ -51,30 +53,11 @@ export function SkinDetailView({
   useEffect(() => {
     setCurrency(readStoredCurrency());
     function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
+      const next = customEventDetail<Currency>(e);
       if (next) setCurrency(next);
     }
     window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
     return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/fx");
-        if (!res.ok) return;
-        const data = (await res.json()) as { usdToEur?: number };
-        if (!cancelled && typeof data.usdToEur === "number") {
-          setUsdToEur(data.usdToEur);
-        }
-      } catch {
-        /* keep default */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const rows = prices[variant] ?? [];

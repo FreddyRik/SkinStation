@@ -1,4 +1,4 @@
-import type { TradeUpCatalogSkin, TradeUpSkinRef } from "@/lib/tradeup/types";
+import type { TradeUpCatalogSkin } from "@/lib/tradeup/types";
 import { normalizeBaseSkinName } from "@/lib/tradeup/rarity";
 
 export type TradeUpSkinIndex = {
@@ -61,24 +61,4 @@ export function resolveSkinFromMarketHash(
   }
 
   return null;
-}
-
-export function toSkinRef(skin: TradeUpCatalogSkin): TradeUpSkinRef {
-  return {
-    id: skin.id,
-    name: skin.name,
-    image: skin.image,
-    rarityTier: skin.rarityTier,
-    minFloat: skin.minFloat,
-    maxFloat: skin.maxFloat,
-    wearNames: skin.wearNames,
-    collectionIds: skin.collectionIds,
-    crateIds: skin.crateIds,
-    isKnife: skin.isKnife,
-    isGlove: skin.isGlove,
-    stattrak: skin.stattrak,
-    paintIndex: skin.paintIndex,
-    baseName: skin.baseName,
-    phase: skin.phase,
-  };
 }

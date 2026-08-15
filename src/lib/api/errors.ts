@@ -2,12 +2,43 @@
  * Shared helpers for mapping internal errors to safe API responses.
  */
 
-export function publicApiError(
-  err: unknown,
-  fallback: string,
-): { message: string; logMessage: string } {
-  const logMessage = err instanceof Error ? err.message : String(err);
-  return { message: fallback, logMessage };
+import { NextResponse } from "next/server";
+import type { ApiErrorBody } from "@/types/api";
+
+export type { ApiErrorBody };
+
+export function jsonError(
+  error: string,
+  status: number,
+  extra?: { retryAfterSec?: number },
+): NextResponse<ApiErrorBody> {
+  const headers = extra?.retryAfterSec != null
+    ? { "Retry-After": String(extra.retryAfterSec) }
+    : undefined;
+  return NextResponse.json({ error }, { status, headers });
+}
+
+export function jsonOk<T>(data: T, status = 200): NextResponse<T> {
+  return NextResponse.json(data, { status });
+}
+
+export async function readJsonBody(
+  req: Request,
+): Promise<
+  | { ok: true; value: unknown }
+  | { ok: false; response: NextResponse<ApiErrorBody> }
+> {
+  try {
+    const value: unknown = await req.json();
+    return { ok: true, value };
+  } catch {
+    return { ok: false, response: jsonError("Invalid JSON body.", 400) };
+  }
+}
+
+export function logApiError(label: string, err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(label, message);
 }
 
 /** Map known sync / Steam / inventory errors to stable client-facing text. */

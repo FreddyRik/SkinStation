@@ -114,14 +114,3 @@ export function buffGoodsIdFor(
 ): number | null {
   return catalog.get(marketHashName) ?? null;
 }
-
-export async function resolveBuffGoodsId(
-  marketHashName: string,
-): Promise<number | null> {
-  try {
-    const map = await getBuffGoodsIdMap();
-    return buffGoodsIdFor(map, marketHashName);
-  } catch {
-    return null;
-  }
-}

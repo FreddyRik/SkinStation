@@ -1,4 +1,5 @@
 import type { Currency } from "@/lib/currency";
+import { isRecord, readNumber } from "@/types/json";
 
 const FX_TTL_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_USD_TO_EUR = 0.92;
@@ -21,8 +22,10 @@ export async function getUsdToEurRate(force = false): Promise<number> {
       { next: { revalidate: 0 } },
     );
     if (res.ok) {
-      const data = (await res.json()) as { rates?: { EUR?: number } };
-      const rate = data.rates?.EUR;
+      const data: unknown = await res.json();
+      const rate = isRecord(data) && isRecord(data.rates)
+        ? readNumber(data.rates.EUR)
+        : undefined;
       if (typeof rate === "number" && rate > 0) {
         fxRateCache = { rate, fetchedAt: Date.now() };
         return rate;

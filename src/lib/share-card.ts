@@ -23,15 +23,9 @@ import {
   stripStickerPrefix,
 } from "@/lib/stickers/normalize";
 import { parseStickersJson } from "@/lib/stickers/parse";
+import type { InventorySticker } from "@/types/inventory";
 
-export type ShareStickerInput = {
-  slot?: number;
-  name?: string;
-  wear?: number;
-  iconUrl?: string | null;
-  steamPrice?: number | null;
-  buffPrice?: number | null;
-};
+export type ShareStickerInput = InventorySticker;
 
 export type ShareItemInput = {
   id: string;

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import {
   CATALOG_KIND_LABELS,
   DEFAULT_NAV_FILTER,
@@ -21,11 +21,11 @@ import {
   phaseAccent,
   uniqueWeaponsForSection,
   weaponCases,
+  isOtherNavKey,
   type BrowseCatalogItem,
   type LatestReleaseCard,
   type NavFilter,
   type NavSection,
-  type OtherNavKey,
   type SlimCatalogItem,
   type SlimCollection,
 } from "@/lib/cs-catalog";
@@ -38,8 +38,30 @@ import {
 } from "@/lib/currency";
 import { convertMoney } from "@/lib/fx";
 import { formatMoney } from "@/lib/format";
+import { parseCsCatalogApiResponse } from "@/types/api";
+import { customEventDetail } from "@/types/events";
+import { isRecord } from "@/types/json";
+import { useUsdToEurRate } from "@/hooks/useUsdToEurRate";
 
 const PAGE_SIZE = 96;
+
+function isSlimCatalogItem(value: unknown): value is SlimCatalogItem {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.kind === "string"
+  );
+}
+
+function isSlimCollection(value: unknown): value is SlimCollection {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.itemCount === "number"
+  );
+}
 
 function matchesQuery(haystack: string, query: string): boolean {
   if (!query) return true;
@@ -92,7 +114,7 @@ function rarityStripe(color: string | null | undefined): {
   return { borderLeft: `2px solid ${bg}` };
 }
 
-function CatalogCard({
+const CatalogCard = memo(function CatalogCard({
   item,
   onWeaponClick,
   formatUsdRange,
@@ -302,9 +324,9 @@ function CatalogCard({
       </article>
     </li>
   );
-}
+});
 
-function CollectionCard({
+const CollectionCard = memo(function CollectionCard({
   id,
   image,
   name,
@@ -346,7 +368,7 @@ function CollectionCard({
       </Link>
     </li>
   );
-}
+});
 
 function Chevron() {
   return (
@@ -590,55 +612,40 @@ export function ItemDatabaseBrowser() {
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [urlHydrated, setUrlHydrated] = useState(false);
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
-  const [usdToEur, setUsdToEur] = useState(0.92);
+  const usdToEur = useUsdToEurRate();
 
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
   useEffect(() => {
     setCurrency(readStoredCurrency());
     function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
+      const next = customEventDetail<Currency>(e);
       if (next) setCurrency(next);
     }
     window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
     return () => window.removeEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/fx");
-        if (!res.ok) return;
-        const data = (await res.json()) as { usdToEur?: number };
-        if (!cancelled && typeof data.usdToEur === "number") {
-          setUsdToEur(data.usdToEur);
-        }
-      } catch {
-        /* keep default */
+  const formatUsdRange = useCallback(
+    (min: number | null, max: number | null): string | null => {
+      if (min == null && max == null) return null;
+      const lo = convertMoney(min ?? max, "USD", currency, usdToEur);
+      const hi = convertMoney(max ?? min, "USD", currency, usdToEur);
+      if (lo == null && hi == null) return null;
+      if (lo != null && hi != null && Math.abs(lo - hi) < 0.005) {
+        return formatMoney(lo, currency);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  function formatUsdRange(min: number | null, max: number | null): string | null {
-    if (min == null && max == null) return null;
-    const lo = convertMoney(min ?? max, "USD", currency, usdToEur);
-    const hi = convertMoney(max ?? min, "USD", currency, usdToEur);
-    if (lo == null && hi == null) return null;
-    if (lo != null && hi != null && Math.abs(lo - hi) < 0.005) {
-      return formatMoney(lo, currency);
-    }
-    return `${formatMoney(lo, currency)} - ${formatMoney(hi, currency)}`;
-  }
+      return `${formatMoney(lo, currency)} - ${formatMoney(hi, currency)}`;
+    },
+    [currency, usdToEur],
+  );
 
   useEffect(() => {
     if (urlHydrated) return;
     const section = searchParams.get("section");
     const weapon = searchParams.get("weapon");
-    const other = searchParams.get("other") as OtherNavKey | null;
+    const otherRaw = searchParams.get("other");
+    const other = isOtherNavKey(otherRaw) ? otherRaw : null;
     const crateId = searchParams.get("crate");
 
     if (
@@ -713,17 +720,14 @@ export function ItemDatabaseBrowser() {
       setError(null);
       try {
         const res = await fetch("/api/cs-catalog");
-        const data = (await res.json()) as {
-          items?: SlimCatalogItem[];
-          collections?: SlimCollection[];
-          error?: string;
-        };
+        const data: unknown = await res.json();
+        const parsed = parseCsCatalogApiResponse(data);
         if (!res.ok) {
-          throw new Error(data.error || "Failed to load catalog.");
+          throw new Error(parsed.error || "Failed to load catalog.");
         }
         if (cancelled) return;
-        setItems(Array.isArray(data.items) ? data.items : []);
-        setCollections(Array.isArray(data.collections) ? data.collections : []);
+        setItems(parsed.items.filter(isSlimCatalogItem));
+        setCollections(parsed.collections.filter(isSlimCollection));
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Failed to load catalog.");
@@ -812,7 +816,7 @@ export function ItemDatabaseBrowser() {
 
   const canShowMore = visible < combinedCount;
 
-  function applyFilter(next: NavFilter) {
+  const applyFilter = useCallback((next: NavFilter) => {
     setFilter(next);
     setOpenSection(null);
     // Keep shareable URLs for weapon / section deep links.
@@ -839,11 +843,25 @@ export function ItemDatabaseBrowser() {
       params.set("other", next.other);
     }
     router.replace(`/database?${params.toString()}`, { scroll: false });
-  }
+  }, [router]);
 
-  function onReleaseActivate(card: LatestReleaseCard) {
-    if (card.filter) applyFilter(card.filter);
-  }
+  const onReleaseActivate = useCallback(
+    (card: LatestReleaseCard) => {
+      if (card.filter) applyFilter(card.filter);
+    },
+    [applyFilter],
+  );
+
+  const onWeaponClick = useCallback(
+    (weaponName: string, weaponCategory: string | null) => {
+      const next = navFilterForWeapon(weaponCategory, weaponName);
+      if (next) {
+        setQuery("");
+        applyFilter(next);
+      }
+    },
+    [applyFilter],
+  );
 
   function renderSkinMenu(
     section: "pistols" | "mid_tier" | "rifles" | "knives" | "gloves",
@@ -1145,13 +1163,7 @@ export function ItemDatabaseBrowser() {
                   key={`${row.data.kind}:${row.data.id}`}
                   item={row.data}
                   formatUsdRange={formatUsdRange}
-                  onWeaponClick={(weaponName, weaponCategory) => {
-                    const next = navFilterForWeapon(weaponCategory, weaponName);
-                    if (next) {
-                      setQuery("");
-                      applyFilter(next);
-                    }
-                  }}
+                  onWeaponClick={onWeaponClick}
                 />
               );
             })}

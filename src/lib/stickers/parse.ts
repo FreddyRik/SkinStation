@@ -1,41 +1,39 @@
+import type { InventorySticker } from "@/types/inventory";
+import { isRecord, readNumber, readString } from "@/types/json";
+
 /** Safely parse sticker JSON stored on inventory items. */
-export function parseStickersJson(raw: string | null | undefined): Array<{
-  slot?: number;
-  name?: string;
-  wear?: number;
-  iconUrl?: string | null;
-  steamPrice?: number | null;
-  buffPrice?: number | null;
-}> {
+export function parseStickersJson(
+  raw: string | null | undefined,
+): InventorySticker[] {
   if (!raw?.trim()) return [];
   try {
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.map((entry) => {
-      if (!entry || typeof entry !== "object") return {};
-      const s = entry as Record<string, unknown>;
+    return parsed.map((entry): InventorySticker => {
+      if (!isRecord(entry)) return {};
       const buffPrice =
-        typeof s.buffPrice === "number"
-          ? s.buffPrice
-          : typeof s.skinportPrice === "number"
-            ? s.skinportPrice
-            : s.buffPrice === null || s.skinportPrice === null
+        typeof entry.buffPrice === "number"
+          ? entry.buffPrice
+          : typeof entry.skinportPrice === "number"
+            ? entry.skinportPrice
+            : entry.buffPrice === null || entry.skinportPrice === null
               ? null
               : undefined;
+      const iconRaw = entry.iconUrl;
       return {
-        slot: typeof s.slot === "number" ? s.slot : undefined,
-        name: typeof s.name === "string" ? s.name : undefined,
-        wear: typeof s.wear === "number" ? s.wear : undefined,
+        slot: readNumber(entry.slot),
+        name: readString(entry.name),
+        wear: readNumber(entry.wear),
         iconUrl:
-          typeof s.iconUrl === "string"
-            ? s.iconUrl
-            : s.iconUrl === null
+          typeof iconRaw === "string"
+            ? iconRaw
+            : iconRaw === null
               ? null
               : undefined,
         steamPrice:
-          typeof s.steamPrice === "number"
-            ? s.steamPrice
-            : s.steamPrice === null
+          typeof entry.steamPrice === "number"
+            ? entry.steamPrice
+            : entry.steamPrice === null
               ? null
               : undefined,
         buffPrice,

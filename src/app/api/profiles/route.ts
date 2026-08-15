@@ -1,8 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { sanitizeProfileCreateError } from "@/lib/api/errors";
+import {
+  jsonError,
+  jsonOk,
+  logApiError,
+  readJsonBody,
+  sanitizeProfileCreateError,
+} from "@/lib/api/errors";
 import { ensureProfileFromInput } from "@/lib/sync/inventory-sync";
 import { RECENT_PROFILES_LIMIT } from "@/lib/recent-profiles";
+import { parseCreateProfileRequestBody } from "@/types/api";
 
 /** Max ids accepted for a device-local refresh (anti-enumeration). */
 const MAX_IDS = RECENT_PROFILES_LIMIT;
@@ -29,7 +36,7 @@ export async function GET(req: NextRequest) {
   try {
     const ids = parseRequestedIds(req.nextUrl.searchParams.get("ids"));
     if (ids.length === 0) {
-      return NextResponse.json({ profiles: [] });
+      return jsonOk({ profiles: [] });
     }
 
     const profiles = await prisma.profile.findMany({
@@ -49,7 +56,7 @@ export async function GET(req: NextRequest) {
       .map((id) => byId.get(id))
       .filter((p): p is (typeof profiles)[number] => p != null);
 
-    return NextResponse.json({
+    return jsonOk({
       profiles: ordered.map((p) => ({
         id: p.id,
         steamId: p.steamId,
@@ -74,29 +81,26 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (err) {
-    console.error("Failed to load profiles:", err);
-    return NextResponse.json(
-      { error: "Failed to load profiles." },
-      { status: 500 },
-    );
+    logApiError("Failed to load profiles:", err);
+    return jsonError("Failed to load profiles.", 500);
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as { input?: string };
-    if (!body.input?.trim()) {
-      return NextResponse.json(
-        { error: "Steam profile URL or SteamID64 is required." },
-        { status: 400 },
-      );
+    const parsed = await readJsonBody(req);
+    if (!parsed.ok) return parsed.response;
+
+    const body = parseCreateProfileRequestBody(parsed.value);
+    if (!body?.input?.trim()) {
+      return jsonError("Steam profile URL or SteamID64 is required.", 400);
     }
 
     const profile = await ensureProfileFromInput(body.input);
-    return NextResponse.json({ profile });
+    return jsonOk({ profile });
   } catch (err) {
-    console.error("Failed to create profile:", err);
+    logApiError("Failed to create profile:", err);
     const { status, error } = sanitizeProfileCreateError(err);
-    return NextResponse.json({ error }, { status });
+    return jsonError(error, status);
   }
 }

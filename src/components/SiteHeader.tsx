@@ -20,6 +20,7 @@ import {
   type PageTheme,
 } from "@/lib/page-theme";
 import { SiteWordmark } from "@/components/SiteWordmark";
+import { customEventDetail } from "@/types/events";
 
 const NAV_LINKS = [
   {
@@ -110,18 +111,18 @@ export function SiteHeader() {
     applyPageTheme(storedTheme);
 
     function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
+      const next = customEventDetail<Currency>(e);
       if (next) setCurrency(next);
     }
     function onPageTheme(e: Event) {
-      const next = (e as CustomEvent<PageTheme>).detail;
+      const next = customEventDetail<PageTheme>(e);
       if (next) {
         setPageTheme(next);
         applyPageTheme(next);
       }
     }
     function onSyncing(e: Event) {
-      setSyncing(Boolean((e as CustomEvent<boolean>).detail));
+      setSyncing(Boolean(customEventDetail<boolean>(e)));
     }
     window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
     window.addEventListener(PAGE_THEME_CHANGE_EVENT, onPageTheme);

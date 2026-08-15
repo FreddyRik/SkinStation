@@ -19,6 +19,7 @@ import {
   resolveInspectLinkForEnrichment,
 } from "@/lib/inspect/links";
 import { SITE_USER_AGENT } from "@/lib/site";
+import { isRecord, nestedRecord, type JsonRecord } from "@/types/json";
 
 export type RemoteFloat = {
   floatValue: number | null;
@@ -87,7 +88,8 @@ function parseStickers(
   for (let i = 0; i < raw.length; i++) {
     const entry = raw[i];
     if (!entry || typeof entry !== "object") continue;
-    const s = entry as Record<string, unknown>;
+    const s = isRecord(entry) ? entry : null;
+    if (!s) continue;
     const stickerId =
       parseNumber(s.stickerId ?? s.sticker_id ?? s.stickerid) ?? 0;
     out.push({
@@ -100,26 +102,23 @@ function parseStickers(
   return out.length ? out : undefined;
 }
 
-function pickItemBlock(data: Record<string, unknown>): Record<string, unknown> {
-  if (data.iteminfo && typeof data.iteminfo === "object") {
-    return data.iteminfo as Record<string, unknown>;
-  }
-  if (data.item && typeof data.item === "object") {
-    return data.item as Record<string, unknown>;
-  }
-  if (data.result && typeof data.result === "object") {
-    return data.result as Record<string, unknown>;
-  }
-  return data;
+function pickItemBlock(data: JsonRecord): JsonRecord {
+  return (
+    nestedRecord(data, "iteminfo") ??
+    nestedRecord(data, "item") ??
+    nestedRecord(data, "result") ??
+    data
+  );
 }
 
 export function parseRemoteFloatResponse(body: string): RemoteFloat | null {
-  let data: Record<string, unknown>;
+  let data: unknown;
   try {
-    data = JSON.parse(body) as Record<string, unknown>;
+    data = JSON.parse(body);
   } catch {
     return null;
   }
+  if (!isRecord(data)) return null;
 
   const errText = String(data.error ?? data.message ?? "").toLowerCase();
   if (

@@ -6,6 +6,7 @@ import {
   isRemoteInspectableLink,
 } from "@/lib/inspect/links";
 import { fetchSteamInventoryPage } from "@/lib/steam/steam-proxy";
+import { isRecord } from "@/types/json";
 
 export type SteamDescription = {
   classid: string;
@@ -318,12 +319,16 @@ async function fetchSteamInventoryFromSteam(
       );
     }
 
-    let data: SteamInventoryResponse;
+    let parsed: unknown;
     try {
-      data = JSON.parse(text) as SteamInventoryResponse;
+      parsed = JSON.parse(text);
     } catch {
       throw new Error("Steam returned invalid JSON for inventory.");
     }
+    if (!isRecord(parsed)) {
+      throw new Error("Steam returned invalid JSON for inventory.");
+    }
+    const data = parsed as SteamInventoryResponse;
 
     if (data.success === false || data.success === 0) {
       throw new Error(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TradeUpContractSlots, type SlotDraft } from "@/components/tradeup/TradeUpContractSlots";
 import { TradeUpResultsPanel } from "@/components/tradeup/TradeUpResultsPanel";
@@ -19,7 +19,6 @@ import {
 import {
   CURRENCY_CHANGE_EVENT,
   DEFAULT_CURRENCY,
-  parseCurrency,
   readStoredCurrency,
   type Currency,
 } from "@/lib/currency";
@@ -32,6 +31,7 @@ import {
   type PriceSource,
 } from "@/lib/price-source";
 import {
+  parseRecentProfileEntry,
   readRecentProfiles,
   recentProfileIds,
   rememberRecentProfile,
@@ -46,11 +46,22 @@ import { computeTradeUp } from "@/lib/tradeup/compute";
 import type {
   TradeUpCatalogPayload,
   TradeUpCatalogSkin,
+  TradeUpCollectionRow,
+  TradeUpCrateRow,
   TradeUpInput,
   TradeUpTier,
   TradeUpVariant,
 } from "@/lib/tradeup/types";
 import { PriceSourceToggle } from "@/components/PriceSourceToggle";
+import {
+  apiErrorMessage,
+  parseCreateProfileResponse,
+  parseProfileDetailApiResponse,
+  parseProfileListApiResponse,
+  parseSyncApiResponse,
+} from "@/types/api";
+import { customEventDetail } from "@/types/events";
+import { isRecord, readString } from "@/types/json";
 
 type Mode = "inventory" | "sandbox";
 
@@ -61,6 +72,20 @@ type ProfileOption = {
   steamId: string;
   itemCount: number;
 };
+
+const EMPTY_SKINS = new Map<string, TradeUpCatalogSkin>();
+const EMPTY_COLLECTIONS = new Map<string, TradeUpCollectionRow>();
+const EMPTY_CRATES = new Map<string, TradeUpCrateRow>();
+
+function isTradeUpCatalogPayload(value: unknown): value is TradeUpCatalogPayload {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.skins) &&
+    Array.isArray(value.collections) &&
+    Array.isArray(value.crates) &&
+    isRecord(value.prices)
+  );
+}
 
 function emptySlots(n: number): SlotDraft[] {
   return Array.from({ length: n }, () => null);
@@ -149,7 +174,7 @@ export function TradeUpCalculator() {
     setCurrency(readStoredCurrency());
     setPriceSource(readStoredPriceSource());
     function onCurrency(e: Event) {
-      const next = (e as CustomEvent<Currency>).detail;
+      const next = customEventDetail<Currency>(e);
       if (next) setCurrency(next);
     }
     window.addEventListener(CURRENCY_CHANGE_EVENT, onCurrency);
@@ -162,9 +187,14 @@ export function TradeUpCalculator() {
     setCatalogError(null);
     fetch(`/api/tradeup/catalog?currency=${currency}`)
       .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load catalog");
-        if (!cancelled) setCatalog(data as TradeUpCatalogPayload);
+        const data: unknown = await res.json();
+        if (!res.ok) {
+          throw new Error(apiErrorMessage(data, "Failed to load catalog"));
+        }
+        if (!isTradeUpCatalogPayload(data)) {
+          throw new Error("Trade-up catalog response was invalid.");
+        }
+        if (!cancelled) setCatalog(data);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -183,17 +213,18 @@ export function TradeUpCalculator() {
 
   useEffect(() => {
     void refreshProfileList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot device-local profile load
   }, []);
 
   async function fetchInventory(id: string): Promise<InventoryItemRow[]> {
     const res = await fetch(`/api/profiles/${id}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Failed to load inventory");
-    const raw = (data.items ?? []) as InventoryItemRow[];
-    // Coerce float/paint fields — eligibility uses Number.isFinite and rejects strings.
-    return raw.map((item) => ({
+    const data: unknown = await res.json();
+    if (!res.ok) {
+      throw new Error(apiErrorMessage(data, "Failed to load inventory"));
+    }
+    const parsed = parseProfileDetailApiResponse(data);
+    return parsed.items.map((item) => ({
       ...item,
-      assetId: String(item.assetId),
       exterior:
         typeof item.exterior === "string" && item.exterior.trim()
           ? item.exterior.trim()
@@ -226,86 +257,30 @@ export function TradeUpCalculator() {
       const listRes = await fetch(
         `/api/profiles?ids=${ids.map(encodeURIComponent).join(",")}`,
       );
-      const listData = (await listRes.json()) as {
-        profiles?: Array<{
-          id: string;
-          personaName: string | null;
-          avatarUrl: string | null;
-          steamId: string;
-          itemCount: number;
-          currency?: string;
-          faceitUrl?: string | null;
-          faceitLevel?: number | null;
-          faceitElo?: number | null;
-          faceitNickname?: string | null;
-          faceitFound?: boolean;
-          faceitFetchedAt?: string | Date | null;
-          leetifyUrl?: string | null;
-          leetifyName?: string | null;
-          leetifyRating?: number | null;
-          leetifyFound?: boolean;
-          lastSyncedAt?: string | Date | null;
-          latestSnapshot?: {
-            currency?: string;
-            totalSteam?: number;
-            totalBuff?: number;
-          } | null;
-        }>;
-      };
+      const listData = parseProfileListApiResponse(await listRes.json());
 
-      if (!listRes.ok || !Array.isArray(listData.profiles)) {
+      if (!listRes.ok) {
         setProfiles(profilesFromLocal());
         return;
       }
 
-      const byId = new Map(listData.profiles.map((p) => [p.id, p]));
+      const byId = new Map(listData.profiles.map((p) => [readString(p.id) ?? "", p]));
       const refreshed: RecentProfileEntry[] = [];
       for (const id of ids) {
         const p = byId.get(id);
         if (!p) continue;
-        const faceitFetchedAt =
-          p.faceitFetchedAt instanceof Date
-            ? p.faceitFetchedAt.toISOString()
-            : typeof p.faceitFetchedAt === "string"
-              ? p.faceitFetchedAt
-              : null;
-        const lastSyncedAt =
-          p.lastSyncedAt instanceof Date
-            ? p.lastSyncedAt.toISOString()
-            : typeof p.lastSyncedAt === "string"
-              ? p.lastSyncedAt
-              : null;
-        const currency = parseCurrency(p.currency);
-        const snap = p.latestSnapshot;
-        refreshed.push({
-          id: p.id,
-          steamId: p.steamId,
-          personaName: p.personaName,
-          avatarUrl: p.avatarUrl,
-          currency,
-          faceitUrl: p.faceitUrl ?? null,
-          faceitLevel: p.faceitLevel ?? null,
-          faceitElo: p.faceitElo ?? null,
-          faceitNickname: p.faceitNickname ?? null,
-          faceitFound: Boolean(p.faceitFound),
-          faceitFetchedAt,
-          leetifyUrl: p.leetifyUrl ?? null,
-          leetifyName: p.leetifyName ?? null,
-          leetifyRating: p.leetifyRating ?? null,
-          leetifyFound: Boolean(p.leetifyFound),
-          itemCount: p.itemCount,
-          lastSyncedAt,
-          latestSnapshot:
-            snap &&
-            typeof snap.totalSteam === "number" &&
-            typeof snap.totalBuff === "number"
-              ? {
-                  currency: parseCurrency(snap.currency, currency),
-                  totalSteam: snap.totalSteam,
-                  totalBuff: snap.totalBuff,
-                }
-              : null,
+        const entry = parseRecentProfileEntry({
+          ...p,
+          faceitFetchedAt:
+            p.faceitFetchedAt instanceof Date
+              ? p.faceitFetchedAt.toISOString()
+              : p.faceitFetchedAt,
+          lastSyncedAt:
+            p.lastSyncedAt instanceof Date
+              ? p.lastSyncedAt.toISOString()
+              : p.lastSyncedAt,
         });
+        if (entry) refreshed.push(entry);
       }
 
       writeRecentProfiles(refreshed);
@@ -336,33 +311,26 @@ export function TradeUpCalculator() {
         profileId: id,
       }),
     });
-    const syncData = await syncRes.json().catch(() => ({}));
+    const syncData = parseSyncApiResponse(
+      await syncRes.json().catch(() => null),
+    );
     if (!syncRes.ok) {
       if (
         syncRes.status === 429 ||
-        looksLikeSteamRateLimitMessage(
-          typeof syncData.error === "string" ? syncData.error : null,
-        )
+        looksLikeSteamRateLimitMessage(syncData.error)
       ) {
         markSteamBackoff();
       }
-      throw new Error(
-        typeof syncData.error === "string"
-          ? syncData.error
-          : "Failed to sync inventory",
-      );
+      throw new Error(syncData.error ?? "Failed to sync inventory");
     }
     if (
       syncData.usedCachedInventory ||
-      looksLikeSteamRateLimitMessage(
-        typeof syncData.warning === "string" ? syncData.warning : null,
-      )
+      looksLikeSteamRateLimitMessage(syncData.warning)
     ) {
       markSteamBackoff();
     }
     return {
-      inspected:
-        typeof syncData.inspected === "number" ? syncData.inspected : 0,
+      inspected: syncData.inspected ?? 0,
       itemCount:
         typeof syncData.itemCount === "number" ? syncData.itemCount : 0,
       warning:
@@ -418,6 +386,7 @@ export function TradeUpCalculator() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- local fetch/sync helpers
   }, [mode, profileId]);
 
   const helpers = useMemo(
@@ -452,7 +421,10 @@ export function TradeUpCalculator() {
     setSlots((prev) => resizeSlots(prev, slotCount));
   }, [slotCount]);
 
-  const filled = slots.filter(Boolean) as TradeUpInput[];
+  const filled = useMemo(
+    () => slots.filter((slot): slot is TradeUpInput => slot != null),
+    [slots],
+  );
   const filledCount = filled.length;
   const remainingSlots = slotCount - filledCount;
 
@@ -495,18 +467,18 @@ export function TradeUpCalculator() {
     priceSource,
   ]);
 
-  function clearContract() {
+  const clearContract = useCallback(() => {
     setSlots(emptySlots(slotCount));
     setLockedTier(null);
     setLockedVariant(null);
-  }
+  }, [slotCount]);
 
-  function lockFromFirst(tier: TradeUpTier, variant: TradeUpVariant) {
+  const lockFromFirst = useCallback((tier: TradeUpTier, variant: TradeUpVariant) => {
     setLockedTier(tier);
     setLockedVariant(variant);
-  }
+  }, []);
 
-  function addSandboxSkin(skin: TradeUpCatalogSkin, variant: TradeUpVariant) {
+  const addSandboxSkin = useCallback((skin: TradeUpCatalogSkin, variant: TradeUpVariant) => {
     if (!catalog) return;
     if (lockedTier && skin.rarityTier !== lockedTier) return;
     if (lockedVariant && variant !== lockedVariant) return;
@@ -546,9 +518,18 @@ export function TradeUpCalculator() {
     });
     setActiveSlotIndex(null);
     if (remainingSlots <= 1) setPickerOpen(false);
-  }
+  }, [
+    catalog,
+    lockedTier,
+    lockedVariant,
+    lockFromFirst,
+    slotCount,
+    activeSlotIndex,
+    remainingSlots,
+    priceSource,
+  ]);
 
-  function toggleInventoryItem(item: InventoryItemRow) {
+  const toggleInventoryItem = useCallback((item: InventoryItemRow) => {
     if (!helpers || !catalog) return;
     const el = inventoryItemEligibility(
       item,
@@ -593,7 +574,70 @@ export function TradeUpCalculator() {
       return next;
     });
     setActiveSlotIndex(null);
-  }
+  }, [
+    helpers,
+    catalog,
+    selectedInventoryKeys,
+    lockedTier,
+    lockedVariant,
+    lockFromFirst,
+    activeSlotIndex,
+    priceSource,
+  ]);
+
+  const closePicker = useCallback(() => {
+    setPickerOpen(false);
+    setActiveSlotIndex(null);
+  }, []);
+
+  const onRemoveSlot = useCallback((index: number) => {
+    setSlots((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      if (next.every((s) => s == null)) {
+        setLockedTier(null);
+        setLockedVariant(null);
+      }
+      return next;
+    });
+  }, []);
+
+  const onFloatChange = useCallback(
+    (index: number, floatValue: number) => {
+      setSlots((prev) => {
+        const next = [...prev];
+        const cur = next[index];
+        if (!cur || !helpers) return prev;
+        const skin = helpers.skinsById.get(cur.skinId);
+        const clamped = skin
+          ? Math.min(skin.maxFloat, Math.max(skin.minFloat, floatValue))
+          : floatValue;
+        next[index] = { ...cur, floatValue: clamped };
+        return next;
+      });
+    },
+    [helpers],
+  );
+
+  const onCostChange = useCallback((index: number, cost: number) => {
+    setSlots((prev) => {
+      const next = [...prev];
+      const cur = next[index];
+      if (!cur) return prev;
+      next[index] = { ...cur, cost };
+      return next;
+    });
+  }, []);
+
+  const onPickSlot = useCallback((index: number) => {
+    setActiveSlotIndex(index);
+    setPickerOpen(true);
+  }, []);
+
+  const onOpenPicker = useCallback(() => {
+    setActiveSlotIndex(null);
+    setPickerOpen(true);
+  }, []);
 
   async function loadProfileFromInput() {
     const input = profileInput.trim();
@@ -606,38 +650,17 @@ export function TradeUpCalculator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input }),
       });
-      const createData = await createRes.json();
-      if (!createRes.ok) {
+      const createData = parseCreateProfileResponse(await createRes.json());
+      if (!createRes.ok || !createData.profile) {
         throw new Error(createData.error ?? "Failed to resolve profile");
       }
-      const id = createData.profile.id as string;
-      const profile = createData.profile as {
-        id: string;
-        steamId?: string;
-        personaName?: string | null;
-        avatarUrl?: string | null;
-      };
-      if (profile.steamId) {
-        rememberRecentProfile({
-          id: profile.id,
-          steamId: profile.steamId,
-          personaName: profile.personaName ?? null,
-          avatarUrl: profile.avatarUrl ?? null,
-          currency: DEFAULT_CURRENCY,
-          faceitUrl: null,
-          faceitLevel: null,
-          faceitElo: null,
-          faceitNickname: null,
-          faceitFound: false,
-          faceitFetchedAt: null,
-          leetifyUrl: null,
-          leetifyName: null,
-          leetifyRating: null,
-          leetifyFound: false,
-          itemCount: 0,
-          lastSyncedAt: null,
-          latestSnapshot: null,
-        });
+      const id = readString(createData.profile.id);
+      if (!id) {
+        throw new Error("Failed to resolve profile");
+      }
+      const remembered = parseRecentProfileEntry(createData.profile);
+      if (remembered) {
+        rememberRecentProfile(remembered);
       }
       // Allow the profile effect to auto-sync if this profile has no items yet.
       autoSyncedRef.current.delete(id);
@@ -849,10 +872,7 @@ export function TradeUpCalculator() {
               </h2>
               <button
                 type="button"
-                onClick={() => {
-                  setActiveSlotIndex(null);
-                  setPickerOpen(true);
-                }}
+                onClick={onOpenPicker}
                 disabled={
                   remainingSlots <= 0 ||
                   (mode === "inventory" && !profileId) ||
@@ -866,49 +886,13 @@ export function TradeUpCalculator() {
             <TradeUpContractSlots
               slots={slots}
               currency={currency}
-              skinsById={helpers?.skinsById ?? new Map()}
-              collectionsById={helpers?.ctx.collectionsById ?? new Map()}
-              cratesById={helpers?.ctx.cratesById ?? new Map()}
-              onRemove={(index) => {
-                setSlots((prev) => {
-                  const next = [...prev];
-                  next[index] = null;
-                  if (next.every((s) => s == null)) {
-                    setLockedTier(null);
-                    setLockedVariant(null);
-                  }
-                  return next;
-                });
-              }}
-              onFloatChange={(index, floatValue) => {
-                setSlots((prev) => {
-                  const next = [...prev];
-                  const cur = next[index];
-                  if (!cur || !helpers) return prev;
-                  const skin = helpers.skinsById.get(cur.skinId);
-                  const clamped = skin
-                    ? Math.min(
-                        skin.maxFloat,
-                        Math.max(skin.minFloat, floatValue),
-                      )
-                    : floatValue;
-                  next[index] = { ...cur, floatValue: clamped };
-                  return next;
-                });
-              }}
-              onCostChange={(index, cost) => {
-                setSlots((prev) => {
-                  const next = [...prev];
-                  const cur = next[index];
-                  if (!cur) return prev;
-                  next[index] = { ...cur, cost };
-                  return next;
-                });
-              }}
-              onPickSlot={(index) => {
-                setActiveSlotIndex(index);
-                setPickerOpen(true);
-              }}
+              skinsById={helpers?.skinsById ?? EMPTY_SKINS}
+              collectionsById={helpers?.ctx.collectionsById ?? EMPTY_COLLECTIONS}
+              cratesById={helpers?.ctx.cratesById ?? EMPTY_CRATES}
+              onRemove={onRemoveSlot}
+              onFloatChange={onFloatChange}
+              onCostChange={onCostChange}
+              onPickSlot={onPickSlot}
             />
           </section>
 
@@ -922,10 +906,7 @@ export function TradeUpCalculator() {
                 lockedVariant={lockedVariant}
                 remainingSlots={remainingSlots}
                 onPick={addSandboxSkin}
-                onClose={() => {
-                  setPickerOpen(false);
-                  setActiveSlotIndex(null);
-                }}
+                onClose={closePicker}
               />
             ) : (
               <TradeUpInventoryPicker
@@ -940,10 +921,7 @@ export function TradeUpCalculator() {
                 currency={currency}
                 priceSource={priceSource}
                 onToggle={toggleInventoryItem}
-                onClose={() => {
-                  setPickerOpen(false);
-                  setActiveSlotIndex(null);
-                }}
+                onClose={closePicker}
               />
             )
           ) : null}

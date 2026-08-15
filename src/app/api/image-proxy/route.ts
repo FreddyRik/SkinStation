@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonError } from "@/lib/api/errors";
 import { isAllowedImageHost } from "@/lib/share-card";
 import { SITE_USER_AGENT } from "@/lib/site";
 
@@ -69,53 +70,41 @@ async function fetchAllowlistedImage(startUrl: URL): Promise<Response> {
 export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("url");
   if (!raw) {
-    return NextResponse.json({ error: "url is required." }, { status: 400 });
+    return jsonError("url is required.", 400);
   }
 
   let target: URL;
   try {
     target = new URL(raw);
   } catch {
-    return NextResponse.json({ error: "Invalid url." }, { status: 400 });
+    return jsonError("Invalid url.", 400);
   }
 
   if (!isSafeImageUrl(target)) {
-    return NextResponse.json({ error: "Host not allowed." }, { status: 403 });
+    return jsonError("Host not allowed.", 403);
   }
 
   try {
     const upstream = await fetchAllowlistedImage(target);
 
     if (!upstream.ok) {
-      return NextResponse.json(
-        { error: `Upstream failed (${upstream.status}).` },
-        { status: 502 },
-      );
+      return jsonError(`Upstream failed (${upstream.status}).`, 502);
     }
 
     const contentType =
       upstream.headers.get("content-type") ?? "application/octet-stream";
     if (!contentType.startsWith("image/")) {
-      return NextResponse.json(
-        { error: "Upstream did not return an image." },
-        { status: 502 },
-      );
+      return jsonError("Upstream did not return an image.", 502);
     }
 
     const contentLength = upstream.headers.get("content-length");
     if (contentLength && Number(contentLength) > MAX_IMAGE_BYTES) {
-      return NextResponse.json(
-        { error: "Image exceeds size limit." },
-        { status: 502 },
-      );
+      return jsonError("Image exceeds size limit.", 502);
     }
 
     const reader = upstream.body?.getReader();
     if (!reader) {
-      return NextResponse.json(
-        { error: "Upstream returned an empty body." },
-        { status: 502 },
-      );
+      return jsonError("Upstream returned an empty body.", 502);
     }
 
     const chunks: Uint8Array[] = [];
@@ -126,10 +115,7 @@ export async function GET(req: NextRequest) {
       total += value.byteLength;
       if (total > MAX_IMAGE_BYTES) {
         await reader.cancel();
-        return NextResponse.json(
-          { error: "Image exceeds size limit." },
-          { status: 502 },
-        );
+        return jsonError("Image exceeds size limit.", 502);
       }
       chunks.push(value);
     }
@@ -152,11 +138,8 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     if (err instanceof ProxyHttpError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
+      return jsonError(err.message, err.status);
     }
-    return NextResponse.json(
-      { error: "Failed to fetch image." },
-      { status: 502 },
-    );
+    return jsonError("Failed to fetch image.", 502);
   }
 }

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { parseCurrency, type Currency } from "@/lib/currency";
+import { parseCurrency } from "@/lib/currency";
+import { jsonError, jsonOk, logApiError } from "@/lib/api/errors";
 import { buildTradeUpCatalogPayload } from "@/lib/tradeup/catalog";
 
 export const dynamic = "force-dynamic";
@@ -7,17 +7,11 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const currency = parseCurrency(
-      url.searchParams.get("currency"),
-      "USD",
-    ) as Currency;
+    const currency = parseCurrency(url.searchParams.get("currency"), "USD");
     const payload = await buildTradeUpCatalogPayload(currency);
-    return NextResponse.json(payload);
+    return jsonOk(payload);
   } catch (err) {
-    console.error("Trade-up catalog API failed:", err);
-    return NextResponse.json(
-      { error: "Failed to load trade-up catalog." },
-      { status: 502 },
-    );
+    logApiError("Trade-up catalog API failed:", err);
+    return jsonError("Failed to load trade-up catalog.", 502);
   }
 }

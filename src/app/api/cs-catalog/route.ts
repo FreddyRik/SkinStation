@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import {
   enrichSlimItemsWithPrices,
   getCatalogPayload,
 } from "@/lib/cs-catalog";
+import { jsonError, jsonOk, logApiError } from "@/lib/api/errors";
 import { getCsgoTraderSteamCatalog } from "@/lib/steam-market/csgotrader";
 
 export const dynamic = "force-dynamic";
@@ -17,15 +17,12 @@ export async function GET() {
     } catch (err) {
       console.warn("CS catalog price enrich failed:", err);
     }
-    return NextResponse.json({
+    return jsonOk({
       items,
       collections: payload.collections,
     });
   } catch (err) {
-    console.error("CS catalog API failed:", err);
-    return NextResponse.json(
-      { error: "Failed to load CS item catalog." },
-      { status: 502 },
-    );
+    logApiError("CS catalog API failed:", err);
+    return jsonError("Failed to load CS item catalog.", 502);
   }
 }

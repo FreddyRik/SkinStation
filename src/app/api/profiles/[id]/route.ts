@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
 import {
   buffGoodsIdFor,
   getBuffGoodsIdMap,
 } from "@/lib/buff/goods-ids";
 import { prisma } from "@/lib/db";
+import { jsonError, jsonOk, logApiError } from "@/lib/api/errors";
 import { portfolioTotalFromItems } from "@/lib/price-source";
 import { itemSupportsStickers } from "@/lib/item-flags";
 import { parseStickersJson } from "@/lib/stickers/parse";
@@ -28,7 +28,7 @@ export async function GET(_req: Request, { params }: Params) {
     });
 
     if (!profile) {
-      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+      return jsonError("Profile not found.", 404);
     }
 
     let goodsIds = new Map<string, number>();
@@ -49,7 +49,7 @@ export async function GET(_req: Request, { params }: Params) {
     const totalSteam = portfolioTotalFromItems(items, "steam");
     const totalBuff = portfolioTotalFromItems(items, "buff");
 
-    return NextResponse.json({
+    return jsonOk({
       profile: {
         id: profile.id,
         steamId: profile.steamId,
@@ -80,10 +80,7 @@ export async function GET(_req: Request, { params }: Params) {
       },
     });
   } catch (err) {
-    console.error("Failed to load profile:", err);
-    return NextResponse.json(
-      { error: "Failed to load profile." },
-      { status: 500 },
-    );
+    logApiError("Failed to load profile:", err);
+    return jsonError("Failed to load profile.", 500);
   }
 }
