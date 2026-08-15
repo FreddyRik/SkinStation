@@ -221,13 +221,77 @@ export function ProfileLookup({
     }
   }
 
-  return (
-    <div className="space-y-8">
-      <section
-        className={`et-card relative overflow-hidden p-6 sm:p-10 ${
-          accentGlow ? "shadow-[0_0_60px_-12px_rgba(200,121,65,0.28)]" : ""
-        }`}
+  const commandBar = (
+    <form
+      onSubmit={onSubmit}
+      className={
+        accentGlow
+          ? "mx-auto mt-8 flex w-full max-w-3xl items-stretch overflow-hidden rounded-full bg-[#131A2A] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)] transition-all duration-[400ms] ease-in-out focus-within:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8),0_0_0_1px_#C87941,0_0_36px_rgba(200,121,65,0.38)]"
+          : "et-command mx-auto mt-6 max-w-xl"
+      }
+    >
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="https://steamcommunity.com/id/yourname or SteamID64"
+        className={
+          accentGlow
+            ? "min-w-0 flex-1 bg-transparent px-6 py-4 text-left text-white outline-none placeholder:text-[#8B95A5] sm:px-8 sm:py-5 sm:text-lg"
+            : "et-command-input text-left"
+        }
+        disabled={loading}
+        required
+      />
+      <button
+        type="submit"
+        disabled={loading || !input.trim()}
+        className={
+          accentGlow
+            ? "m-1.5 shrink-0 rounded-full bg-[#C87941] px-5 py-3 font-semibold text-[#0A0F1D] transition-all duration-[400ms] ease-in-out hover:bg-[#e09a62] disabled:cursor-not-allowed disabled:opacity-50 sm:m-2 sm:px-7 sm:text-base"
+            : "et-command-submit"
+        }
       >
+        {loading ? "Loading…" : "Load inventory"}
+      </button>
+    </form>
+  );
+
+  const lookupNotes = (
+    <>
+      {syncNote && (
+        <p className="text-sm text-[var(--steam)]">{syncNote}</p>
+      )}
+      {error && (
+        <p className="text-sm text-[var(--danger)]">{error}</p>
+      )}
+      <p className="text-xs text-[var(--text-muted)]">
+        Inventory must be set to Public on Steam. First sync may take longer
+        while floats and prices are fetched.
+      </p>
+    </>
+  );
+
+  return (
+    <div className={accentGlow ? "" : "space-y-8"}>
+      {accentGlow ? (
+        <section className="flex min-h-[100dvh] flex-col items-center justify-center px-4 pb-16 pt-28 text-center sm:px-6 sm:pt-32">
+          <div className="relative mx-auto w-full max-w-4xl space-y-5">
+            <p className="text-sm font-medium uppercase tracking-[0.28em] text-[#C87941]">
+              Public Steam inventory
+            </p>
+            <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl lg:leading-[1.05]">
+              Your one-stop for CS2 skins
+            </h1>
+            <p className="mx-auto max-w-2xl text-base leading-relaxed text-[#8B95A5] sm:text-lg">
+              Track your inventory, browse the skin catalog, and run trade-up
+              odds. Paste a Steam profile URL or SteamID64 to get started.
+            </p>
+            {commandBar}
+            {lookupNotes}
+          </div>
+        </section>
+      ) : (
+      <section className="et-card relative overflow-hidden p-6 sm:p-10">
         {atmosphere}
         <div
           aria-hidden
@@ -238,12 +302,6 @@ export function ProfileLookup({
             backgroundSize: "28px 28px",
           }}
         />
-        {accentGlow ? (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent)]/60 to-transparent"
-          />
-        ) : null}
         <div className="relative mx-auto max-w-2xl space-y-4 text-center">
           <p className="text-sm uppercase tracking-[0.18em] text-[var(--accent-dim)]">
             Public Steam inventory
@@ -255,55 +313,14 @@ export function ProfileLookup({
             Track your inventory, browse the skin catalog, and run trade-up
             odds. Paste a Steam profile URL or SteamID64 to get started.
           </p>
-
-          {accentGlow ? (
-            <div
-              aria-hidden
-              className="mx-auto h-1 w-full max-w-md overflow-hidden rounded-full"
-              style={{
-                background:
-                  "linear-gradient(90deg, #b0c3d9 0%, #5e98d9 16%, #4b69ff 33%, #8847ff 50%, #d32ce6 66%, #eb4b4b 83%, #e4ae39 100%)",
-                opacity: 0.85,
-              }}
-            />
-          ) : null}
-
-          <form
-            onSubmit={onSubmit}
-            className="et-command mx-auto mt-6 max-w-xl"
-          >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="https://steamcommunity.com/id/yourname or SteamID64"
-              className="et-command-input text-left"
-              disabled={loading}
-              required
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className={`et-command-submit ${accentGlow ? "home-load-btn" : ""}`}
-            >
-              {loading ? "Loading…" : "Load inventory"}
-            </button>
-          </form>
-
-          {syncNote && (
-            <p className="text-sm text-[var(--steam)]">{syncNote}</p>
-          )}
-          {error && (
-            <p className="text-sm text-[var(--danger)]">{error}</p>
-          )}
-          <p className="text-xs text-[var(--text-muted)]">
-            Inventory must be set to Public on Steam. First sync may take longer
-            while floats and prices are fetched.
-          </p>
+          {commandBar}
+          {lookupNotes}
         </div>
       </section>
+      )}
 
       {recentProfiles.length > 0 && (
-        <section className="mx-auto max-w-3xl space-y-4">
+        <section className={`mx-auto max-w-3xl space-y-4 ${accentGlow ? "px-4 pb-12 sm:px-6" : ""}`}>
           <h2 className="text-center text-lg font-medium text-[var(--text)]">
             Recent on this device
           </h2>
