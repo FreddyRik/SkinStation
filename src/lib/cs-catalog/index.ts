@@ -99,6 +99,17 @@ export {
 } from "@/lib/cs-catalog/rarity-order";
 
 export {
+  DEFAULT_CATALOG_SORT,
+  CATALOG_SORT_LABELS,
+  isCatalogSort,
+  parseCatalogSort,
+  catalogItemSortPrice,
+  sortCatalogItems,
+} from "@/lib/cs-catalog/sort";
+
+export type { CatalogPricedItem } from "@/lib/cs-catalog/sort";
+
+export {
   containsLooksLikeGlove,
   containsLooksLikeKnife,
   inferRareSpecialCategory,
