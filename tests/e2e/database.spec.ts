@@ -54,6 +54,9 @@ test.describe("skin database", () => {
           patternName: "Fade",
           priceMinUsd: null,
           priceMaxUsd: null,
+          stattrak: false,
+          stattrakPriceMinUsd: null,
+          stattrakPriceMaxUsd: null,
           rarity: {
             id: "rarity_rare_weapon",
             name: "Mil-Spec Grade",
