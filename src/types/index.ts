@@ -24,4 +24,5 @@ export type {
 } from "@/types/inventory";
 export type { ReputationView } from "@/types/reputation";
 export type { BuyFromBuffOffer, BuyFromSteamOffer } from "@/types/market";
+export { CATALOG_SORTS, type CatalogSort } from "@/types/catalog";
 export { customEventDetail } from "@/types/events";

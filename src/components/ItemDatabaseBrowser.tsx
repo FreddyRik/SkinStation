@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
+  DEFAULT_CATALOG_SORT,
   DEFAULT_NAV_FILTER,
   buildLatestReleaseCards,
   groupPhasedSkins,
@@ -11,7 +12,8 @@ import {
   itemMatchesNavFilter,
   navFilterForWeapon,
   navFilterLabel,
-  sortByRarityDesc,
+  parseCatalogSort,
+  sortCatalogItems,
   toContainsItem,
   weaponCases,
   type BrowseCatalogItem,
@@ -23,13 +25,18 @@ import {
 } from "@/lib/cs-catalog";
 import { CatalogCard } from "@/components/database/CatalogCard";
 import { CatalogNavRail } from "@/components/database/CatalogNavRail";
+import { CatalogSortSelect } from "@/components/database/CatalogSortSelect";
 import { CollectionCard } from "@/components/database/CollectionCard";
 import { LatestReleases } from "@/components/database/LatestReleases";
 import { RareSpecialItemsCard } from "@/components/RareSpecialItemsCard";
-import { collectionHref } from "@/components/database/catalog-links";
+import {
+  collectionHref,
+  databaseHref,
+} from "@/components/database/catalog-links";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SearchField } from "@/components/ui/SearchField";
 import { SkeletonCardGrid } from "@/components/ui/Skeleton";
+import type { CatalogSort } from "@/types/catalog";
 import {
   CURRENCY_CHANGE_EVENT,
   DEFAULT_CURRENCY,
@@ -76,6 +83,7 @@ export function ItemDatabaseBrowser() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<NavFilter>(DEFAULT_NAV_FILTER);
+  const [sort, setSort] = useState<CatalogSort>(DEFAULT_CATALOG_SORT);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [urlHydrated, setUrlHydrated] = useState(false);
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
@@ -129,6 +137,7 @@ export function ItemDatabaseBrowser() {
     const weapon = searchParams.get("weapon");
     const other = searchParams.get("other") as OtherNavKey | null;
     const crateId = searchParams.get("crate");
+    setSort(parseCatalogSort(searchParams.get("sort")));
 
     if (
       (section === "pistols" ||
@@ -229,7 +238,7 @@ export function ItemDatabaseBrowser() {
 
   useEffect(() => {
     setVisible(PAGE_SIZE);
-  }, [deferredQuery, filter]);
+  }, [deferredQuery, filter, sort]);
 
   const caseNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -255,11 +264,12 @@ export function ItemDatabaseBrowser() {
   const filteredItems = useMemo(() => {
     if (filter.section === "collections") return [];
     if (showHomeLanding) return [];
-    return browseItems.filter((item) => {
+    const matched = browseItems.filter((item) => {
       if (!isHome && !itemMatchesNavFilter(item, filter)) return false;
       return matchesQuery(itemSearchBlob(item), deferredQuery);
     });
-  }, [browseItems, filter, deferredQuery, isHome, showHomeLanding]);
+    return sortCatalogItems(matched, sort);
+  }, [browseItems, filter, deferredQuery, isHome, showHomeLanding, sort]);
 
   const caseContents = useMemo(() => {
     if (filter.section !== "cases" || !filter.crateId || deferredQuery) {
@@ -286,10 +296,13 @@ export function ItemDatabaseBrowser() {
       crateId,
       crate,
       gold: showGoldCard ? gold : [],
-      items: sortByRarityDesc(showGoldCard ? regular : [...regular, ...gold]),
+      items: sortCatalogItems(
+        showGoldCard ? regular : [...regular, ...gold],
+        sort,
+      ),
       showGoldCard,
     };
-  }, [filter, filteredItems, deferredQuery, browseItems]);
+  }, [filter, filteredItems, deferredQuery, browseItems, sort]);
 
   const displayItems = caseContents ? caseContents.items : filteredItems;
 
@@ -323,31 +336,16 @@ export function ItemDatabaseBrowser() {
 
   function applyFilter(next: NavFilter) {
     setFilter(next);
-    // Keep shareable URLs for weapon / section deep links.
-    if (next.section === "home") {
-      router.replace("/database", { scroll: false });
-      return;
-    }
-    const params = new URLSearchParams();
-    params.set("section", next.section);
-    if (
-      (next.section === "pistols" ||
-        next.section === "mid_tier" ||
-        next.section === "rifles" ||
-        next.section === "knives" ||
-        next.section === "gloves") &&
-      next.weapon
-    ) {
-      params.set("weapon", next.weapon);
-    }
-    if (next.section === "cases" && next.crateId) {
-      params.set("crate", next.crateId);
-    }
-    if (next.section === "other") {
-      params.set("other", next.other);
-    }
-    router.replace(`/database?${params.toString()}`, { scroll: false });
+    router.replace(databaseHref(next, sort), { scroll: false });
   }
+
+  function applySort(next: CatalogSort) {
+    setSort(next);
+    router.replace(databaseHref(filter, next), { scroll: false });
+  }
+
+  const showSort =
+    !showHomeLanding && filter.section !== "collections";
 
   function onReleaseActivate(card: LatestReleaseCard) {
     if (card.filter) applyFilter(card.filter);
@@ -395,6 +393,9 @@ export function ItemDatabaseBrowser() {
           ariaLabel="Search catalog"
           placeholder="Search by name, weapon, pattern…"
         />
+        {showSort ? (
+          <CatalogSortSelect value={sort} onChange={applySort} />
+        ) : null}
         <p className="type-overline shrink-0 sm:text-right">{resultsLabel}</p>
       </div>
 

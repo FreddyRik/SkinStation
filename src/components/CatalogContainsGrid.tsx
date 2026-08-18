@@ -1,17 +1,23 @@
+"use client";
+
 import type { CSSProperties, ReactNode } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CatalogPriceText } from "@/components/CatalogPriceText";
+import { CatalogSortSelect } from "@/components/database/CatalogSortSelect";
 import { KnifeBadge } from "@/components/database/CatalogBadges";
 import {
+  DEFAULT_CATALOG_SORT,
   collapsePhasedContains,
   containsLooksLikeKnife,
   formatPhaseShort,
   phaseAccent,
   resolveSkinPhase,
-  sortByRarityDesc,
+  sortCatalogItems,
   type CatalogContainsItem,
   type CatalogNamedRef,
 } from "@/lib/cs-catalog";
+import type { CatalogSort } from "@/types/catalog";
 
 export type ContainsGridItem = CatalogContainsItem & {
   priceMinUsd?: number | null;
@@ -44,7 +50,11 @@ export function CatalogContainsGrid({
   leading?: ReactNode;
 }) {
   const familyNames = multiPhaseFamilyNames(items);
-  const displayItems = sortByRarityDesc(collapsePhasedContains(items));
+  const [sort, setSort] = useState<CatalogSort>(DEFAULT_CATALOG_SORT);
+  const displayItems = useMemo(
+    () => sortCatalogItems(collapsePhasedContains(items), sort),
+    [items, sort],
+  );
 
   if (displayItems.length === 0 && !leading) {
     return (
@@ -53,76 +63,83 @@ export function CatalogContainsGrid({
   }
 
   return (
-    <ul className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-      {leading ? <li>{leading}</li> : null}
-      {displayItems.map((item) => {
-        const knife = containsLooksLikeKnife(item.name);
-        const isPhaseFamily = familyNames.has(item.name.trim());
-        const phase = isPhaseFamily
-          ? null
-          : resolveSkinPhase({
-              paintIndex: item.paint_index,
-            });
-        const phaseShort = formatPhaseShort(phase);
-        const rarityVar = {
-          "--rarity": item.rarity?.color?.trim() || "var(--accent)",
-        } as CSSProperties;
-        return (
-          <li key={item.id}>
-            <Link
-              href={`/database/${encodeURIComponent(item.id)}`}
-              style={rarityVar}
-              className="rarity-frame group flex h-full flex-col gap-2 rounded-xl border bg-[var(--bg-elevated)]/40 p-3"
-            >
-              <div className="flex h-24 items-center justify-center rounded-lg bg-[var(--bg)]/70">
-                {item.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.image}
-                    alt=""
-                    className="max-h-full max-w-full object-contain"
-                    loading="lazy"
-                  />
-                ) : (
-                  <span className="text-xs text-[var(--text-muted)]">—</span>
-                )}
-              </div>
-              <div className="flex items-start gap-1.5">
-                {knife ? <KnifeBadge /> : null}
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium leading-snug text-[var(--text)] transition group-hover:text-[var(--accent)]">
-                    {item.name}
-                    {phaseShort ? (
-                      <span
-                        className="ml-1 font-mono font-bold"
-                        style={{ color: phaseAccent(phase) }}
-                      >
-                        {phaseShort}
-                      </span>
-                    ) : null}
-                  </p>
-                  {isPhaseFamily ? (
-                    <p className="type-overline mt-1">Multiple phases</p>
-                  ) : null}
+    <div className="space-y-3">
+      {displayItems.length > 1 ? (
+        <div className="flex justify-end">
+          <CatalogSortSelect value={sort} onChange={setSort} />
+        </div>
+      ) : null}
+      <ul className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        {leading ? <li>{leading}</li> : null}
+        {displayItems.map((item) => {
+          const knife = containsLooksLikeKnife(item.name);
+          const isPhaseFamily = familyNames.has(item.name.trim());
+          const phase = isPhaseFamily
+            ? null
+            : resolveSkinPhase({
+                paintIndex: item.paint_index,
+              });
+          const phaseShort = formatPhaseShort(phase);
+          const rarityVar = {
+            "--rarity": item.rarity?.color?.trim() || "var(--accent)",
+          } as CSSProperties;
+          return (
+            <li key={item.id}>
+              <Link
+                href={`/database/${encodeURIComponent(item.id)}`}
+                style={rarityVar}
+                className="rarity-frame group flex h-full flex-col gap-2 rounded-xl border bg-[var(--bg-elevated)]/40 p-3"
+              >
+                <div className="flex h-24 items-center justify-center rounded-lg bg-[var(--bg)]/70">
+                  {item.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.image}
+                      alt=""
+                      className="max-h-full max-w-full object-contain"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="text-xs text-[var(--text-muted)]">—</span>
+                  )}
                 </div>
-              </div>
-              {item.rarity ? (
-                <p
-                  className="type-overline truncate"
-                  style={{ color: item.rarity.color }}
-                >
-                  {item.rarity.name}
-                </p>
-              ) : null}
-              <CatalogPriceText
-                minUsd={item.priceMinUsd ?? null}
-                maxUsd={item.priceMaxUsd ?? null}
-              />
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+                <div className="flex items-start gap-1.5">
+                  {knife ? <KnifeBadge /> : null}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium leading-snug text-[var(--text)] transition group-hover:text-[var(--accent)]">
+                      {item.name}
+                      {phaseShort ? (
+                        <span
+                          className="ml-1 font-mono font-bold"
+                          style={{ color: phaseAccent(phase) }}
+                        >
+                          {phaseShort}
+                        </span>
+                      ) : null}
+                    </p>
+                    {isPhaseFamily ? (
+                      <p className="type-overline mt-1">Multiple phases</p>
+                    ) : null}
+                  </div>
+                </div>
+                {item.rarity ? (
+                  <p
+                    className="type-overline truncate"
+                    style={{ color: item.rarity.color }}
+                  >
+                    {item.rarity.name}
+                  </p>
+                ) : null}
+                <CatalogPriceText
+                  minUsd={item.priceMinUsd ?? null}
+                  maxUsd={item.priceMaxUsd ?? null}
+                />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

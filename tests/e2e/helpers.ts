@@ -41,7 +41,7 @@ export const TEST_PROFILE = {
   itemCount: 2,
 };
 
-export function slimCatalogItem() {
+export function slimCatalogItem(overrides: Record<string, unknown> = {}) {
   return {
     id: "skin-ak-redline",
     name: "AK-47 | Redline",
@@ -75,6 +75,7 @@ export function slimCatalogItem() {
     priceMaxUsd: 40,
     stattrakPriceMinUsd: 20,
     stattrakPriceMaxUsd: 80,
+    ...overrides,
   };
 }
 

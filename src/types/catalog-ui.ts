@@ -5,6 +5,7 @@ import type {
   SlimCatalogItem,
   SlimCollection,
 } from "@/lib/cs-catalog";
+import type { CatalogSort } from "@/types/catalog";
 
 export type UsdRangeFormatter = (
   min: number | null,
@@ -35,4 +36,11 @@ export type CatalogNavRailProps = {
   collections: SlimCollection[];
   onApplyFilter: (next: NavFilter) => void;
   onNavigateCollection: (id: string) => void;
+};
+
+export type CatalogSortSelectProps = {
+  value: CatalogSort;
+  onChange: (value: CatalogSort) => void;
+  className?: string;
+  disabled?: boolean;
 };
